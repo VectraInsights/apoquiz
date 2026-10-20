@@ -458,7 +458,63 @@ cobre) — o app reflete o material como ele é.
 
 ---
 
-## 13. Estado final
+## 13. Validação de ponta a ponta na apostila real
+
+A apostila usada na §11 é o arquivo
+`QUESTOES PORTUGUES E RACIOCINIO.pdf`, da pasta
+`ContagemMG_-_Auditor_TI` (Prefeitura de Contagem/MG — Auditor de Controle
+Interno/TI, 2026 — 11,8 MB, 2.706 páginas, 3.361.729 caracteres).
+
+### No terminal
+
+```bash
+$ npm run cache:pdf -- "…/QUESTOES PORTUGUES E RACIOCINIO.pdf" cache.json
+QUESTOES PORTUGUES E RACIOCINIO.pdf -> cache.json (2706 paginas)
+
+$ npm run check:pdf -- "…/QUESTOES PORTUGUES E RACIOCINIO.pdf"
+GABARITO (1824)
+=> 1824 questoes, 1824 com resposta, 0 sem resposta
+
+$ npm run check:resolutions -- cache.json
+questoes:            1824
+com explicacao:      1824
+com analise por alt: 1824
+com ambos completos: 1808
+distribuicao de notas por questao: 17, 1807
+```
+
+As 16 questões sem análise completa são casos em que o **próprio PDF** não
+repete a alternativa correta na seção de análise.
+
+### No navegador (build de produção)
+
+Upload do arquivo de 11,8 MB:
+
+| Etapa | Resultado |
+| --- | --- |
+| Extração do texto | 2.706 páginas percorridas com barra de progresso |
+| Tela de configuração | 1.824 questões · 1.824 com gabarito · 1.824 "Do PDF" |
+| Filtro por assunto | todas as disciplinas populadas (Ortografia, Acentuação, Crase, Porcentagem, Análise Combinatória…) |
+| Quiz | “Boa! Você acertou.” + explicação do PDF + seção **“Por que cada alternativa”** com A–E |
+| Resultado | 1 acerto de 1.824, desempenho por assunto, impressão e exportação JSON |
+
+Nenhuma chamada à IA foi necessária: gabarito, explicação e análise por
+alternativa saíram todos do PDF.
+
+### Tempos
+
+| Etapa | Tempo |
+| --- | --- |
+| Extração (pdf.js + reconstrução de linhas) | ~28 s em Node, ~2 min no navegador |
+| Parser (1.824 questões + 1.824 resoluções) | ~1 s |
+
+O limite de upload (25 MB) e o de 150 questões enviadas à IA não atrapalham:
+esta apostila tem 11,8 MB e todas as 1.824 questões ficam completas porque o
+gabarito vem do PDF.
+
+---
+
+## 14. Estado final
 
 | Verificação | Resultado |
 | --- | --- |
