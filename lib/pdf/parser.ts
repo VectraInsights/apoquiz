@@ -144,9 +144,12 @@ const ANALYSIS_MARKER = /An[áa]lise\s+Detalhada\s+das\s+Alternativas/i;
 // Cabecalho corrente de pagina: "1. Conhecimentos Gerais ... Fisicos, ..."
 const RUNNING_HEADER = /^\d+(?:\.\d+)*\.?\s+.{8,}…\s*$/;
 
-// Marcador de dificuldade: "2 ○ ○ ○ FACIL", "12 FACIL", "43 ○ ○ ○ DIFICIL"
+// Marcador de dificuldade: "2 ○ ○ ○ FACIL", "12 FACIL", "43 ●●● DIFICIL".
+// Os simbolos variam entre PDFs (podem virar letras, perder o glifo ou
+// vir como texto), entao o que importa e o numero no inicio e o nivel
+// no fim.
 const DIFFICULTY_LINE =
-  /^\s*\d{1,4}\s*(?:[○●◐◑◒◓◔⬤⭘·•*]+[\s]*)*(?:F[ÁA]CIL|M[ÉE]DIO|DIF[ÍI]CIL|AVAN[ÇC]ADO)\b\s*$/i;
+  /^\s*\d{1,3}(?:\.\d{1,2})?(?:\s+[^\s]{1,4}){0,3}\s+(?:F[ÁA]CIL|M[ÉE]DIO|DIF[ÍI]CIL|AVAN[ÇC]ADO)\s*$/i;
 
 // Chamadas de interface das apostilas editoriais
 const UI_NOISE =
