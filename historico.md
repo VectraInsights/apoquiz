@@ -1095,7 +1095,46 @@ largura menor que 768 px.
 
 ---
 
-## 26. Tela inicial em duas colunas
+## 26. Tela inicial: os 3 mais recentes no topo
+
+A versão com duas colunas (upload à esquerda, quizzes à direita) foi
+considerada mais confusa que a original. A tela inicial voltou a **coluna
+única**, com os **3 quizzes mais recentes no topo**, antes do hero.
+
+    ┌──────────────────────────────────────────┐
+    │ [quiz 1]        [quiz 2]        [quiz 3] │  <- Continuar de onde parou
+    ├──────────────────────────────────────────┤
+    │              Sua apostila                │
+    │            virou quiz                   │
+    │      [ Arraste o PDF da apostila ]       │
+    │                                          │
+    │            Como funciona                 │
+    └──────────────────────────────────────────┘
+
+- com mais de 3 quizzes salvos, um link **"Ver todos os N"** mostra a
+  lista completa;
+- cada card traz título (até 2 linhas), total de questões, data e progresso
+  ("Em andamento · 12/1824 respondidas");
+- o aviso de entrar com o Google fica acima dos cards, só quando faz
+  sentido (Supabase configurado e usuário deslogado).
+
+### Cabeçalho
+
+- passou a ter a **mesma largura do conteúdo** (`max-w-5xl`): antes o
+  logo ficava alinhado com a coluna estreita e os botões com a larga;
+- os botões do canto direito ficam **agrupados**, sem espaço sobrando.
+
+### Rótulo do botão de instalação no PC
+
+Continuava aparecendo "Instalar no celular" no computador. A causa: a
+detecção usava `pointer: coarse`, que dá **falso positivo em notebooks
+com tela sensível ao toque** (o ponteiro principal continua sendo o mouse,
+mas o navegador reporta "grosso"). Agora a detecção usa **apenas a
+largura** (`innerWidth < 900`).
+
+---
+
+## 27. Tela inicial em duas colunas (versão substituída)
 
 Em telas largas, a home ficava com uma coluna estreita (768 px) centralizada
 e muita area vazia nas laterais. Agora o container vai ate 1280 px e o conteudo
