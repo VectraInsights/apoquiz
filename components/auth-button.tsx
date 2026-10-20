@@ -48,14 +48,24 @@ export function AuthButton({
   }
 
   return (
-    <button
-      type="button"
-      onClick={() => void auth.signIn()}
-      className="btn btn-ghost"
-      title="Entrar com Google para sincronizar entre aparelhos"
-    >
-      <LogIn className="size-4" />
-      {compact ? "Entrar" : "Entrar com Google"}
-    </button>
+    <div className="flex items-center gap-2">
+      {auth.error ? (
+        <span
+          title={auth.error}
+          className="max-w-[190px] truncate text-[11px] text-warn sm:max-w-xs"
+        >
+          {auth.error}
+        </span>
+      ) : null}
+      <button
+        type="button"
+        onClick={() => void auth.signIn()}
+        className="btn btn-ghost"
+        title="Entrar com Google para sincronizar entre aparelhos"
+      >
+        <LogIn className="size-4" />
+        {compact ? "Entrar" : "Entrar com Google"}
+      </button>
+    </div>
   );
 }

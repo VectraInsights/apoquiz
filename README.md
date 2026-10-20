@@ -114,7 +114,12 @@ Com o Supabase configurado, aparece o botão **"Entrar com Google"** e os
 quizzes passam a ser sincronizados — dá para começar no celular e
 continuar no computador.
 
-### Passo a passo
+### Passo a passo (deploy na Vercel)
+
+**Nada disso depende de `localhost`.** O destino do login é a própria origem do
+app (`window.location.origin`): na Vercel vira `https://seu-app.vercel.app`
+sozinho, sem nenhuma variável extra. O `localhost` abaixo é só para
+desenvolvimento local — pode deixar de fora se nunca for rodar local.
 
 1. Crie o projeto em <https://supabase.com/dashboard>.
 2. **SQL Editor** → cole o conteúdo de `lib/supabase/schema.sql` → *Run*.
@@ -122,8 +127,18 @@ continuar no computador.
    RLS (cada usuário só enxerga o que é dele).
 3. **Authentication → Providers → Google**: ative o provider e cole o
    *Client ID* e o *Client Secret* do Google Cloud Console.
-4. **Authentication → URL Configuration → Redirect URLs**: adicione
-   `http://localhost:3000` e a URL da Vercel.
+4. **Authentication → URL Configuration**:
+   - **Site URL**: `https://seu-app.vercel.app`
+   - **Redirect URLs**:
+
+     ```
+     https://seu-app.vercel.app
+     https://*.vercel.app
+     ```
+
+     O curinga `https://*.vercel.app` faz o login funcionar também nos
+     deploys de preview (que têm URL aleatória). Se preferir, use
+     `http://localhost:3000` no lugar dele enquanto desenvolve local.
 5. Em **Project → API Keys**, copie a URL e a chave `anon`.
 6. Preencha no `.env.local` (e nas variáveis da Vercel):
 
@@ -131,6 +146,17 @@ continuar no computador.
 NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...
 ```
+
+### No Google Cloud (para a Vercel)
+
+| Campo | Valor |
+| --- | --- |
+| **Authorized redirect URIs** | `https://gxzzcdywhjhasjttklry.supabase.co/auth/v1/callback` |
+| **Authorized JavaScript origins** | `https://seu-app.vercel.app` e `https://*.vercel.app` |
+
+A redirect URI do Google é sempre o **callback do Supabase** — nunca a URL
+do seu app. A URL do app vai em "JavaScript origins" e na lista de
+"Redirect URLs" do próprio Supabase.
 
 ### O que vai para a nuvem
 

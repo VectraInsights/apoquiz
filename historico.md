@@ -617,6 +617,27 @@ outro projeto do usuário (`norvo-gestao`).
 o botão de login nem aparece e tudo usa o `localStorage`. O login é um
 upgrade opcional, não um requisito.
 
+### O login funciona sem servidor (nem em localhost)
+
+O `@supabase/ssr` foi verificado no código-fonte instalado:
+
+| Comportamento | Onde | Efeito |
+| --- | --- | --- |
+| `flowType: "pkce"` | `createBrowserClient.ts:148` | Fluxo PKCE, sem `client_secret` no browser |
+| `detectSessionInUrl: isBrowser()` | `createBrowserClient.ts:150` | O `?code=` que volta do Google é trocado por sessão **no navegador** (`GoTrueClient.ts:691`) |
+| Sessão em cookie | `createStorageFromOptions` | Via `document.cookie`, gerenciada pelo cliente |
+
+Consequência prática: **não existe rota de callback, `proxy.ts`/middleware nem
+dependência de `localhost`**. O `redirectTo` é `window.location.origin`, que
+na Vercel vira `https://seu-app.vercel.app` sozinho. O deploy é 100% Vercel.
+
+O único ajuste necessário é na allow-list do Supabase: `https://*.vercel.app`
+para os deploys de preview (URL aleatória).
+
+**Erro tratado:** se o provider Google ainda não foi ativado no painel, o
+Supabase responde `Unsupported provider: provider is not enabled`. O botão de
+login agora mostra essa mensagem em vez de falhar em silêncio.
+
 ### O que vai para a nuvem
 
 | Item | Vai para o servidor? |

@@ -10,6 +10,8 @@ export type AuthState = {
   loading: boolean;
   /** true quando as variaveis do Supabase estao configuradas */
   configured: boolean;
+  /** Ultimo erro de login (ex.: provider nao ativado no painel) */
+  error: string | null;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -21,6 +23,7 @@ export type AuthState = {
 export function useAuth(): AuthState {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(isSupabaseConfigured());
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -60,10 +63,21 @@ export function useAuth(): AuthState {
   const signIn = useCallback(async () => {
     const supabase = getSupabase();
     if (!supabase) return;
-    await supabase.auth.signInWithOAuth({
+    setError(null);
+    const { error: authError } = await supabase.auth.signInWithOAuth({
       provider: "google",
+      // O destino do login e a propria origem do app. Na Vercel vira
+      // https://seu-app.vercel.app automaticamente - sem configuracao.
       options: { redirectTo: window.location.origin },
     });
+
+    if (authError) {
+      setError(
+        authError.message.includes("provider is not enabled")
+          ? "O login com Google ainda não foi ativado no painel do Supabase."
+          : authError.message,
+      );
+    }
   }, []);
 
   const signOut = useCallback(async () => {
@@ -76,6 +90,7 @@ export function useAuth(): AuthState {
     user,
     loading,
     configured: isSupabaseConfigured(),
+    error,
     signIn,
     signOut,
   };
