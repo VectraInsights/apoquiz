@@ -113,6 +113,23 @@ Na **Vercel**: `Project → Settings → Environment Variables` → adicione
 > A chave fica somente no servidor (Route Handler). Nunca é exposta no bundle
 > do navegador.
 
+### Tier free do Gemini
+
+A API free do Gemini tem limite de requisições por minuto/dia (o valor exato
+aparece em <https://aistudio.google.com/rate-limit>). O app lida com isso:
+
+- envia as questões em **lotes de 12**, com no máximo **3 chamadas em paralelo**;
+- quando a API responde **429**, espera e **tenta de novo** (até 4 vezes, com
+  espera crescente);
+- limita a si mesmo a **40 requisições a cada 10 minutos por IP**;
+- no máximo **150 questões por PDF** vão para a IA — acima disso a apostila
+  segue completa, com o gabarito lido do PDF.
+
+> ⚠️ No tier free, o conteúdo enviado ao Gemini **pode ser usado pelo Google
+> para melhorar os produtos**. Isso vale para os enunciados das questões. Se
+> isso for um problema, use uma chave de um tier pago — ou deixe a IA
+> desativada (o app funciona só com o gabarito do PDF).
+
 ---
 
 ## Login com Google e sincronização (opcional)

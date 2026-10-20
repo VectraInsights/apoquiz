@@ -716,6 +716,30 @@ Correções:
 - O erro que chega ao cliente ficou legível (modelo + status + trecho da
   resposta da API)
 
+**Validação no ar:** depois do redeploy, `POST /api/extract` respondeu
+**HTTP 200** com a explicação escrita pelo Gemini e a letra correta mantida
+em `C` (o gabarito do PDF tem prioridade sobre a IA).
+
+### Tier free: limite de requisições
+
+A chave é do **tier free** do Gemini, que tem limite de requisições por
+minuto/dia e devolve `429 RESOURCE_EXHAUSTED` quando estoura. O provider
+passou a tratar isso: até **4 tentativas** com espera crescente
+(2 s, 4 s, 6 s + jitter) antes de desistir.
+
+Somando as proteções que já existiam:
+
+| Camada | Limite |
+|---|---|
+| Lotes | 12 questões por chamada, 3 em paralelo |
+| Retry no 429 | 4 tentativas com backoff |
+| Rate limit do app | 40 requisições / 10 min por IP |
+| Teto por PDF | 150 questões enviadas à IA |
+
+Observação de privacidade: no tier free o conteúdo enviado ao Gemini pode ser
+usado pelo Google para melhorar os produtos — isso vale para os enunciados
+das questões. Documentado no README.
+
 ### O que vai para a nuvem
 
 | Item | Vai para o servidor? |

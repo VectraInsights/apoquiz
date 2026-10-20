@@ -88,7 +88,34 @@ async function completeGemini(
   let lastError = `Gemini: nao foi possivel falar com a API.`;
 
   for (const candidate of candidates) {
-    const response = await fetch(`${base}/models/${candidate}:generateContent`, {
+    const result = await callGeminiModel(base, candidate, prompt, schema, apiKey);
+
+    if (result.ok) return result.data;
+
+    lastError = result.error;
+
+    // 404 = modelo indisponivel para esta conta: tenta o proximo.
+    if (result.status !== 404) break;
+  }
+
+  throw new Error(lastError);
+}
+
+/**
+ * Uma chamada ao Gemini, com espera automatica quando o tier free
+ * estoura o limite de requisicoes (429).
+ */
+async function callGeminiModel(
+  base: string,
+  model: string,
+  prompt: string,
+  schema: JsonSchema,
+  apiKey: string,
+): Promise<{ ok: true; data: unknown } | { ok: false; status: number; error: string }> {
+  const MAX_TENTRIES = 4;
+
+  for (let attempt = 1; attempt <= MAX_TENTRIES; attempt += 1) {
+    const response = await fetch(`${base}/models/${model}:generateContent`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -111,17 +138,27 @@ async function completeGemini(
       };
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!text) throw new Error("Gemini devolveu uma resposta vazia.");
-      return parseJson(text);
+      return { ok: true, data: parseJson(text) };
     }
 
     const detail = await response.text();
-    lastError = `Gemini ${response.status} (${candidate}): ${detail.slice(0, 300)}`;
+    const error = `Gemini ${response.status} (${model}): ${detail.slice(0, 300)}`;
 
-    // 404 = modelo indisponivel para esta conta: tenta o proximo.
-    if (response.status !== 404) break;
+    // 429 = limite do tier free. Espera e tenta de novo.
+    if (response.status === 429 && attempt < MAX_TENTRIES) {
+      const wait = 2000 * attempt + Math.floor(Math.random() * 1000);
+      await new Promise((resolve) => setTimeout(resolve, wait));
+      continue;
+    }
+
+    return { ok: false, status: response.status, error };
   }
 
-  throw new Error(lastError);
+  return {
+    ok: false,
+    status: 429,
+    error: `Gemini 429 (${model}): limite de requisicoes do tier free excedido.`,
+  };
 }
 
 async function completeOpenAI(
