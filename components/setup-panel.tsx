@@ -10,7 +10,8 @@ import {
   FileText,
   Sparkles,
 } from "lucide-react";
-import type { Question, QuizSettings } from "@/lib/types";
+import type { Question, QuestionLevel, QuizSettings } from "@/lib/types";
+import { LEVEL_LABELS, QUESTION_LEVELS } from "@/lib/types";
 import { Badge, Stat, Toggle } from "./ui";
 
 type Props = {
@@ -47,6 +48,7 @@ export function SetupPanel({
     timerMinutes: null,
   });
   const [topic, setTopic] = useState<string>("todas");
+  const [levels, setLevels] = useState<QuestionLevel[]>([]);
   const [showReview, setShowReview] = useState(true);
 
   const topics = useMemo(() => {
@@ -55,6 +57,19 @@ export function SetupPanel({
       if (question.topic) set.add(question.topic);
     }
     return [...set].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [questions]);
+
+  /** Quantas questoes por nivel (para os chips). */
+  const levelCounts = useMemo(() => {
+    const counts = new Map<QuestionLevel, number>();
+    for (const question of questions) {
+      if (!question.level) continue;
+      counts.set(question.level, (counts.get(question.level) ?? 0) + 1);
+    }
+    return QUESTION_LEVELS.filter((level) => counts.has(level)).map((level) => ({
+      level,
+      count: counts.get(level) ?? 0,
+    }));
   }, [questions]);
 
   const stats = useMemo(() => {
@@ -68,13 +83,18 @@ export function SetupPanel({
     };
   }, [questions]);
 
-  const filtered = useMemo(
-    () =>
+  const filtered = useMemo(() => {
+    const byTopic =
       topic === "todas"
         ? questions
-        : questions.filter((question) => question.topic === topic),
-    [questions, topic],
-  );
+        : questions.filter((question) => question.topic === topic);
+
+    if (levels.length === 0) return byTopic;
+
+    return byTopic.filter(
+      (question) => question.level && levels.includes(question.level),
+    );
+  }, [questions, topic, levels]);
 
   const setCorrect = (questionId: string, label: string) => {
     onQuestionsChange(
@@ -193,7 +213,9 @@ export function SetupPanel({
                     onChange={(event) => setTopic(event.target.value)}
                     className="w-full rounded-xl border border-line bg-canvas-soft px-3.5 py-2.5 text-sm outline-none transition focus:border-brand"
                   >
-                    <option value="todas">Todos os assuntos ({questions.length})</option>
+                    <option value="todas">
+                      Todos os assuntos ({questions.length})
+                    </option>
                     {topics.map((item) => {
                       const count = questions.filter((q) => q.topic === item).length;
                       return (
@@ -204,6 +226,43 @@ export function SetupPanel({
                     })}
                   </select>
                 </label>
+              ) : null}
+
+              {levelCounts.length > 0 ? (
+                <div className="mt-4">
+                  <span className="mb-1.5 block text-xs uppercase tracking-wider text-ink-faint">
+                    Nível de dificuldade
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {levelCounts.map(({ level, count }) => {
+                      const active = levels.includes(level);
+                      return (
+                        <button
+                          key={level}
+                          type="button"
+                          aria-pressed={active}
+                          onClick={() =>
+                            setLevels((current) =>
+                              current.includes(level)
+                                ? current.filter((item) => item !== level)
+                                : [...current, level],
+                            )
+                          }
+                          className={`chip ${active ? "" : "opacity-60"}`}
+                          data-active={active}
+                        >
+                          {LEVEL_LABELS[level]}
+                          <span className="tabular-nums opacity-70">{count}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-2 text-[11px] text-ink-faint">
+                    {levels.length === 0
+                      ? "Todos os níveis"
+                      : `${levels.length} nível${levels.length > 1 ? "is" : ""} selecionado${levels.length > 1 ? "s" : ""}`}
+                  </p>
+                </div>
               ) : null}
             </div>
 

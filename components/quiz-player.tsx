@@ -12,9 +12,17 @@ import {
   X,
 } from "lucide-react";
 import type { Question, Quiz, QuizState } from "@/lib/types";
+import { LEVEL_LABELS, type QuestionLevel } from "@/lib/types";
 import { formatTime, scoreQuiz } from "@/lib/quiz";
 import { Badge, ProgressBar } from "./ui";
 import { OptionNotes } from "./option-notes";
+
+/** Cor de cada nivel de dificuldade. */
+const LEVEL_TONE: Record<QuestionLevel, "ok" | "warn" | "bad"> = {
+  facil: "ok",
+  medio: "warn",
+  dificil: "bad",
+};
 
 type Props = {
   quiz: Quiz;
@@ -237,6 +245,11 @@ export function QuizPlayer({ quiz, state, onStateChange, onFinish }: Props) {
               </span>
               <div className="flex items-center gap-2">
                 {question.topic ? <Badge tone="brand">{question.topic}</Badge> : null}
+                {question.level ? (
+                  <Badge tone={LEVEL_TONE[question.level]}>
+                    {LEVEL_LABELS[question.level]}
+                  </Badge>
+                ) : null}
                 <button
                   type="button"
                   onClick={toggleFlag}

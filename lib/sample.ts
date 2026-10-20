@@ -20,6 +20,7 @@ export const SAMPLE_QUESTIONS: Question[] = [
     explanation:
       "O art. 194 da CF/88 lista quatro direitos: saúde, previdência, assistência social e trabalho. A alternativa C é a única que consta no texto constitucional.",
     topic: "Direito Constitucional",
+    level: "facil",
     answerSource: "gabarito",
     page: 1,
   },
@@ -37,6 +38,7 @@ export const SAMPLE_QUESTIONS: Question[] = [
     explanation:
       "Como (x + y)² = x² + 2xy + y², temos 49 = x² + y² + 24. Logo x² + y² = 49 − 24 = 25.",
     topic: "Matemática",
+    level: "facil",
     answerSource: "gabarito",
     page: 1,
   },
@@ -55,6 +57,7 @@ export const SAMPLE_QUESTIONS: Question[] = [
     explanation:
       "Q = m · c · ΔT = 200 · 1 · 40 = 8 000 cal, ou seja, 8 kcal.",
     topic: "Física",
+    level: "medio",
     answerSource: "gabarito",
     page: 1,
   },
@@ -73,6 +76,7 @@ export const SAMPLE_QUESTIONS: Question[] = [
     explanation:
       "Prótons = Z = 16; nêutrons = A − Z = 32 − 16 = 16; elétrons = 16 (átomo neutro).",
     topic: "Química",
+    level: "medio",
     answerSource: "gabarito",
     page: 1,
   },
@@ -91,6 +95,7 @@ export const SAMPLE_QUESTIONS: Question[] = [
     explanation:
       "Na metáfase os cromossomos duplicados alinham-se no equador da célula, formando a placa equatorial.",
     topic: "Biologia",
+    level: "facil",
     answerSource: "gabarito",
     page: 1,
   },
@@ -109,6 +114,7 @@ export const SAMPLE_QUESTIONS: Question[] = [
     explanation:
       "João sem Terra foi obrigado pelos barões a assinar a Carta de 1215, que limitava o poder real e reforçava privilégios da nobreza.",
     topic: "História",
+    level: "medio",
     answerSource: "gabarito",
     page: 1,
   },
@@ -127,6 +133,7 @@ export const SAMPLE_QUESTIONS: Question[] = [
     explanation:
       "O verbo “entreguei” exige objeto direto, e “ao meu chefe” é o destinatário da ação: objeto indireto (complemento oblíquo nominal).",
     topic: "Língua Portuguesa",
+    level: "dificil",
     answerSource: "gabarito",
     page: 1,
   },
@@ -145,6 +152,7 @@ export const SAMPLE_QUESTIONS: Question[] = [
     explanation:
       "A função SE testa a condição A1>10: se for verdadeira, devolve o primeiro valor (“Sim”); caso contrário, “Não”.",
     topic: "Informática",
+    level: "facil",
     answerSource: "gabarito",
     page: 1,
   },
@@ -163,6 +171,7 @@ export const SAMPLE_QUESTIONS: Question[] = [
     explanation:
       "A = π · r² = 3 · 36 = 108 cm².",
     topic: "Matemática",
+    level: "facil",
     answerSource: "gabarito",
     page: 1,
   },
@@ -181,6 +190,7 @@ export const SAMPLE_QUESTIONS: Question[] = [
     explanation:
       "O Amazonas deságua no Atlântico e forma uma grande foz no estado do Pará, entre as regiões de Marajó e do Baixo Amazonas.",
     topic: "Geografia",
+    level: "facil",
     answerSource: "gabarito",
     page: 1,
   },

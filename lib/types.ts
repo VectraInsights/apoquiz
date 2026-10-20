@@ -7,6 +7,17 @@ export type Option = {
 
 export type AnswerSource = "gabarito" | "ia" | "manual" | "desconhecida";
 
+/** Nivel de dificuldade declarado pela apostila (Fácil / Médio / Difícil). */
+export type QuestionLevel = "facil" | "medio" | "dificil";
+
+export const QUESTION_LEVELS: QuestionLevel[] = ["facil", "medio", "dificil"];
+
+export const LEVEL_LABELS: Record<QuestionLevel, string> = {
+  facil: "Fácil",
+  medio: "Médio",
+  dificil: "Difícil",
+};
+
 /**
  * Limite de questoes enviadas para a IA em um unico processamento.
  * Acima disso a apostila segue completa - apenas sem as explicacoes da IA
@@ -33,6 +44,8 @@ export type Question = {
   optionNotes?: Record<string, string> | null;
   /** Topico / disciplina inferido */
   topic: string | null;
+  /** Nivel de dificuldade declarado pela apostila (Fácil/Médio/Difícil) */
+  level?: QuestionLevel | null;
   /** De onde veio a resposta correta */
   answerSource: AnswerSource;
   /** Pagina do PDF de origem */

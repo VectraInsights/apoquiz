@@ -101,11 +101,20 @@ async function main() {
   const questions = parseQuestions(pages);
   const applied = applyGabarito(questions, gabarito.gabarito);
 
+  const nivel = new Map<string, number>();
+  for (const q of questions) {
+    const key = q.level ?? "sem nivel";
+    nivel.set(key, (nivel.get(key) ?? 0) + 1);
+  }
+  console.log(
+    `\n--- NIVEIS (${[...nivel.entries()].map(([k, v]) => `${k}=${v}`).join(", ")}) ---`,
+  );
+
   console.log(`\n--- QUESTOES (${questions.length}) ---`);
   questions.forEach((question, index) => {
     const answer = applied[index];
     console.log(
-      `\n[${index + 1}] num=${question.number} secao=${question.section ?? "-"} pagina=${question.page} gabarito=${answer.correct ?? "-"} (${answer.source})`,
+      `\n[${index + 1}] num=${question.number} secao=${question.section ?? "-"} pagina=${question.page} nivel=${question.level ?? "-"} gabarito=${answer.correct ?? "-"} (${answer.source})`,
     );
     if (question.topic) console.log(`  topico: ${question.topic}`);
     console.log(`  ${question.statement.slice(0, 200)}`);

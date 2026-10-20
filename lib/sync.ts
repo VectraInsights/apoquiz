@@ -78,7 +78,7 @@ export async function getQuiz(
 
   const { data: rows } = await supabase
     .from("quiz_questions")
-    .select("qid, position, number, statement, options, correct, explanation, option_notes, topic, answer_source, page, section")
+    .select("qid, position, number, statement, options, correct, explanation, option_notes, topic, level, answer_source, page, section")
     .eq("quiz_id", quizId)
     .order("position", { ascending: true });
 
@@ -93,6 +93,7 @@ export async function getQuiz(
     explanation: (row.explanation as string | null) ?? null,
     optionNotes: (row.option_notes as Question["optionNotes"]) ?? null,
     topic: (row.topic as string | null) ?? null,
+    level: (row.level as Question["level"]) ?? null,
     answerSource:
       ((row.answer_source as Question["answerSource"]) ?? "desconhecida"),
     page: (row.page as number | null) ?? null,
@@ -171,6 +172,7 @@ export async function putQuiz(target: SyncTarget, quiz: Quiz): Promise<void> {
     explanation: question.explanation,
     option_notes: question.optionNotes ?? null,
     topic: question.topic,
+    level: question.level ?? null,
     answer_source: question.answerSource,
     page: question.page,
     section: question.section ?? null,

@@ -29,6 +29,7 @@ export const QUESTIONS_SCHEMA: JsonSchema = {
           },
           correct: { type: "STRING" },
           explanation: { type: "STRING" },
+          level: { type: "STRING" },
           optionNotes: {
             type: "ARRAY",
             items: {
@@ -92,6 +93,7 @@ export function buildEnrichPrompt(
     secao: question.section ?? null,
     enunciado: question.statement,
     topico: question.topic,
+    nivel: question.level ?? null,
     alternativas: question.options.map((option) => ({
       letra: option.label,
       texto: option.text,
@@ -109,6 +111,12 @@ Para cada questao:
 - "options": as alternativas, na ordem original, com "label" de A em diante.
 - "correct": a letra correta.
 - "explanation": justificativa breve da resposta CORRETA (2 a 4 frases).
+- "level": o nivel de dificuldade, exatamente um destes valores: "facil",
+  "medio" ou "dificil". Se o campo "nivel" da questao vier preenchido, MANTENHA
+  esse valor. Se vier nulo (o PDF nao informa), classifique voce mesmo pela
+  dificuldade real da questao: "facil" quando basta ler o enunciado, "medio"
+  quando exige raciocinio sobre o texto, "dificil" quando exige interpretacao
+  mais profunda, calculo ou combinacao de conceitos.
 - "optionNotes": analise de CADA alternativa (A a E), em uma frase cada,
   explicando por que ela esta correta ou incorreta. Ex.:
   [{"label":"A","text":"Incorreta. Trata de dupla negacao."}, ...].

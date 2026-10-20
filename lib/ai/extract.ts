@@ -3,7 +3,7 @@ import "server-only";
 import { getProvider, type AIProvider } from "./provider";
 import { buildEnrichPrompt, buildExtractPrompt, QUESTIONS_SCHEMA } from "./prompts";
 import { lookupGabarito } from "@/lib/pdf/parser";
-import { MAX_AI_QUESTIONS, type Question } from "@/lib/types";
+import { MAX_AI_QUESTIONS, type Question, type QuestionLevel } from "@/lib/types";
 
 const BATCH_SIZE = 8;
 const MAX_CONCURRENCY = 3;
@@ -15,6 +15,7 @@ type AIRawQuestion = {
   options?: { label?: string; text?: string }[];
   correct?: string;
   explanation?: string;
+  level?: string;
   optionNotes?: { label?: string; text?: string }[];
   topic?: string;
 };
@@ -179,6 +180,11 @@ export async function enrichQuestions(
     const aiExplanation = (ai.explanation ?? "").trim();
     const topic = (ai.topic ?? "").trim();
 
+    // O nivel do PDF tem prioridade; a IA so classifica quando o PDF
+    // nao informa (o campo vem nulo).
+    const aiLevel = normalizeLevel(ai.level);
+    const level = question.level ?? aiLevel;
+
     // A explicacao e a analise por alternativa escritas no PDF (secao de
     // comentarios) tem prioridade sobre as da IA. A IA so preenche o que
     // o PDF nao traz.
@@ -201,9 +207,20 @@ export async function enrichQuestions(
       explanation:
         ownExplanation.length > 0 ? ownExplanation : aiExplanation || question.explanation,
       optionNotes,
+      level,
       topic: topic.length > 0 ? topic : question.topic,
     };
   });
+}
+
+/** Normaliza o nivel vindo da IA ("facil" | "medio" | "dificil"). */
+function normalizeLevel(value: string | undefined): QuestionLevel | null {
+  if (!value) return null;
+  const upper = value.trim().toUpperCase();
+  if (upper.startsWith("F")) return "facil";
+  if (upper.startsWith("M")) return "medio";
+  if (upper.startsWith("D")) return "dificil";
+  return null;
 }
 
 /** Normaliza a lista de analises por alternativa vinda da IA. */
@@ -307,6 +324,7 @@ export async function extractQuestions(
       explanation: (item.explanation ?? "").trim() || null,
       topic: (item.topic ?? "").trim() || null,
       answerSource: gabaritoLetter ? "gabarito" : correct ? "ia" : "desconhecida",
+      level: normalizeLevel(item.level),
       page: null,
     });
 

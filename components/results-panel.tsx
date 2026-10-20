@@ -10,7 +10,8 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import type { Quiz, QuizState } from "@/lib/types";
+import type { Quiz, QuizState, QuestionLevel } from "@/lib/types";
+import { LEVEL_LABELS, QUESTION_LEVELS } from "@/lib/types";
 import { formatTime, scoreQuiz } from "@/lib/quiz";
 import { Badge, Stat } from "./ui";
 
@@ -36,6 +37,22 @@ export function ResultsPanel({ quiz, state, onRetry, onNewFile }: Props) {
       map.set(key, entry);
     }
     return [...map.entries()].sort((a, b) => b[1].total - a[1].total);
+  }, [quiz.questions, state.answers]);
+
+  /** Desempenho por nivel de dificuldade. */
+  const byLevel = useMemo(() => {
+    const map = new Map<QuestionLevel, { correct: number; total: number }>();
+    for (const question of quiz.questions) {
+      if (!question.correct || !question.level) continue;
+      const entry = map.get(question.level) ?? { correct: 0, total: 0 };
+      entry.total += 1;
+      if (state.answers[question.id] === question.correct) entry.correct += 1;
+      map.set(question.level, entry);
+    }
+    return QUESTION_LEVELS.filter((level) => map.has(level)).map((level) => ({
+      level,
+      ...map.get(level)!,
+    }));
   }, [quiz.questions, state.answers]);
 
   const exportJSON = () => {
@@ -147,6 +164,36 @@ export function ResultsPanel({ quiz, state, onRetry, onNewFile }: Props) {
                     </span>
                   </div>
                   <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/10">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-brand to-brand-soft"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      {/* Desempenho por nivel */}
+      {byLevel.length > 0 ? (
+        <div className="panel print-plain mt-5 p-5">
+          <h2 className="text-sm font-semibold">Desempenho por nível</h2>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            {byLevel.map(({ level, correct, total }) => {
+              const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
+              return (
+                <div key={level} className="panel-soft p-3.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">
+                      {LEVEL_LABELS[level]}
+                    </span>
+                    <span className="text-xs tabular-nums text-ink-faint">
+                      {correct}/{total}
+                    </span>
+                  </div>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
                     <div
                       className="h-full rounded-full bg-gradient-to-r from-brand to-brand-soft"
                       style={{ width: `${pct}%` }}

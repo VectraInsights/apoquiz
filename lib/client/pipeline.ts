@@ -73,6 +73,7 @@ export async function processPdf(
     explanation: item.explanation,
     optionNotes: item.optionNotes,
     topic: item.topic,
+    level: item.level ?? null,
     answerSource: applied[index].source,
     page: item.page,
     section: item.section ?? null,

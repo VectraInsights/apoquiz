@@ -43,6 +43,7 @@ create table if not exists public.quiz_questions (
   explanation   text,
   option_notes  jsonb,
   topic         text,
+  level         text,
   answer_source text,
   page          int,
   section       text,

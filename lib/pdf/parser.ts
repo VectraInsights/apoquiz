@@ -34,7 +34,7 @@
  * as respostas sao guardadas por "capitulo#numero".
  */
 
-import type { Option } from "@/lib/types";
+import type { Option, QuestionLevel } from "@/lib/types";
 import type { ExtractedPage } from "./lines";
 
 export type ParsedQuestion = {
@@ -42,6 +42,8 @@ export type ParsedQuestion = {
   statement: string;
   options: Option[];
   topic: string | null;
+  /** Nivel de dificuldade declarado pela apostila (Fácil/Médio/Difícil) */
+  level: QuestionLevel | null;
   page: number;
   /** Resposta escrita inline no PDF (ex.: "Resposta: C") */
   inlineAnswer: string | null;
@@ -149,7 +151,42 @@ const RUNNING_HEADER = /^\d+(?:\.\d+)*\.?\s+.{8,}…\s*$/;
 // vir como texto), entao o que importa e o numero no inicio e o nivel
 // no fim.
 const DIFFICULTY_LINE =
-  /^\s*\d{1,3}(?:\.\d{1,2})?(?:\s+[^\s]{1,4}){0,3}\s+(?:F[ÁA]CIL|M[ÉE]DIO|DIF[ÍI]CIL|AVAN[ÇC]ADO)\s*$/i;
+  /^\s*\d{1,4}(?:\.\d{1,2})?(?:\s+[^\s]{1,4}){0,3}\s+(F[ÁA]CIL|M[ÉE]DIO|DIF[ÍI]CIL|AVAN[ÇC]ADO)\s*$/i;
+
+// "●○○ facil, ●●○ medio, ●●● dificil." - legenda do medidor de nivel
+const LEVEL_LEGEND_LINE =
+  /^\s*[^.]*\b(?:F[ÁA]CIL|FACIL)\b[^.]*\b(?:M[ÉE]DIO|MEDIO)\b[^.]*$/i;
+
+const LEVEL_BY_WORD: Record<string, QuestionLevel> = {
+  FACIL: "facil",
+  FÁCIL: "facil",
+  MEDIO: "medio",
+  MÉDIO: "medio",
+  MEDIA: "medio",
+  MÉDIA: "medio",
+  DIFICIL: "dificil",
+  DIFÍCIL: "dificil",
+  AVANCADO: "dificil",
+  AVANÇADO: "dificil",
+};
+
+/** Nivel de dificuldade a partir do marcador da questao ("1 ○ ○ ○ FACIL"). */
+function matchDifficulty(text: string): QuestionLevel | null {
+  const match = text.match(DIFFICULTY_LINE);
+  if (!match) return null;
+  return LEVEL_BY_WORD[match[1].toUpperCase()] ?? null;
+}
+
+/**
+ * Nivel a partir do titulo da secao ("1.1.2 Questoes de Nivel Medio").
+ */
+function levelFromTitle(title: string): QuestionLevel | null {
+  const upper = title.toUpperCase();
+  if (/F[ÁA]CIL/.test(upper)) return "facil";
+  if (/M[ÉE]DIO|M[ÉE]DIA/.test(upper)) return "medio";
+  if (/DIF[ÍI]CIL/.test(upper)) return "dificil";
+  return null;
+}
 
 // Chamadas de interface das apostilas editoriais
 const UI_NOISE =
@@ -223,6 +260,7 @@ function isNoise(text: string): boolean {
     PAGE_NUMBER_LINE.test(text) ||
     DECORATION_LINE.test(text) ||
     DIFFICULTY_LINE.test(text) ||
+    LEVEL_LEGEND_LINE.test(text) ||
     UI_NOISE.test(text) ||
     RUNNING_HEADER.test(text)
   );
@@ -462,6 +500,8 @@ type DocSection = {
   chapter: string;
   title: string;
   kind: SectionKind;
+  /** Nivel de dificuldade declarado pelo titulo da secao */
+  level: QuestionLevel | null;
   /** indice global da linha do cabecalho */
   start: number;
   /** indice global exclusivo do fim da secao */
@@ -510,6 +550,7 @@ function detectSections(lines: FlatLine[]): DocSection[] {
     chapter: chapterOf(header.path),
     title: header.title,
     kind: classifyTitle(header.title),
+    level: levelFromTitle(header.title),
     start: header.index,
     end: index + 1 < headers.length ? headers[index + 1].index : lines.length,
   }));
@@ -923,6 +964,7 @@ export function parseQuestions(pages: ExtractedPage[]): ParsedQuestion[] {
     /** linhas do enunciado + alternativas da questao */
     block: FlatLine[];
     topic: string | null;
+    level: QuestionLevel | null;
     page: number;
     inlineAnswer: string | null;
     section: string | null;
@@ -956,6 +998,7 @@ export function parseQuestions(pages: ExtractedPage[]): ParsedQuestion[] {
           statement,
           options,
           topic: current.topic,
+          level: current.level,
           page: current.page,
           inlineAnswer: current.inlineAnswer,
           section: current.section,
@@ -995,6 +1038,16 @@ export function parseQuestions(pages: ExtractedPage[]): ParsedQuestion[] {
     // descartado (capa, sumario, teoria).
     if (useSections && (!section || section.kind !== "questions")) {
       pushCurrent();
+      continue;
+    }
+
+    // Marcador de dificuldade da questao ("1 ○ ○ ○ FACIL"). Precisa ser
+    // lido ANTES do filtro de ruido, que descartaria a linha. Vem logo
+    // depois do cabecalho "Questao N" e tem prioridade sobre o titulo
+    // da secao.
+    const level = matchDifficulty(line.text);
+    if (level) {
+      if (current) current.level = level;
       continue;
     }
 
@@ -1048,6 +1101,9 @@ export function parseQuestions(pages: ExtractedPage[]): ParsedQuestion[] {
         number: header.number,
         block: header.rest ? [{ ...line, text: header.rest }] : [],
         topic: null,
+        // Sem marcador proprio, herda o nivel do titulo da secao
+        // ("1.1.2 Questoes de Nivel Medio").
+        level: section?.level ?? null,
         page: line.page,
         inlineAnswer: null,
         section: chapter || null,
