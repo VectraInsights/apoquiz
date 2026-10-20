@@ -669,7 +669,7 @@ A configuração correta ficou no README e na página `/supabase-setup`.
 | Google → Authorized JavaScript origins | `https://apoquiz.vercel.app` (sem barra final) |
 | Google → Authorized redirect URIs | `https://gxzzcdywhjhasjttklry.supabase.co/auth/v1/callback` |
 | Supabase → Site URL | `https://apoquiz.vercel.app` |
-| Supabase → Redirect URLs | `https://apoquiz.vercel.app` (+ `http://localhost:3000` em dev) |
+| Supabase → Redirect URLs | `https://apoquiz.vercel.app` |
 
 ### Validação da configuração do Supabase
 

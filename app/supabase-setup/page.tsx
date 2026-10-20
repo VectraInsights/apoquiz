@@ -11,7 +11,7 @@ const SQL = `-- ============================================================
 --   3. Em "Authentication > Providers", ative o Google
 --      (Client ID e Client Secret do Google Cloud Console)
 --   4. Em "Authentication > URL Configuration", adicione
---      http://localhost:3000 e a URL da Vercel em "Redirect URLs"
+--      a URL da Vercel em "Redirect URLs" e em "Site URL"
 -- ============================================================
 
 create extension if not exists "pgcrypto";
@@ -162,8 +162,7 @@ export default function SupabaseSetup() {
           <code className="text-brand-soft">https://apoquiz.vercel.app</code>{" "}
           e em <strong>Redirect URLs</strong> adicione{" "}
           <code className="text-brand-soft">https://apoquiz.vercel.app</code>{" "}
-          (e <code className="text-brand-soft">http://localhost:3000</code> se for
-          desenvolver local).
+          (a URL da Vercel).
           <p className="mt-1.5 rounded-lg border border-warn/30 bg-warn/10 p-2.5 text-warn">
             <strong>Atenção:</strong> se a lista de Redirect URLs ficar vazia, o
             Supabase aceita <em>qualquer</em> URL como destino do login — isso
