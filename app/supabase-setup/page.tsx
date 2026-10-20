@@ -167,6 +167,11 @@ export default function SupabaseSetup() {
             https://*-SEU-TIME.vercel.app/**
           </code>
           . O Supabase aceita curinga; o Google não.
+          <p className="mt-1.5 rounded-lg border border-warn/30 bg-warn/10 p-2.5 text-warn">
+            <strong>Atenção:</strong> se a lista de Redirect URLs ficar vazia, o
+            Supabase aceita <em>qualquer</em> URL como destino do login — isso
+            vira um open redirect. Deixe sempre a lista preenchida.
+          </p>
         </li>
         <li>
           <strong className="text-ink">5.</strong> No{" "}

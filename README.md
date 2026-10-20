@@ -139,6 +139,14 @@ desenvolvimento local — pode deixar de fora se nunca for rodar local.
      O curinga é aceito **pelo Supabase** (é o padrão recomendado na
      documentação deles para Vercel). Ele **não** é aceito pelo Google —
      lá as origens JavaScript precisam ser exatas, sem `*`.
+
+> ⚠️ **Importante — tranque a lista.** Se a lista de *Redirect URLs* ficar
+> **vazia**, o Supabase aceita **qualquer URL** como destino do login
+> (comportamento padrão de projeto novo). Isso transforma o projeto num
+> *open redirect* — um site malicioso poderia mandar a pessoa para o login do
+> Google e, depois do login, devolvê-la para uma página falsa levando os
+> tokens junto. Com a lista preenchida (como acima), só as URLs declaradas
+> funcionam.
 5. Em **Project → API Keys**, copie a URL e a chave `anon`.
 6. Preencha no `.env.local` (e nas variáveis da Vercel):
 
