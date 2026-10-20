@@ -50,3 +50,6 @@ server.log
 # cache de linhas extraidas (npm run cache:pdf)
 *-cache.json
 lines-cache*.json
+
+# log do servidor de teste
+test-server.log
