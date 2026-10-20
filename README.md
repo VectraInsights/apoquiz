@@ -128,12 +128,12 @@ desenvolvimento local — pode deixar de fora se nunca for rodar local.
 3. **Authentication → Providers → Google**: ative o provider e cole o
    *Client ID* e o *Client Secret* do Google Cloud Console.
 4. **Authentication → URL Configuration**:
-   - **Site URL**: `https://apoquiz-vectrainsights-projects.vercel.app`
+   - **Site URL**: `https://SEU-PROJETO.vercel.app`
    - **Redirect URLs**:
 
      ```
-     https://apoquiz-vectrainsights-projects.vercel.app
-     https://*-vectrainsights-projects.vercel.app/**
+     https://SEU-PROJETO.vercel.app
+     https://*-SEU-TIME.vercel.app/**
      ```
 
      O curinga é aceito **pelo Supabase** (é o padrão recomendado na
@@ -149,18 +149,24 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...
 
 ### No Google Cloud (para a Vercel)
 
+Descubra a URL do app primeiro: **Vercel → seu projeto → Deployments** → aba
+do deploy de produção → copie o domínio. Ou simplesmente abra o app no
+navegador e copie da barra de endereço. O formato é
+`https://<projeto>-<time>.vercel.app` (ex.: `apoquiz-vectrainsights-projects.vercel.app`).
+
 | Campo | Valor |
 | --- | --- |
 | **Authorized redirect URIs** | `https://gxzzcdywhjhasjttklry.supabase.co/auth/v1/callback` |
-| **Authorized JavaScript origins** | `https://apoquiz-vectrainsights-projects.vercel.app` |
+| **Authorized JavaScript origins** | `https://SEU-PROJETO.vercel.app` |
 
 ⚠️ Duas regras do Google que dão erro se não forem respeitadas:
 
 - **Não aceita curinga no domínio.** `https://*.vercel.app` é rejeitado com
-  *"não é permitido que o domínio contenha um caractere curinga"*. As
-  origens JavaScript precisam ser **exatas**, uma por linha.
+  *"não é permitido que o domínio contenha um caractere curinga"*.
 - **Não aceita caminho nem barra final.** Só `https://host` — sem
-  `/sub/pasta` e sem `/` no final.
+  `/sub/pasta` e sem `/` no final. Por isso
+  `https://vercel.com/vectrainsights-projects/apoquiz` **não** serve: esse é o
+  caminho do painel, não o endereço do app.
 
 A redirect URI do Google é sempre o **callback do Supabase** — nunca a URL do
 seu app. A URL do app vai em "JavaScript origins" (Google) e na lista de

@@ -160,11 +160,11 @@ export default function SupabaseSetup() {
           <strong className="text-ink">4.</strong> Em{" "}
           <em>Authentication → URL Configuration</em>: <strong>Site URL</strong> ={" "}
           <code className="text-brand-soft">
-            https://apoquiz-vectrainsights-projects.vercel.app
+            https://SEU-PROJETO.vercel.app
           </code>{" "}
           e em <strong>Redirect URLs</strong> adicione{" "}
           <code className="text-brand-soft">
-            https://*-vectrainsights-projects.vercel.app/**
+            https://*-SEU-TIME.vercel.app/**
           </code>
           . O Supabase aceita curinga; o Google não.
         </li>
@@ -189,9 +189,11 @@ export default function SupabaseSetup() {
             <li>
               <strong>Authorized JavaScript origins</strong>:{" "}
               <code className="text-brand-soft">
-                https://apoquiz-vectrainsights-projects.vercel.app
+                https://SEU-PROJETO.vercel.app
               </code>{" "}
-              — sem curinga e sem barra final: o Google exige a origem exata
+              — sem curinga, sem caminho e sem barra final: o Google exige a
+              origem exata. A URL do app é a que aparece na barra de endereço
+              (Vercel → projeto → Deployments → produção).
             </li>
           </ul>
         </li>
