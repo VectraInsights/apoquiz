@@ -151,10 +151,11 @@ export function InstallPrompt() {
           <div className="flex-1 text-xs leading-relaxed text-ink-muted">
             {brave ? (
               <>
-                <strong className="text-ink">Adicione à tela inicial</strong> e
-                estude offline direto do celular.{" "}
+                <strong className="text-ink">Estude offline no celular</strong>.
+                O Brave não instala apps, mas o app funciona e fica disponível
+                sem internet.{" "}
                 <span className="text-warn">
-                  No Brave isso vira um atalho — o app em si instala pelo Chrome.
+                  Para instalar como app, use o Chrome.
                 </span>
               </>
             ) : (
@@ -170,7 +171,7 @@ export function InstallPrompt() {
             className="btn btn-primary min-h-9 px-3 py-1.5 text-xs"
           >
             <Download className="size-3.5" />
-            {brave ? "Como adicionar" : "Instalar"}
+            {brave ? "Ver como" : "Instalar"}
           </button>
           <button
             type="button"
@@ -207,37 +208,30 @@ export function InstallPrompt() {
                   <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
                   <span>
                     O <strong>Brave</strong> no Android não instala aplicativos:
-                    ele cria apenas um <strong>atalho</strong> na tela inicial.
-                    É uma limitação do navegador, não do app.
+                    quando o site tem manifesto, ele substitui
+                    &ldquo;Adicionar à tela inicial&rdquo; por &ldquo;Instalar
+                    app&rdquo; — e essa instalação falha. É uma limitação do
+                    navegador (brave/brave-browser#56133), não do app.
                   </span>
                 </p>
 
                 <ol className="mt-4 space-y-2.5 text-sm leading-relaxed text-ink-muted">
                   <li>
-                    <strong className="text-ink">1.</strong> No Brave, toque no
-                    menu <strong className="text-ink">⋮</strong> e em{" "}
-                    <strong className="text-ink">
-                      &ldquo;Adicionar à tela inicial&rdquo;
-                    </strong>
-                    . O atalho do ApoQuiz é criado na tela inicial e abre o app
-                    (o offline funciona).
+                    <strong className="text-ink">Para instalar de verdade</strong>{" "}
+                    (ícone próprio, tela cheia, sem barra do navegador): abra
+                    este mesmo link no{" "}
+                    <strong className="text-ink">Chrome</strong>, no mesmo
+                    celular, e toque em &ldquo;Instalar&rdquo;. Funciona de
+                    primeira.
                   </li>
                   <li>
-                    <strong className="text-ink">2.</strong> Se o Brave mostrar
-                    &ldquo;Instalar app&rdquo; e nada acontecer, ele está
-                    tentando criar o aplicativo e falhando. Nesse caso,{" "}
-                    <strong className="text-ink">
-                      desligue a internet (modo avião) e repita
-                    </strong>{" "}
-                    — sem manifesto disponível, o Brave cria o atalho
-                    normalmente.
-                  </li>
-                  <li>
-                    <strong className="text-ink">3.</strong> Para instalar de
-                    verdade (ícone próprio, tela cheia, sem barra do
-                    navegador), abra o{" "}
-                    <strong className="text-ink">Chrome</strong> no mesmo
-                    celular neste mesmo link — lá funciona de primeira.
+                    <strong className="text-ink">Para usar no Brave</strong>:
+                    o app funciona normalmente no navegador e{" "}
+                    <strong className="text-ink">fica disponível offline</strong>{" "}
+                    (o service worker guarda o app na primeira visita). Basta
+                    adicionar o &ldquo;Adicionar à tela inicial&rdquo; do Brave
+                    — se ele oferecer &ldquo;Instalar app&rdquo;, use o Chrome
+                    para instalar.
                   </li>
                 </ol>
               </>
