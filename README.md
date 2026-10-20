@@ -39,6 +39,10 @@ PDF ──► navegador (pdf.js) ──► parser heurístico ──┬─► ga
      app também lê a **explicação da resposta correta** e a **análise de cada
      alternativa** (`Times (A) Incorreta. …` / `Check (C) Correta. …`).
      O que o PDF traz tem sempre prioridade sobre a IA.
+   - **Nível de dificuldade**: o marcador da questão (`2 ○ ○ ○ FÁCIL`) e o
+     título da seção (`1.1.2 Questões de Nível Médio`) viram o filtro
+     **Fácil / Médio / Difícil** da tela de configuração — com multi-seleção.
+     Quando o PDF não informa o nível, a IA classifica.
 3. **IA (opcional)** — quando há `GEMINI_API_KEY` no servidor, a IA limpa os
    enunciados, escreve a explicação de cada questão e **resolve** as
    questões que não têm gabarito. Quando o PDF tem gabarito, ele sempre

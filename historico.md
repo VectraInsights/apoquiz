@@ -841,7 +841,62 @@ apostila com 1.824 questões vira 10 requests em vez de 1.824.
 
 ---
 
-## 17. Estado final
+## 18. Nível de dificuldade como filtro
+
+O PDF das apostilas editoriais declara o nível de cada questão de duas
+formas, e as duas eram jogadas fora como ruído:
+
+```
+Questão 2                          <- cabeçalho
+2 ○ ○ ○ FÁCIL                      <- marcador da questão
+ASPECTOS GEOGRÁFICOS, ...          <- tópico
+No contexto das pesquisas...       <- enunciado
+```
+
+```
+1.1.2 Questões de Nível Médio      <- título da seção
+```
+
+### O que foi implementado
+
+**Parser.** O marcador por questão (`matchDifficulty`) tem prioridade; na
+ausência dele, a questão herda o nível do título da seção
+(`levelFromTitle`). A legenda do medidor (`●○○ fácil, ●●○ médio, ●●●
+difícil.`) também passou a ser filtrada.
+
+Na apostila de 2.706 páginas:
+
+| Nível | Questões |
+| --- | --- |
+| Fácil | 441 |
+| Médio | 793 |
+| Difícil | 590 |
+| **Total** | **1.824** (100% com nível) |
+
+**Quando o PDF não informa o nível, a IA classifica.** O campo `level`
+entrou no schema de saída da IA (`facil` / `medio` / `dificil`) e no
+prompt, com a instrução de manter o valor do PDF quando ele existe. Na
+mesma linha de prioridade do gabarito e da explicação: **o PDF sempre
+vence**.
+
+**Interface.**
+- Chips de **multi-seleção** na tela de configuração (dá para escolher
+  Fácil + Difícil, por exemplo), com a contagem de questões por nível
+- O filtro combina com o de assunto (assunto + nível ao mesmo tempo)
+- Badge colorido no quiz: verde (fácil), amarelo (médio), vermelho (difícil)
+- Painel **"Desempenho por nível"** na tela de resultado
+- Coluna `level` nas tabelas do Supabase
+
+### Bug encontrado no caminho
+
+| # | Problema | Causa | Correção |
+| --- | --- | --- | --- |
+| 31 | 474 questões sem nível (de 1.824) | O regex do marcador aceitava só 1–3 dígitos, e as questões vão até 1.824 (`1008 ○ ○ ○ DIFÍCIL`) | Regex voltou para 1–4 dígitos |
+| 32 | Nenhuma questão com nível | O `matchDifficulty` era chamado **depois** do `isNoise`, que descartava a linha antes | A leitura do nível vem antes do filtro de ruído |
+
+---
+
+## 19. Estado final
 
 | Verificação | Resultado |
 | --- | --- |
