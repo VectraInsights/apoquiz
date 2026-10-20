@@ -682,6 +682,75 @@ Testada direto na API REST do projeto:
 | Insert anônimo em `quizzes` | ✅ bloqueado: `42501 new row violates row-level security policy` |
 | Fluxo do botão "Entrar" | ✅ `client_id`, `response_type=code`, `scope=email profile` e `redirect_uri` = callback do Supabase |
 
+### O que vai para a nuvem
+
+| Item | Vai para o servidor? |
+| --- | --- |
+| O **PDF** | ❌ nunca — lido e descartado no navegador |
+| Enunciados, alternativas, gabarito, explicações | ✅ |
+| Respostas e progresso | ✅ |
+
+O processamento continua 100% no cliente; só o JSON do quiz pronto é
+sincronizado.
+
+### Decisões de modelagem
+
+**Metadados separados das questões.** A lista de quizzes salvos carrega só
+os metadados (título, data, estatísticas). As questões são carregadas
+**sob demanda**, quando o quiz é aberto. Antes disso, o `localStorage`
+guardava o quiz inteiro como um blob JSON — uma apostila de 1.824 questões
+com explicações passa fácil de 5 MB, que é o limite do `localStorage` (e o
+`writeJSON` engolia o erro em silêncio).
+
+**Tabelas normalizadas.** Em vez de um JSON gigante, o Supabase recebe três
+tabelas: `quizzes` (metadados), `quiz_questions` (uma linha por questão, com
+`position` para manter a ordem) e `quiz_states` (o progresso).
+
+**RLS por usuário.** Cada tabela tem `user_id` e policies
+`auth.uid() = user_id`. As questões são acessadas via o quiz dono. A chave
+`service_role` **não** é necessária: tudo usa a chave `anon` com RLS ativa.
+
+**`qid` preservado.** O id original de cada questão é salvo em uma coluna
+própria — é ele que indexa as respostas em `quiz_states`. Sem isso, as
+respostas salvas não casariam com as questões recarregadas.
+
+**ID em UUID.** `buildQuiz` passou a gerar `crypto.randomUUID()`, que serve
+tanto como chave do `localStorage` quanto como `uuid` das tabelas.
+
+**Escritas em lote.** As questões são gravadas em chunks de 200 linhas — uma
+apostila com 1.824 questões vira 10 requests em vez de 1.824.
+
+### Interface
+
+- Botão **"Entrar com Google"** no cabeçalho (some sozinho quando o
+  Supabase não está configurado)
+- Avatar com a inicial + botão de sair, quando logado
+- Aviso na lista de salvos: "Entre com o Google para guardar seus quizzes
+  na nuvem e continuar de onde parou em qualquer aparelho."
+- A lista passa a dizer "Sincronizados com a sua conta" quando logado
+
+### Validação
+
+- **Modo local** (sem Supabase): botão de login ausente, criar → responder →
+  sair → voltar mostra "Em andamento · 2/10 respondidas", metadados sem as
+  questões e o quiz completo em chave separada ✅
+- `typecheck`, `lint` e `build` limpos ✅
+- O caminho de nuvem (login real, RLS, escrita e leitura na nuvem) foi
+  **testado pelo usuário no deploy**: o login pelo Google abre, a sessão
+  fica ativa e o quiz salvo aparece na lista sincronizado ✅
+- O `redirect_to` é validado contra a allow-list do Supabase: uma URL
+  fora da lista faz o callback cair na **Site URL**, o que fecha o open
+  redirect (§16, tabela de configuração)
+
+---
+
+## 17. Deploy e IA em produção: do bundle sem variáveis ao Gemini estável
+
+Com o app no ar, a última peça a fechar foi a camada de IA. Este bloco
+reúne o que quebrou no deploy e como cada problema foi resolvido — do
+botão de login que não aparecia até as variáveis existirem, até o Gemini
+reagindo 503 e gastando 30 s para refazer o que o PDF já tinha entregado.
+
 ### O deploy está no ar — mas sem as variáveis de ambiente
 
 O bundle publicado em `https://apoquiz.vercel.app` contém o *placeholder*
@@ -781,63 +850,6 @@ A checagem existe nos dois lados: o cliente não faz a requisição, e o
 servidor também não chama a API se não houver nada a enricher. A tela de
 configuração mostra *"O PDF já trazia a resolução comentada de cada questão
 — a IA não precisou ser chamada"*.
-
-### O que vai para a nuvem
-
-| Item | Vai para o servidor? |
-| --- | --- |
-| O **PDF** | ❌ nunca — lido e descartado no navegador |
-| Enunciados, alternativas, gabarito, explicações | ✅ |
-| Respostas e progresso | ✅ |
-
-O processamento continua 100% no cliente; só o JSON do quiz pronto é
-sincronizado.
-
-### Decisões de modelagem
-
-**Metadados separados das questões.** A lista de quizzes salvos carrega só
-os metadados (título, data, estatísticas). As questões são carregadas
-**sob demanda**, quando o quiz é aberto. Antes disso, o `localStorage`
-guardava o quiz inteiro como um blob JSON — uma apostila de 1.824 questões
-com explicações passa fácil de 5 MB, que é o limite do `localStorage` (e o
-`writeJSON` engolia o erro em silêncio).
-
-**Tabelas normalizadas.** Em vez de um JSON gigante, o Supabase recebe três
-tabelas: `quizzes` (metadados), `quiz_questions` (uma linha por questão, com
-`position` para manter a ordem) e `quiz_states` (o progresso).
-
-**RLS por usuário.** Cada tabela tem `user_id` e policies
-`auth.uid() = user_id`. As questões são acessadas via o quiz dono. A chave
-`service_role` **não** é necessária: tudo usa a chave `anon` com RLS ativa.
-
-**`qid` preservado.** O id original de cada questão é salvo em uma coluna
-própria — é ele que indexa as respostas em `quiz_states`. Sem isso, as
-respostas salvas não casariam com as questões recarregadas.
-
-**ID em UUID.** `buildQuiz` passou a gerar `crypto.randomUUID()`, que serve
-tanto como chave do `localStorage` quanto como `uuid` das tabelas.
-
-**Escritas em lote.** As questões são gravadas em chunks de 200 linhas — uma
-apostila com 1.824 questões vira 10 requests em vez de 1.824.
-
-### Interface
-
-- Botão **"Entrar com Google"** no cabeçalho (some sozinho quando o
-  Supabase não está configurado)
-- Avatar com a inicial + botão de sair, quando logado
-- Aviso na lista de salvos: "Entre com o Google para guardar seus quizzes
-  na nuvem e continuar de onde parou em qualquer aparelho."
-- A lista passa a dizer "Sincronizados com a sua conta" quando logado
-
-### Validação
-
-- **Modo local** (sem Supabase): botão de login ausente, criar → responder →
-  sair → voltar mostra "Em andamento · 2/10 respondidas", metadados sem as
-  questões e o quiz completo em chave separada ✅
-- `typecheck`, `lint` e `build` limpos ✅
-- O caminho de nuvem (login real, RLS, escrita e leitura na nuvem) **precisa
-  de um projeto Supabase com o Google provider habilitado** — não foi
-  possível exercitá-lo de ponta a ponta sem as credenciais do usuário.
 
 ---
 
@@ -1090,8 +1102,9 @@ acompanha o dispositivo:
 | Celular/tablet | "Instalar no celular" | "...direto da tela de início do celular" |
 | Computador | "Instalar o app" | "...no seu computador, como um app de verdade" |
 
-A deteccao usa `pointer: coarse` (ponteiro grosso, tipico de toque) ou
-largura menor que 768 px.
+A deteccao usava `pointer: coarse` (ponteiro grosso, tipico de toque) ou
+largura menor que 768 px. *(Depois corrigida: ver §26 — agora e so pela
+largura, porque o `pointer: coarse` dava falso positivo no PC.)*
 
 ---
 
@@ -1160,7 +1173,9 @@ Outros ajustes que vieram junto:
 
 ---
 
-## 27. Estado final
+## 28. Estado final
+
+### Verificações
 
 | Verificação | Resultado |
 | --- | --- |
@@ -1174,17 +1189,33 @@ Outros ajustes que vieram junto:
 | Salvar / retomar / reiniciar | ✅ quiz salvo sobrevive a fechar o navegador |
 | Mobile 390 × 844 | ✅ zero overflow horizontal, alvos de toque ≥ 32 px |
 | Modo local (sem Supabase) | ✅ funciona igual, sem botão de login |
-| Login com Google | ⚙️ implementado e configurado — provider ativo, RLS validada |
+| Login com Google | ✅ testado pelo usuário no deploy: sessão ativa e quiz salvo na lista |
+| Configuração do Supabase | ✅ Site URL e Redirect URLs preenchidos com `https://apoquiz.vercel.app` (open redirect fechado, ver §16) |
 | IA no ar (deploy) | ✅ `POST /api/extract` → HTTP 200 com explicação real do Gemini |
+| PWA no Android (Chrome) | ✅ instalado pelo usuário, ícone na tela de início |
+| PWA no iPhone | ⚙️ instruções documentadas (§21), sem teste do usuário |
+| Brave no Android | ⚠️ limitação do navegador (só cria atalho) — o app detecta e explica (§22) |
 
-### O que falta para produção
+### O que ainda fica de fora
 
-1. **Teste do login real** — o botão leva ao Google com o `client_id`,
-   `response_type=code` e o `redirect_uri` corretos (validado), mas falta
-   concluir a autenticação para conferir as linhas nas tabelas do Supabase.
-2. **Preencher a lista de Redirect URLs do Supabase** — hoje está vazia, e
-   com a lista vazia o Supabase aceita qualquer URL como destino do login
-   (open redirect). Ver §16.
-3. **Limite de 150 questões por PDF** na camada de IA: um PDF com 1.824
+1. **Limite de 150 questões por PDF** na camada de IA: um PDF com 1.824
    questões recebe explicação só nas primeiras 150. O gabarito do PDF, esse,
    vale para todas.
+2. **Brave no Android** não instala o app como aplicativo — é uma
+   limitação do navegador (`brave/brave-browser#56133`), não do app. O
+   Chrome instala normalmente.
+3. **Deploys de preview da Vercel** (URL aleatória) não conseguem entrar
+   com o Google: o Google exige a origem exata, sem curinga (§16).
+
+### Onde as coisas estão
+
+| Assunto | Arquivo |
+| --- | --- |
+| Tela inicial, hero e lista de quizzes | `components/quiz-app.tsx` |
+| Parser do PDF (heurístico) | `lib/pdf/parser.ts` |
+| Reconstrução de linhas e páginas | `lib/pdf/lines.ts` |
+| Relatório de problemas do PDF | `lib/pdf/diagnostics.ts` |
+| Providers de IA (Gemini / OpenAI) | `lib/ai/provider.ts` |
+| Persistência local ou nuvem | `lib/sync.ts` |
+| Tabelas e RLS | `lib/supabase/schema.sql` |
+| Botão de instalar / detecção de Brave | `components/install-prompt.tsx` |
