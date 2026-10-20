@@ -1,4 +1,5 @@
 import type { JsonSchema } from "./provider";
+import { compareGabaritoKey } from "@/lib/pdf/parser";
 import type { Question } from "@/lib/types";
 
 /**
@@ -59,14 +60,15 @@ function formatGabarito(gabarito: Record<string, string> | null | undefined) {
     return "Nao ha gabarito oficial disponivel. Resolva cada questao com o seu conhecimento.";
   }
   const entries = Object.entries(gabarito)
-    .sort((a, b) => Number(a[0]) - Number(b[0]))
-    .map(([number, letter]) => `${number}=${letter}`)
+    .sort((a, b) => compareGabaritoKey(a[0], b[0]))
+    .map(([key, letter]) => `${key}=${letter}`)
     .join(", ");
   return `GABARITO OFICIAL (fonte da verdade - nunca o contradiga, nunca troque a letra):
 ${entries}
 
-Para cada questao cujo numero esteja no gabarito, use a letra do gabarito como "correct".
-Para as demais, resolva a questao.`;
+A chave tem o formato SECAO#NUMERO quando o gabarito vem por secao da apostila
+(a secao e a disciplina/topic da questao). Use a entrada cuja secao e numero
+batam com os da questao. Para as demais, resolva a questao.`;
 }
 
 export function buildEnrichPrompt(
@@ -76,6 +78,7 @@ export function buildEnrichPrompt(
   const payload = questions.map((question, index) => ({
     indice: index,
     numero: question.number,
+    secao: question.section ?? null,
     enunciado: question.statement,
     topico: question.topic,
     alternativas: question.options.map((option) => ({

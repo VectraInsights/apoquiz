@@ -46,3 +46,7 @@ next-env.d.ts
 
 # log local
 server.log
+
+# cache de linhas extraidas (npm run cache:pdf)
+*-cache.json
+lines-cache*.json

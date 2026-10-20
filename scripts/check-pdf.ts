@@ -87,7 +87,15 @@ async function main() {
 
   const gabarito = detectGabarito(pages);
   console.log(`\n--- GABARITO (${Object.keys(gabarito.gabarito).length}) ---`);
-  console.log(JSON.stringify(gabarito.gabarito));
+  const gabaritoKeys = Object.keys(gabarito.gabarito);
+  console.log(
+    gabaritoKeys.length
+      ? `amostra: ${gabaritoKeys
+          .slice(0, 12)
+          .map((key) => `${key}=${gabarito.gabarito[key]}`)
+          .join(" ")}`
+      : "(nenhum)",
+  );
   if (gabarito.evidence) console.log(`Evidencia: ${gabarito.evidence}`);
 
   const questions = parseQuestions(pages);
@@ -97,7 +105,7 @@ async function main() {
   questions.forEach((question, index) => {
     const answer = applied[index];
     console.log(
-      `\n[${index + 1}] num=${question.number} pagina=${question.page} gabarito=${answer.correct ?? "-"} (${answer.source})`,
+      `\n[${index + 1}] num=${question.number} secao=${question.section ?? "-"} pagina=${question.page} gabarito=${answer.correct ?? "-"} (${answer.source})`,
     );
     if (question.topic) console.log(`  topico: ${question.topic}`);
     console.log(`  ${question.statement.slice(0, 200)}`);

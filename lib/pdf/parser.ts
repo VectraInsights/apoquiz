@@ -8,9 +8,30 @@
  *
  * Sao suportados dois formatos de alternativa:
  *  1. explicitos  -> "a)", "(B)", "C.", "D -", "IV)"
- *  2. implícitos  -> "Apopulate o texto..." (letra + espaco + texto),
- *     comuns em apostilas editoriais. Nesse caso a indentacao (x) da
- *     linha distingue o inicio da alternativa da continuacao do texto.
+ *  2. implicitos  -> "Apopulate o texto..." (letra + espaco + texto),
+ *     comuns em apostilas editoriais.
+ *
+ * Em ambos os formatos a INDENTACAO e o sinal que separa o inicio de uma
+ * alternativa da continuacao do enunciado. Por isso as alternativas de uma
+ * questao sao extraidas do bloco inteiro da questao: agrupa-se os
+ * candidatos por indentacao e escolhe-se o alinhamento que forma a
+ * sequencia A, B, C, D, E mais completa. Isso evita que assertivas em
+ * algarismos romanos ("I. ... II. ... III. ...") presentes no enunciado
+ * sejam confundidas com alternativas.
+ *
+ * Apostilas editoriais (Qconcursos, Estrategia, ...) organizam o
+ * material em secoes numeradas:
+ *
+ *     1.1 ORTOGRAFIA OFICIAL
+ *     1.1.1 Questoes Faceis        <- secao de questoes
+ *     1.1.2 Questoes de Nivel Medio
+ *     1.1.3 Questoes Dificeis
+ *     1.1.4 Gabaritos e Comentarios <- secao de gabarito
+ *
+ * Nesse formato o numero da questao reinicia a cada capitulo (1.1, 1.2,
+ * ...) e o gabarito vem junto da secao de comentarios, no formato
+ * "A alternativa correta e a C". Por isso o parser trabalha com secoes:
+ * as respostas sao guardadas por "capitulo#numero".
  */
 
 import type { Option } from "@/lib/types";
@@ -24,10 +45,12 @@ export type ParsedQuestion = {
   page: number;
   /** Resposta escrita inline no PDF (ex.: "Resposta: C") */
   inlineAnswer: string | null;
+  /** Capitulo onde a questao foi encontrada (ex.: "1.1"); null se nao houver */
+  section: string | null;
 };
 
 export type GabaritoResult = {
-  /** { "1": "B", "2": "C" } */
+  /** { "1": "B", "2": "C" } ou { "1.1#53": "C" } quando o gabarito e por secao */
   gabarito: Record<string, string>;
   /** Trecho do PDF de onde o gabarito foi lido */
   evidence: string;
@@ -49,15 +72,15 @@ type FlatLine = {
 
 // "Questao 12", "Q12", "Questao 12 - texto"
 const QUESTION_WORD =
-  /^\s*(?:quest[aã]o|q)\s*[-–—]?\s*(\d{1,3})\s*(?:[.:\)\-–—]\s*)?(.*)$/i;
+  /^\s*(?:quest[aã]o|q)\s*[-–—]?\s*(\d{1,4})\s*(?:[.:\)\-–—]\s*)?(.*)$/i;
 
 // "12)", "12.", "12 -", "12:" seguido do enunciado.
 // O ponto so e aceito quando NAO seguido de digito (evita "1.234").
 const QUESTION_NUMBER =
-  /^\s*(\d{1,3})\s*(?:[)\-–—:]|\.(?!\d))\s*(.*)$/;
+  /^\s*(\d{1,4})\s*(?:[)\-–—:]|\.(?!\d))\s*(.*)$/;
 
 // "1" sozinho numa linha (enunciado vem na linha seguinte)
-const QUESTION_BARE_NUMBER = /^\s*(\d{1,3})\s*$/;
+const QUESTION_BARE_NUMBER = /^\s*(\d{1,4})\s*$/;
 
 // "a)" / "(A)" / "b." / "C-" / "d:" / "A)"
 const OPTION_LETTER =
@@ -76,34 +99,46 @@ const GABARITO_HEADER =
 
 // "1-B" / "2) C" / "3 - D" / "4: E"  (numero e letra juntos)
 const GABARITO_PAIR_EXPLICIT =
-  /(?<![\w.])(\d{1,3})\s*[-–—)\]:=]\s*([A-Ea-e])(?![A-Za-z0-9])/g;
+  /(?<![\w.])(\d{1,4})\s*[-–—)\]:=]\s*([A-Ea-e])(?![A-Za-z0-9])/g;
 
 // "1 B" / "02    C"  (numero e letra separados por espaco)
 const GABARITO_PAIR_SPACED =
-  /(?<![\w.])(\d{1,3})\s+([A-Ea-e])(?![A-Za-z0-9])/g;
+  /(?<![\w.])(\d{1,4})\s+([A-Ea-e])(?![A-Za-z0-9])/g;
 
 // "Questao 12: C" / "Questao 12 - C"
 const GABARITO_PAIR_QUESTION =
-  /quest[aã]o\s*(\d{1,3})\s*[:.\)\-–—]?\s*\(?([A-Ea-e])\)?(?![A-Za-z0-9])/gi;
+  /quest[aã]o\s*(\d{1,4})\s*[:.\)\-–—]?\s*\(?([A-Ea-e])\)?(?![A-Za-z0-9])/gi;
 
 // "Resposta: C" / "Gabarito: alternativa C" / "R = C"
 const GABARITO_INLINE =
-  /(?:resposta|gabarito|chave)\s*(?:da\s+quest[aã]o\s*\d{1,3}\s*)?(?:comentad[ao]s?\s*)?[:=]?\s*(?:alternativa\s*)?\(?([A-Ea-e])\)?(?![A-Za-z0-9])/gi;
+  /(?:resposta|gabarito|chave)\s*(?:da\s+quest[aã]o\s*\d{1,4}\s*)?(?:comentad[ao]s?\s*)?[:=]?\s*(?:alternativa\s*)?\(?([A-Ea-e])\)?(?![A-Za-z0-9])/gi;
+
+/* --------------------- gabarito por secao (comentarios) -------------- */
+
+// "Resolucao da Questao 12"
+const ANSWER_QUESTION_MARKER = /^\s*Resolu[çc][ãa]o\s+da\s+Quest[ãa]o\s+(\d{1,4})\s*$/i;
+
+// "12 Check-Circle GABARITO"
+const ANSWER_NUMBER_MARKER = /^\s*(\d{1,4})\s+Check[-\s]?Circle\s+GABARITO/i;
+
+// "A alternativa correta e a C"
+const ANSWER_LETTER =
+  /alternativa\s+correta\s*[ée]\s+(?:a\s+|ao\s+)?(?:alternativa\s+)?([A-E])(?![A-Za-z])/i;
 
 /* --------------------------- ruido comum ---------------------------- */
 
-// Cabecalho corrente de pagina: "1. Conhecimentos Gerais ... Físicos, …"
+// Cabecalho corrente de pagina: "1. Conhecimentos Gerais ... Fisicos, ..."
 const RUNNING_HEADER = /^\d+(?:\.\d+)*\.?\s+.{8,}…\s*$/;
 
-// Marcador de dificuldade: "2 ○ ○ ○ FÁCIL", "12 FÁCIL", "43 ○ ○ ○ DIFÍCIL"
+// Marcador de dificuldade: "2 ○ ○ ○ FACIL", "12 FACIL", "43 ○ ○ ○ DIFICIL"
 const DIFFICULTY_LINE =
-  /^\s*\d{1,3}\s*(?:[○●◐◑◒◓◔⬤⭘·•*]+[\s]*)*(?:F[ÁA]CIL|M[ÉE]DIO|DIF[ÍI]CIL|AVAN[ÇC]ADO)\b\s*$/i;
+  /^\s*\d{1,4}\s*(?:[○●◐◑◒◓◔⬤⭘·•*]+[\s]*)*(?:F[ÁA]CIL|M[ÉE]DIO|DIF[ÍI]CIL|AVAN[ÇC]ADO)\b\s*$/i;
 
 // Chamadas de interface das apostilas editoriais
 const UI_NOISE =
-  /(tente resolver antes de conferir|ver gabarito e coment[áa]rios|voltar [àa] quest[ãa]o|pula direto para a resolu[çc][ãa]o|acesso ao gabarito)/i;
+  /(tente resolver antes de conferir|ver gabarito e coment[áa]rios|voltar [àa] quest[ãa]o|pula direto para a resolu[çc][ãa]o|acesso ao gabarito|an[áa]lise detalhada das alternativas|continue de onde parou)/i;
 
-// "7 / 538", "página 12", "page 3"
+// "7 / 538", "pagina 12", "page 3"
 const PAGE_NUMBER_LINE =
   /^\s*(?:p[áa]gina|page|f[óo]lder)?\s*\.?\s*\d{1,4}\s*(?:\/\s*\d{1,4})?\s*$/i;
 
@@ -112,6 +147,21 @@ const DECORATION_LINE = /^\s*[-–—_=~*•·.]+\s*$/;
 // Linhas que so podem ser matematica/simbolos (nao sao enunciados)
 const MATH_ONLY = /^[\d\s.,+\-*/^()=<>%°×xX:]+$/;
 
+/* --------------------------- secoes do documento --------------------- */
+
+// "1.1 ORTOGRAFIA OFICIAL", "1.1.4 Gabaritos e Comentarios"
+const SECTION_HEADER = /^\s*(\d+(?:\.\d+){1,2})\s+(\S.{0,88})$/;
+
+// Entrada de sumario: "1.1.4 Gabaritos e Comentarios . . . . . . 44"
+const TOC_LEADER = /(?:\s\.\s){3,}/;
+
+// Titulo de secao nao contem frase: "dia. Considerando um mes" indica que
+// a linha e um trecho de enunciado e nao um cabecalho de secao.
+const TITLE_IS_SENTENCE = /[a-zà-ÿ]\.\s/;
+
+const TITLE_QUESTIONS = /quest[õo]es|quest[ãa]o\b|exerc[íi]cios|atividades/i;
+const TITLE_ANSWERS = /gabarito|resposta|coment[áa]rio|solu[çc][ãa]o/i;
+
 const ROMAN_TO_LETTER: Record<string, string> = {
   I: "A",
   II: "B",
@@ -119,6 +169,9 @@ const ROMAN_TO_LETTER: Record<string, string> = {
   IV: "D",
   V: "E",
 };
+
+/** Diferenca maxima de indentacao para duas linhas pertencerem ao mesmo grupo. */
+const X_TOLERANCE = 3;
 
 /* ------------------------------------------------------------------ */
 /* Utilitarios                                                          */
@@ -160,7 +213,7 @@ function isNoise(text: string): boolean {
 
 /**
  * Linha de topico: predominantemente em caixa alta e com tamanho de titulo.
- * Ex.: "ASPECTOS GEOGRÁFICOS, HISTÓRICOS, FÍSICOS, ECONÔMICOS, SOCI- …"
+ * Ex.: "ASPECTOS GEOGRÁFICOS, HISTÓRICOS, FÍSICOS, ECONÔMICOS, SOCI- ..."
  */
 function isTopicLine(text: string): boolean {
   if (OPTION_BARE_LETTER.test(text)) return false;
@@ -179,7 +232,26 @@ function cleanTopic(text: string): string {
   return cleanText(text.replace(/\s*…\s*$/, "").replace(/\s*-\s*$/, "")).slice(0, 80);
 }
 
-function matchOption(text: string): { label: string; text: string } | null {
+/* ------------------------------------------------------------------ */
+/* Alternativas                                                         */
+/* ------------------------------------------------------------------ */
+
+type OptionCandidate = {
+  /** indice da linha dentro do bloco da questao */
+  index: number;
+  /** letra normalizada: A..E */
+  label: string;
+  /** texto da alternativa */
+  text: string;
+  /** indentacao da linha */
+  x: number;
+};
+
+/**
+ * Reconhece uma alternativa nos tres formatos suportados e devolve a
+ * letra normalizada. Numeros romanos viram letras (I->A, II->B, ...).
+ */
+function matchOptionCandidate(text: string): { label: string; text: string } | null {
   const roman = text.match(OPTION_ROMAN);
   if (roman) {
     const raw = (roman[1] ?? roman[2] ?? roman[3] ?? "").toUpperCase();
@@ -193,8 +265,121 @@ function matchOption(text: string): { label: string; text: string } | null {
     if (label) return { label, text: letter[4] ?? "" };
   }
 
+  const bare = text.match(OPTION_BARE_LETTER);
+  if (bare) return { label: bare[1], text: bare[2] };
+
   return null;
 }
+
+/**
+ * Sequencia mais longa de alternativas A, B, C, D, E dentro de um grupo
+ * que compartilha a mesma indentacao. Quando um "A" aparece fora de
+ * ordem, a cadeia recomeca - assim uma assertiva "I." no enunciado nao
+ * quebra o grupo das alternativas verdadeiras.
+ */
+function buildChain(candidates: OptionCandidate[]): OptionCandidate[] {
+  let best: OptionCandidate[] = [];
+  let chain: OptionCandidate[] = [];
+
+  for (const candidate of candidates) {
+    const aligned =
+      chain.length === 0 || Math.abs(candidate.x - chain[0].x) <= X_TOLERANCE;
+    if (!aligned) chain = [];
+
+    const expected = String.fromCharCode(65 + chain.length);
+    if (candidate.label === expected) {
+      chain.push(candidate);
+    } else if (candidate.label === "A") {
+      // Um "A" fora de ordem reinicia a cadeia.
+      chain = [candidate];
+    } else {
+      continue;
+    }
+
+    if (chain.length >= best.length) best = [...chain];
+  }
+
+  return best;
+}
+
+/**
+ * Extrai as alternativas de um bloco de linhas (a questao inteira).
+ *
+ * Os candidatos sao agrupados pela indentacao: as alternativas de uma
+ * questao ficam alinhadas, enquanto o enunciado tem outra indentacao.
+ * Ganha o alinhamento que forma a sequencia A..E mais completa.
+ */
+function extractOptions(block: FlatLine[]): { options: Option[]; start: number } | null {
+  const candidates: OptionCandidate[] = [];
+  for (let i = 0; i < block.length; i += 1) {
+    const match = matchOptionCandidate(block[i].text);
+    if (!match) continue;
+    candidates.push({
+      index: i,
+      label: match.label,
+      text: match.text,
+      x: block[i].x,
+    });
+  }
+  if (candidates.length < 2) return null;
+
+  // Agrupa por indentacao (vizinhos dentro de X_TOLERANCE). A ordem do
+  // documento e preservada dentro de cada grupo: a coordenada x das
+  // alternativas varia um pouco e ordenar por x embaralharia as letras.
+  const groups: OptionCandidate[][] = [];
+  for (const candidate of candidates) {
+    let target = -1;
+    for (let g = 0; g < groups.length; g += 1) {
+      if (Math.abs(groups[g][0].x - candidate.x) <= X_TOLERANCE) {
+        target = g;
+        break;
+      }
+    }
+    if (target === -1) groups.push([candidate]);
+    else groups[target].push(candidate);
+  }
+
+  let best: OptionCandidate[] = [];
+  let bestGroup = groups[0] ?? [];
+  for (const group of groups) {
+    const chain = buildChain(group);
+    // Empate: vence o grupo com mais candidatos e, depois, o mais recente
+    // (as alternativas vem depois do enunciado).
+    if (
+      chain.length > best.length ||
+      (chain.length === best.length && group.length > bestGroup.length) ||
+      (chain.length === best.length &&
+        group.length === bestGroup.length &&
+        chain.length > 0 &&
+        best.length > 0 &&
+        chain[chain.length - 1].index > best[best.length - 1].index)
+    ) {
+      best = chain;
+      bestGroup = group;
+    }
+  }
+  if (best.length < 2) return null;
+
+  const options: Option[] = best.map((candidate) => ({
+    label: candidate.label,
+    text: candidate.text,
+  }));
+
+  // Continuacao de cada alternativa: linhas ate a proxima alternativa.
+  for (let k = 0; k < best.length; k += 1) {
+    const from = best[k].index + 1;
+    const to = k + 1 < best.length ? best[k + 1].index : block.length;
+    for (let j = from; j < to; j += 1) {
+      options[k].text = `${options[k].text} ${block[j].text}`.trim();
+    }
+  }
+
+  return { options, start: best[0].index };
+}
+
+/* ------------------------------------------------------------------ */
+/* Cabecalho de questao                                                 */
+/* ------------------------------------------------------------------ */
 
 type Header = { number: number; rest: string; kind: "word" | "number" | "bare" };
 
@@ -212,8 +397,12 @@ function matchQuestionHeader(text: string): Header | null {
     const number = Number(num[1]);
     const rest = (num[2] ?? "").trim();
     // "2 - 2" e matematica, nao um novo enunciado
-    if (Number.isFinite(number) && number > 0 && !MATH_ONLY.test(rest)) {
-      return { number, rest, kind: "number" };
+    if (!MATH_ONLY.test(rest) && !/^[;,]/.test(rest)) {
+      // "2009), o alfabeto..." e continuacao de frase (o numero de um ano
+      // seguido de parentese no inicio da linha), nao um novo enunciado.
+      if (Number.isFinite(number) && number > 0) {
+        return { number, rest, kind: "number" };
+      }
     }
   }
 
@@ -226,10 +415,6 @@ function matchQuestionHeader(text: string): Header | null {
   }
 
   return null;
-}
-
-function looksLikeQuestionHeader(text: string): boolean {
-  return matchQuestionHeader(text) !== null;
 }
 
 function hasGabaritoPair(text: string): boolean {
@@ -248,6 +433,97 @@ function countPairs(text: string): number {
 }
 
 /* ------------------------------------------------------------------ */
+/* Secoes do documento                                                  */
+/* ------------------------------------------------------------------ */
+
+export type SectionKind = "questions" | "answers" | "other";
+
+type DocSection = {
+  /** Caminho editorial completo ("1.1.4") */
+  path: string;
+  /** Capitulo ("1.1" a partir de "1.1.4") - o numero da questao reinicia aqui */
+  chapter: string;
+  title: string;
+  kind: SectionKind;
+  /** indice global da linha do cabecalho */
+  start: number;
+  /** indice global exclusivo do fim da secao */
+  end: number;
+};
+
+function chapterOf(path: string): string {
+  const parts = path.split(".");
+  return parts.length >= 2 ? `${parts[0]}.${parts[1]}` : path;
+}
+
+function classifyTitle(title: string): SectionKind {
+  if (TITLE_QUESTIONS.test(title)) return "questions";
+  if (TITLE_ANSWERS.test(title)) return "answers";
+  return "other";
+}
+
+/**
+ * Localiza os cabecalhos de secao numerados. Entradas de sumario
+ * ("1.1.4 Gabaritos . . . . 44") sao descartadas pela sequencia de pontos.
+ */
+function detectSections(lines: FlatLine[]): DocSection[] {
+  const headers: { path: string; title: string; index: number }[] = [];
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const text = lines[i].text;
+    if (TOC_LEADER.test(text)) continue;
+    const match = text.match(SECTION_HEADER);
+    if (!match) continue;
+
+    const title = match[2].trim();
+    // Titulo de secao comeca com letra maiuscula.
+    if (!/^[A-ZÀ-Þ]/.test(title)) continue;
+    if (!/[A-Za-zÀ-ÿ]{3}/.test(title)) continue;
+    // Titulo de secao nao tem frase nem decimais: "2.200 W permanece..."
+    // e um trecho de enunciado, nao o cabecalho da secao 2.200.
+    if (TITLE_IS_SENTENCE.test(title)) continue;
+    const parts = match[1].split(".");
+    if (parts.some((part) => Number(part) > 99)) continue;
+
+    headers.push({ path: match[1], title, index: i });
+  }
+
+  return headers.map((header, index) => ({
+    path: header.path,
+    chapter: chapterOf(header.path),
+    title: header.title,
+    kind: classifyTitle(header.title),
+    start: header.index,
+    end: index + 1 < headers.length ? headers[index + 1].index : lines.length,
+  }));
+}
+
+/** Mapa indice global da linha -> secao que a contem. */
+function buildSectionMap(lines: FlatLine[], sections: DocSection[]): Int32Array {
+  const map = new Int32Array(lines.length).fill(-1);
+  sections.forEach((section, sectionIndex) => {
+    for (let i = section.start; i < section.end && i < lines.length; i += 1) {
+      map[i] = sectionIndex;
+    }
+  });
+  return map;
+}
+
+/**
+ * Cabecalho corrente das apostilas editoriais:
+ * "1. Língua Portuguesa 1.1. Ortografia Oficial".
+ * Ele contem o caminho de uma secao conhecida, por isso da para
+ * reconhecer sem depender do layout exato.
+ */
+function isRunningHeader(text: string, paths: Set<string>): boolean {
+  if (!/^\d{1,3}\.\s/.test(text)) return false;
+  for (const path of paths) {
+    if (text.includes(`${path}.`) || text.includes(`${path} `)) return true;
+  }
+  return false;
+}
+
+/* ------------------------------------------------------------------ */
 /* Secao do gabarito                                                   */
 /* ------------------------------------------------------------------ */
 
@@ -259,25 +535,42 @@ type Region = {
 };
 
 /**
- * Encontra a secao de gabarito. Prioriza um cabecalho explicito
- * ("Gabarito", "Respostas"); se nao houver, procura uma grade de pares
- * no final do documento.
+ * Cabecalho de secao de gabarito. Exige que a linha comece com maiuscula
+ * e que nao termine em ponto - senao "gabarito." (fim de frase) seria
+ * confundido com um cabecalho.
+ */
+function isGabaritoHeader(text: string): boolean {
+  const match = text.match(GABARITO_HEADER);
+  if (!match) return false;
+
+  const trimmed = text.trim();
+  if (!/^[A-ZÀ-Þ]/.test(trimmed)) return false;
+  if (trimmed.endsWith(".") && !/[:\-–—]/.test(trimmed)) return false;
+
+  // "Resposta: C" e resposta inline, nao cabecalho de secao.
+  GABARITO_INLINE.lastIndex = 0;
+  if (trimmed.length < 60 && GABARITO_INLINE.test(trimmed)) return false;
+
+  const remainder = (match[1] ?? "").trim();
+  const isHeaderLike =
+    remainder.length > 0 || trimmed.length <= 45 || /[:\-–—]/.test(trimmed);
+  return isHeaderLike;
+}
+
+function looksLikeQuestionHeader(text: string): boolean {
+  return matchQuestionHeader(text) !== null;
+}
+
+/**
+ * Encontra a secao de gabarito (formato classico: um unico bloco no fim
+ * do documento). Em apostilas com gabarito por secao esta funcao nao e
+ * usada - o gabarito vem das secoes "Gabaritos e Comentarios".
  */
 function findGabaritoRegion(lines: FlatLine[]): Region | null {
   for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i];
-    const match = line.text.match(GABARITO_HEADER);
-    if (!match) continue;
+    if (!isGabaritoHeader(lines[i].text)) continue;
 
-    // "Resposta: C" e resposta inline, nao cabecalho de secao.
-    GABARITO_INLINE.lastIndex = 0;
-    if (line.text.length < 60 && GABARITO_INLINE.test(line.text)) continue;
-
-    const remainder = (match[1] ?? "").trim();
-    const isHeaderLike =
-      remainder.length > 0 || line.text.length <= 45 || /[:\-–—]/.test(line.text);
-    if (!isHeaderLike) continue;
-
+    const remainder = (lines[i].text.match(GABARITO_HEADER)?.[1] ?? "").trim();
     let end = lines.length;
     if (i < lines.length * 0.4) {
       // Gabarito no inicio: a secao termina quando comecam as questoes.
@@ -308,118 +601,133 @@ function findGabaritoRegion(lines: FlatLine[]): Region | null {
 /* Gabarito                                                            */
 /* ------------------------------------------------------------------ */
 
+/** Ordena chaves "1.1#53" e "12" de forma estavel e numerica. */
+export function compareGabaritoKey(a: string, b: string): number {
+  const parse = (key: string) => {
+    const parts = key.split("#");
+    return {
+      chapter: parts.length > 1 ? parts[0] : "",
+      number: Number(parts[parts.length - 1]) || 0,
+    };
+  };
+  const left = parse(a);
+  const right = parse(b);
+  if (left.chapter !== right.chapter) {
+    return left.chapter.localeCompare(right.chapter, undefined, { numeric: true });
+  }
+  return left.number - right.number;
+}
+
 /**
  * Le o gabarito do PDF. Cobre os formatos mais comuns:
  *  - "1-B  2-C  3-A" (grade)
  *  - "1) B  2) C"
  *  - "1  B" (colunas)
  *  - "Questao 12: C"
+ *  - secao "Gabaritos e Comentarios" com "A alternativa correta e a C"
  */
 export function detectGabarito(pages: ExtractedPage[]): GabaritoResult {
   const lines = flattenPages(pages);
+  const sections = detectSections(lines);
   const gabarito: Record<string, string> = {};
   let evidence = "";
 
-  const region = findGabaritoRegion(lines);
+  /* 1) Gabarito por secao: "1.1.4 Gabaritos e Comentarios" */
+  for (const section of sections) {
+    if (section.kind !== "answers") continue;
 
-  const push = (number: string, letter: string) => {
-    const key = String(Number(number));
-    if (gabarito[key]) return;
-    gabarito[key] = letter.toUpperCase();
-  };
+    let currentNumber: number | null = null;
 
-  const collect = (text: string) => {
-    GABARITO_PAIR_QUESTION.lastIndex = 0;
-    GABARITO_PAIR_EXPLICIT.lastIndex = 0;
-    GABARITO_PAIR_SPACED.lastIndex = 0;
+    for (let i = section.start; i < section.end; i += 1) {
+      const text = lines[i].text;
 
-    let m: RegExpExecArray | null;
-    while ((m = GABARITO_PAIR_QUESTION.exec(text)) !== null) push(m[1], m[2]);
-    while ((m = GABARITO_PAIR_EXPLICIT.exec(text)) !== null) push(m[1], m[2]);
-    while ((m = GABARITO_PAIR_SPACED.exec(text)) !== null) push(m[1], m[2]);
+      const marker = text.match(ANSWER_QUESTION_MARKER);
+      if (marker) {
+        currentNumber = Number(marker[1]);
+        continue;
+      }
 
-    if (!evidence && hasGabaritoPair(text)) evidence = text.slice(0, 240);
-  };
+      const numbered = text.match(ANSWER_NUMBER_MARKER);
+      if (numbered) {
+        currentNumber = Number(numbered[1]);
+        continue;
+      }
 
-  if (region) {
-    if (region.headerRemainder) collect(region.headerRemainder);
-    for (let i = region.start; i < region.end; i += 1) {
-      collect(lines[i].text);
+      const letter = text.match(ANSWER_LETTER);
+      if (letter && currentNumber !== null) {
+        const key = `${section.chapter}#${currentNumber}`;
+        if (!gabarito[key]) {
+          gabarito[key] = letter[1].toUpperCase();
+          if (!evidence) evidence = text.slice(0, 240);
+        }
+        continue;
+      }
+
+      // Resposta inline dentro da secao de comentarios ("Gabarito: C")
+      GABARITO_INLINE.lastIndex = 0;
+      const inline = GABARITO_INLINE.exec(text);
+      if (inline && currentNumber !== null) {
+        const key = `${section.chapter}#${currentNumber}`;
+        if (!gabarito[key]) {
+          gabarito[key] = inline[1].toUpperCase();
+          if (!evidence) evidence = text.slice(0, 240);
+        }
+      }
+    }
+  }
+
+  /* 2) Formato classico: um bloco unico de pares no documento */
+  if (Object.keys(gabarito).length === 0) {
+    const region = findGabaritoRegion(lines);
+
+    const push = (number: string, letter: string) => {
+      const key = String(Number(number));
+      if (gabarito[key]) return;
+      gabarito[key] = letter.toUpperCase();
+    };
+
+    const collect = (text: string) => {
+      GABARITO_PAIR_QUESTION.lastIndex = 0;
+      GABARITO_PAIR_EXPLICIT.lastIndex = 0;
+      GABARITO_PAIR_SPACED.lastIndex = 0;
+
+      let m: RegExpExecArray | null;
+      while ((m = GABARITO_PAIR_QUESTION.exec(text)) !== null) push(m[1], m[2]);
+      while ((m = GABARITO_PAIR_EXPLICIT.exec(text)) !== null) push(m[1], m[2]);
+      while ((m = GABARITO_PAIR_SPACED.exec(text)) !== null) push(m[1], m[2]);
+
+      if (!evidence && hasGabaritoPair(text)) evidence = text.slice(0, 240);
+    };
+
+    if (region) {
+      if (region.headerRemainder) collect(region.headerRemainder);
+      for (let i = region.start; i < region.end; i += 1) {
+        collect(lines[i].text);
+      }
     }
   }
 
   return { gabarito, evidence, inline: false };
 }
 
-/* ------------------------------------------------------------------ */
-/* Alternativas implicitas ("A texto")                                */
-/* ------------------------------------------------------------------ */
-
 /**
- * Recupera alternativas no formato "A texto" usando a indentacao para
- * separar o inicio da alternativa da continuacao do texto corrido.
+ * Procura a resposta de uma questao no gabarito detectado. Quando o
+ * gabarito e por secao, a chave e "capitulo#numero"; quando e global, a
+ * chave e apenas o numero.
  */
-function rescueBareOptions(lines: FlatLine[]): {
-  statement: string;
-  options: Option[];
-} | null {
-  const candidates = lines
-    .map((line, index) => ({ line, index, match: line.text.match(OPTION_BARE_LETTER) }))
-    .filter((item) => item.match !== null);
+export function lookupGabarito(
+  gabarito: Record<string, string> | null | undefined,
+  question: { number: number | null; section?: string | null },
+): string | null {
+  if (!gabarito || question.number === null) return null;
 
-  if (candidates.length < 3) return null;
-
-  // x modal dos candidatos = alinhamento das alternativas. Usa o valor
-  // exato (media) do grupo mais frequente para nao misturar o enunciado,
-  // que costuma ter indentacao diferente.
-  const buckets = new Map<number, number[]>();
-  for (const item of candidates) {
-    const bucket = Math.round(item.line.x / 3) * 3;
-    const list = buckets.get(bucket) ?? [];
-    list.push(item.line.x);
-    buckets.set(bucket, list);
+  if (question.section) {
+    const scoped = gabarito[`${question.section}#${question.number}`];
+    if (scoped) return scoped.toUpperCase();
   }
 
-  let optionX = 0;
-  let best: number[] = [];
-  for (const list of buckets.values()) {
-    if (list.length > best.length) {
-      best = list;
-    }
-  }
-  if (best.length < 3) return null;
-  optionX = best.reduce((sum, x) => sum + x, 0) / best.length;
-
-  const near = (x: number) => Math.abs(x - optionX) <= 3;
-
-  const start = candidates.find(
-    (item) => item.match?.[1] === "A" && near(item.line.x),
-  );
-  if (!start) return null;
-
-  const options: Option[] = [];
-  let expected = "A";
-  let current: Option | null = null;
-
-  for (let i = start.index; i < lines.length; i += 1) {
-    const line = lines[i];
-    const match = line.text.match(OPTION_BARE_LETTER);
-
-    if (match && match[1] === expected && near(line.x)) {
-      current = { label: expected, text: match[2] };
-      options.push(current);
-      expected = String.fromCharCode(expected.charCodeAt(0) + 1);
-    } else if (current) {
-      current.text = `${current.text} ${line.text}`.trim();
-    }
-  }
-
-  if (options.length < 3) return null;
-
-  return {
-    statement: joinParts(lines.slice(0, start.index).map((line) => line.text)),
-    options,
-  };
+  const plain = gabarito[String(question.number)];
+  return plain ? plain.toUpperCase() : null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -431,9 +739,19 @@ function rescueBareOptions(lines: FlatLine[]): {
  */
 export function parseQuestions(pages: ExtractedPage[]): ParsedQuestion[] {
   const lines = flattenPages(pages);
-  const region = findGabaritoRegion(lines);
-  const gabaritoLines = new Set<number>();
+  const sections = detectSections(lines);
+  const sectionMap = buildSectionMap(lines, sections);
+  const sectionPaths = new Set(sections.map((section) => section.path));
 
+  // Quando o PDF tem secoes de questoes bem definidas, so elas geram
+  // questoes. Isso descarta o material de frente (capa, sumario, guia
+  // rapido) que costuma ser misinterpreted como questao.
+  const questionSections = sections.filter((section) => section.kind === "questions");
+  const useSections = questionSections.length >= 3;
+
+  // Regiao classica de gabarito (PDFs sem gabarito por secao).
+  const region = useSections ? null : findGabaritoRegion(lines);
+  const gabaritoLines = new Set<number>();
   if (region) {
     for (let i = region.start; i < region.end; i += 1) {
       gabaritoLines.add(lines[i].index);
@@ -444,69 +762,88 @@ export function parseQuestions(pages: ExtractedPage[]): ParsedQuestion[] {
   const questions: ParsedQuestion[] = [];
   let current: {
     number: number | null;
-    statementParts: FlatLine[];
-    options: Option[];
+    /** linhas do enunciado + alternativas da questao */
+    block: FlatLine[];
     topic: string | null;
     page: number;
     inlineAnswer: string | null;
+    section: string | null;
   } | null = null;
-  let lastNumber = 0;
+
+  /** Ultimo numero visto por capitulo - o numero reinicia a cada capitulo. */
+  const lastNumbers = new Map<string, number>();
 
   const pushCurrent = () => {
     if (!current) return;
 
-    let statement = joinParts(current.statementParts.map((line) => line.text));
-    let options = current.options
-      .map((option) => ({ ...option, text: cleanText(option.text) }))
-      .filter((option) => option.text.length > 0);
+    const extracted = extractOptions(current.block);
+    if (extracted) {
+      const statement = joinParts(
+        current.block.slice(0, extracted.start).map((line) => line.text),
+      );
+      const options = extracted.options
+        .map((option) => ({ ...option, text: cleanText(option.text) }))
+        .filter((option) => option.text.length > 0);
 
-    // Formato implicito: "A texto" - recupera usando a indentacao.
-    if (options.length < 2 && current.statementParts.length > 0) {
-      const rescued = rescueBareOptions(current.statementParts);
-      if (rescued) {
-        statement = rescued.statement;
-        options = rescued.options;
+      if (statement.length > 0 && options.length >= 2) {
+        questions.push({
+          number: current.number,
+          statement,
+          options,
+          topic: current.topic,
+          page: current.page,
+          inlineAnswer: current.inlineAnswer,
+          section: current.section,
+        });
       }
-    }
-
-    if (statement.length > 0 && options.length >= 2) {
-      questions.push({
-        number: current.number,
-        statement,
-        options,
-        topic: current.topic,
-        page: current.page,
-        inlineAnswer: current.inlineAnswer,
-      });
     }
     current = null;
   };
 
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
+
+    // Linhas do gabarito (secoes de comentarios ou bloco classico) nao
+    // sao questoes.
     if (gabaritoLines.has(line.index)) {
+      pushCurrent();
+      continue;
+    }
+
+    const sectionIndex = sectionMap[i];
+    const section = sectionIndex >= 0 ? sections[sectionIndex] : null;
+
+    // Secao de gabarito: fora.
+    if (section && section.kind === "answers") {
+      pushCurrent();
+      continue;
+    }
+
+    // Cabecalho de secao e estrutura, nao enunciado.
+    if (section && section.start === line.index) {
+      continue;
+    }
+
+    // Quando o PDF tem secoes de questoes, o resto do material e
+    // descartado (capa, sumario, teoria).
+    if (useSections && (!section || section.kind !== "questions")) {
       pushCurrent();
       continue;
     }
 
     if (isNoise(line.text)) continue;
 
-    // Topico em caixa alta (ex.: "ASPECTOS GEOGRÁFICOS, ... SOCI- …")
-    if (isTopicLine(line.text)) {
-      if (current && !current.topic) {
-        current.topic = cleanTopic(line.text);
-      }
+    // Cabecalho corrente: "1. Língua Portuguesa 1.1. Ortografia Oficial".
+    // Ele aparece no meio da questao quando ha quebra de pagina, entao e
+    // apenas descartado - nunca fecha a questao.
+    if (isRunningHeader(line.text, sectionPaths)) {
       continue;
     }
 
-    // Alternativas explicitas tem prioridade: "a) ..." nunca inicia questao.
-    const option = matchOption(line.text);
-    if (option) {
-      if (current) {
-        const expected = String.fromCharCode(65 + current.options.length);
-        // Alternativas fora de ordem ou duplicadas sao descartadas.
-        if (option.label === expected) {
-          current.options.push({ label: option.label, text: option.text });
-        }
+    // Topico em caixa alta (ex.: "ASPECTOS GEOGRÁFICOS, ... SOCI- ...")
+    if (isTopicLine(line.text)) {
+      if (current && !current.topic) {
+        current.topic = cleanTopic(line.text);
       }
       continue;
     }
@@ -521,47 +858,40 @@ export function parseQuestions(pages: ExtractedPage[]): ParsedQuestion[] {
 
     const header = matchQuestionHeader(line.text);
     if (header) {
-      const outOfOrder = header.number <= lastNumber;
+      const chapter = section?.chapter ?? "";
+      const last = lastNumbers.get(chapter) ?? 0;
+      const outOfOrder = header.number <= last;
 
       // Numero fora de ordem dentro de um enunciado em curso = conteudo.
-      // Antes de descartar, tenta recuperar alternativas implicitas: se a
-      // questao anterior tem alternativas, ela nao esta em andamento.
-      if (outOfOrder && current !== null && current.options.length === 0) {
-        const rescued = rescueBareOptions(current.statementParts);
-        if (!rescued) {
-          current.statementParts.push(line);
-          continue;
-        }
+      // Antes de descartar, tenta recuperar as alternativas implicitas: se a
+      // questao anterior ja tem alternativas, ela nao esta em andamento.
+      if (outOfOrder && current !== null && !extractOptions(current.block)) {
+        current.block.push(line);
+        continue;
       }
 
       // Numero solto so abre questao depois de uma questao completa.
-      if (header.kind === "bare" && current !== null && current.options.length === 0) {
-        current.statementParts.push(line);
+      if (header.kind === "bare" && current !== null && !extractOptions(current.block)) {
+        current.block.push(line);
         continue;
       }
 
       pushCurrent();
       current = {
         number: header.number,
-        statementParts: header.rest ? [{ ...line, text: header.rest }] : [],
-        options: [],
+        block: header.rest ? [{ ...line, text: header.rest }] : [],
         topic: null,
         page: line.page,
         inlineAnswer: null,
+        section: chapter || null,
       };
-      lastNumber = header.number;
+      lastNumbers.set(chapter, header.number);
       continue;
     }
 
     if (!current) continue;
 
-    // Linha solta: continua o enunciado ou a ultima alternativa.
-    if (current.options.length > 0) {
-      const last = current.options[current.options.length - 1];
-      last.text = `${last.text} ${line.text}`.trim();
-    } else {
-      current.statementParts.push(line);
-    }
+    current.block.push(line);
   }
 
   pushCurrent();
@@ -581,29 +911,46 @@ export function applyGabarito(
   questions: ParsedQuestion[],
   gabarito: Record<string, string>,
 ): { correct: string | null; source: "gabarito" | "desconhecida" }[] {
-  const entries = Object.entries(gabarito).sort(
-    (a, b) => Number(a[0]) - Number(b[0]),
+  const entries = Object.entries(gabarito).sort((a, b) =>
+    compareGabaritoKey(a[0], b[0]),
   );
   const positional = entries.map(([, value]) => value.toUpperCase());
+
+  // Gabarito por secao: a chave "capitulo#numero" ja e precisa, nao ha
+  // como aplicar por ordem.
+  const scoped = entries.some(([key]) => key.includes("#"));
+
+  const plain = new Map<string, string>();
+  for (const [key, value] of entries) {
+    if (!key.includes("#")) plain.set(key, value.toUpperCase());
+  }
 
   // Se os numeros das questoes batem com as chaves do gabarito, usa por numero.
   const numbered = questions.filter((q) => q.number !== null);
   const byNumberHits = numbered.filter(
-    (q) => gabarito[String(q.number)] !== undefined,
+    (q) => plain.get(String(q.number)) !== undefined,
   ).length;
   const useNumber =
-    numbered.length > 0 && byNumberHits / Math.max(1, numbered.length) >= 0.5;
+    !scoped &&
+    numbered.length > 0 &&
+    byNumberHits / Math.max(1, numbered.length) >= 0.5;
 
   return questions.map((question, index) => {
+    if (question.number !== null && question.section) {
+      const hit = gabarito[`${question.section}#${question.number}`];
+      if (hit) return { correct: hit.toUpperCase(), source: "gabarito" as const };
+    }
     if (useNumber && question.number !== null) {
-      const hit = gabarito[String(question.number)];
+      const hit = plain.get(String(question.number));
       if (hit) return { correct: hit.toUpperCase(), source: "gabarito" as const };
     }
     if (question.inlineAnswer) {
       return { correct: question.inlineAnswer, source: "gabarito" as const };
     }
-    const fallback = positional[index];
-    if (fallback) return { correct: fallback, source: "gabarito" as const };
+    if (!scoped) {
+      const fallback = positional[index];
+      if (fallback) return { correct: fallback, source: "gabarito" as const };
+    }
     return { correct: null, source: "desconhecida" as const };
   });
 }

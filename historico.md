@@ -290,7 +290,101 @@ Nome final escolhido pelo usuário. Alterado em:
 
 ---
 
-## 11. Estado final
+## 12. Apostilas editoriais: seções e gabarito por capítulo
+
+### O problema
+
+Uma apostila editorial grande (o caso real: **Prefeitura de Contagem/MG —
+Auditor TI, 2.706 páginas, 1.824 questões com gabarito**) expôs que o parser
+assumia um documento "chapado": um único bloco de questões e um único
+bloco de gabarito no final.
+
+O resultado real antes da correção:
+
+| | Esperado | Antes | Depois |
+| --- | --- | --- | --- |
+| Questões detectadas | 1.824 | 1.689 | **1.824** ✅ |
+| Gabarito detectado | 1.824 | 0 | **1.824** ✅ |
+
+### A estrutura do documento
+
+```
+1.1 ORTOGRAFIA OFICIAL
+1.1.1 Questões Fáceis          <- seção de questões
+1.1.2 Questões de Nível Médio
+1.1.3 Questões Difíceis
+1.1.4 Gabaritos e Comentários  <- seção de gabarito
+```
+
+Três características quebravam o parser antigo:
+
+1. **O gabarito não está no final** — há **41 seções** `X.X.4 Gabaritos e
+   Comentários` espalhadas pelo documento, cada uma com o gabarito do
+   capítulo anterior. O parser antigo só reconhecia **uma** região.
+2. **O número da questão reinicia a cada capítulo** (`1.1` vai de 1 a 53,
+   `1.2` volta ao 1). Um mapa `número → letra` global colide.
+3. **O gabarito vem em outro formato**: `Resolução da Questão 12` seguido de
+   `A alternativa correta é a C` — nenhum dos formatos já suportados.
+
+### O que mudou em `lib/pdf/parser.ts`
+
+**Seções do documento** — o parser agora indexa o documento por cabeçalho
+numérico (`1.1.4 Gabaritos e Comentários`) e classifica cada seção em
+`questions`, `answers` ou `other`. Entradas de sumário
+(`1.1.4 Gabaritos . . . . 44`) são descartadas pela sequência de pontos.
+
+**Gabarito por capítulo** — o resultado passa a ser indexado por
+`capitulo#numero` (`"1.1#53"`). `applyGabarito` tenta primeiro a chave
+composta e só depois o número puro, o que mantém a compatibilidade com os
+PDFs de gabarito único já suportados.
+
+**Alternativas por indentação** — as alternativas de uma questão são
+extraídas do bloco inteiro da questão: os candidatos (`a)`, `(B)`, `IV)`,
+`A texto`) são agrupados pela indentação e vence o alinhamento que forma a
+sequência A→B→C→D→E mais completa. Isso resolve de uma vez:
+
+- assertivas em algarismo romano no enunciado (`I. … II. … III. …`),
+  que antes viravam as alternativas A, B e C;
+- enunciados que começam com “A ” (ex.: *A distinção entre o uso de 'G'…*);
+- enunciados que começam com “E ” (ex.: *Em uma inspeção de rotina…*).
+
+### Bugs novos encontrados (e corrigidos)
+
+| # | Problema | Causa | Correção |
+| --- | --- | --- | --- |
+| 19 | Gabarito = 0 e ~135 questões perdidas | `findGabaritoRegion` casou a linha `gabarito.` (fim de frase na p.339) e excluiu 400 linhas de questões reais | O cabeçalho de gabarito agora exige letra maiúscula e não pode terminar em ponto |
+| 20 | Gabarito por capítulo ignorado | Só existia **uma** região de gabarito | Leitura por seção, com chave `capitulo#numero` |
+| 21 | `A alternativa correta é a C` não reconhecido | Formato novo, fora dos 5 formatos suportados | Novos padrões `ANSWER_QUESTION_MARKER`, `ANSWER_NUMBER_MARKER`, `ANSWER_LETTER` |
+| 22 | Números de questão colidiam entre capítulos | Mapa global `número → letra` | Chave composta por capítulo |
+| 23 | ~900 questões fantasma | O cabeçalho corrente `1. Língua Portuguesa 1.1. Ortografia Oficial` casava com o padrão de número + separador | `isRunningHeader` — reconhece o cabeçalho pelo caminho de seção e apenas o descarta |
+| 24 | Alternativa E absorvia o resto do documento | O laço de recuperação das alternativas ia até o fim do arquivo | A sequência para na última alternativa e respeita o limite da questão |
+| 25 | Quebra de página no meio da questão fechava a questão | Rodapé (`12 / 2706`) e cabeçalho corrente caem entre as alternativas | Ruído é descartado sem fechar a questão |
+| 26 | Assertivas romanas viravam alternativas | `I.`, `II.`, `III.` do enunciado casavam com `OPTION_ROMAN` | Extração por indentação (§12) |
+| 27 | Ordem das alternativas embaralhada | O agrupamento por `x` ordenava por coordenada, e a coordenada das alternativas varia ~0,4 pt | Agrupamento preserva a ordem do documento |
+| 28 | `"2009), o alfabeto…"` virava questão 2009 | Ano seguido de `)` no início da linha casa com o padrão de cabeçalho | Enunciado que começa com `,` ou `;` é continuação de frase |
+| 29 | `"2.200 W permanece…"` virava seção 2.200 | `2.200` + título casa com o padrão de cabeçalho de seção | Componente numérico > 99 e título com frase são rejeitados |
+
+### Ganho de performance
+
+O `rescueBareOptions` antigo percorria o documento inteiro a cada questão
+(O(n²) — inviável em 2.706 páginas) e concatenava strings gigantes. Agora
+cada questão é resolvida em O(tamanho do bloco).
+
+### Verificação
+
+```
+$ npm run check:pdf -- teste.pdf
+GABARITO (1824): 1.1#53=C ...
+QUESTOES (1824)
+=> 1824 questoes, 1824 com resposta
+```
+
+Testado também no navegador real (build de produção): **1.824 questões,
+1.824 com gabarito, 1.824 "Do PDF"**, zero questões sem resposta.
+
+---
+
+## 13. Estado final
 
 | Verificação | Resultado |
 | --- | --- |
@@ -299,6 +393,7 @@ Nome final escolhido pelo usuário. Alterado em:
 | `npm run build` | ✅ `/` estático, `/api/extract` dinâmico |
 | PDF com gabarito | ✅ 10/10 questões com resposta do PDF |
 | PDF real (1.pdf) | ✅ 43/43 questões extraídas |
+| **Apostila editorial (2.706 pág.)** | ✅ **1.824/1.824 questões e 1.824/1.824 gabarito** |
 | Fluxo completo no navegador | ✅ upload → setup → quiz → resultado |
 
 ### O que falta para produção
@@ -310,3 +405,6 @@ Nome final escolhido pelo usuário. Alterado em:
    configuração extra é necessária.
 3. **Apostilas com gabarito**: o `1.pdf` testado não tinha gabarito. Com um
    PDF que tenha, a detecção já funciona (validado no PDF de teste).
+4. **Limite de 150 questões por PDF** na camada de IA: um PDF com 1.824
+   questões recebe explicação só nas primeiras 150. O gabarito do PDF, esse,
+   vale para todas.

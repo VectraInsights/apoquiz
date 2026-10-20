@@ -10,7 +10,8 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "check:pdf": "tsx scripts/check-pdf.ts"
+    "check:pdf": "tsx scripts/check-pdf.ts",
+    "cache:pdf": "tsx scripts/cache-lines.ts"
   },
   "dependencies": {
     "lucide-react": "^1.59.0",

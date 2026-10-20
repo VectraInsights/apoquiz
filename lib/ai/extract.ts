@@ -2,11 +2,12 @@ import "server-only";
 
 import { getProvider, type AIProvider } from "./provider";
 import { buildEnrichPrompt, buildExtractPrompt, QUESTIONS_SCHEMA } from "./prompts";
-import type { Question } from "@/lib/types";
+import { lookupGabarito } from "@/lib/pdf/parser";
+import { MAX_AI_QUESTIONS, type Question } from "@/lib/types";
 
 const BATCH_SIZE = 12;
 const MAX_CONCURRENCY = 3;
-export const MAX_QUESTIONS = 150;
+export const MAX_QUESTIONS = MAX_AI_QUESTIONS;
 
 type AIRawQuestion = {
   number?: number | null;
@@ -60,8 +61,39 @@ function chunk<T>(items: T[], size: number): T[][] {
 }
 
 /**
+ * Recorta o gabarito para as questoes do lote. Mantem a chave original
+ * ("capitulo#numero" ou "numero") para que a IA consiga casar a entrada
+ * certa com a questao.
+ */
+function gabaritoForBatch(
+  gabarito: Record<string, string> | null,
+  batch: Question[],
+): Record<string, string> | null {
+  if (!gabarito) return null;
+
+  const subset: Record<string, string> = {};
+  for (const question of batch) {
+    if (question.number === null) continue;
+    if (question.section) {
+      const scoped = `${question.section}#${question.number}`;
+      if (gabarito[scoped]) {
+        subset[scoped] = gabarito[scoped];
+        continue;
+      }
+    }
+    const plain = gabarito[String(question.number)];
+    if (plain) subset[String(question.number)] = plain;
+  }
+
+  return Object.keys(subset).length > 0 ? subset : null;
+}
+
+/**
  * Enriquece questoes ja parseadas: limpa o texto, aplica o gabarito
  * (quando existe) e gera explicacoes.
+ *
+ * A lista completa volta ao cliente: apenas as primeiras MAX_QUESTIONS
+ * sao processadas pela IA, mas as demais mantem o gabarito lido do PDF.
  */
 export async function enrichQuestions(
   provider: AIProvider,
@@ -72,8 +104,11 @@ export async function enrichQuestions(
   const batches = chunk(limited, BATCH_SIZE);
 
   const answers = await mapWithConcurrency(batches, MAX_CONCURRENCY, async (batch) => {
+    // Manda so o gabarito das questoes do lote. Com uma apostila de 1.824
+    // questoes, o gabarito completo entraria em todos os lotes.
+    const batchGabarito = gabaritoForBatch(gabarito, batch);
     const raw = (await provider.complete(
-      buildEnrichPrompt(batch, gabarito),
+      buildEnrichPrompt(batch, batchGabarito),
       QUESTIONS_SCHEMA,
     )) as { questions?: AIRawQuestion[] };
 
@@ -93,15 +128,13 @@ export async function enrichQuestions(
     });
   });
 
-  return limited.map((question, index) => {
+  return questions.map((question, index) => {
     const ai = merged.get(index);
     if (!ai) return question;
 
     const options = normalizeOptions(ai, question);
     const aiLetter = normalizeLetter(ai.correct);
-    const gabaritoLetter = question.number !== null
-      ? normalizeLetter(gabarito?.[String(question.number)])
-      : null;
+    const gabaritoLetter = lookupGabarito(gabarito, question);
 
     // Gabarito do PDF tem prioridade sobre a resposta da IA.
     const ownGabarito =

@@ -2,7 +2,7 @@
 
 import { extractPdfText } from "@/lib/pdf/extract";
 import { applyGabarito, detectGabarito, parseQuestions } from "@/lib/pdf/parser";
-import type { ExtractRequest, ExtractResponse, Question } from "@/lib/types";
+import { MAX_AI_QUESTIONS, type ExtractRequest, type ExtractResponse, type Question } from "@/lib/types";
 
 export type Stage = {
   label: string;
@@ -72,6 +72,7 @@ export async function processPdf(
     topic: item.topic,
     answerSource: applied[index].source,
     page: item.page,
+    section: item.section ?? null,
   }));
 
   const detectedGabarito = gabaritoResult.gabarito;
@@ -117,14 +118,24 @@ export async function processPdf(
     progress: 0.7,
   });
 
+  // So as primeiras MAX_AI_QUESTIONS vao para a IA. O resto da apostila
+  // segue intacto, com o gabarito lido do PDF.
   const response = await callAI({
     mode: "enrich",
-    questions: localQuestions,
+    questions: localQuestions.slice(0, MAX_AI_QUESTIONS),
     gabarito: detectedGabarito,
   });
 
+  // A IA devolve as questoes processadas na mesma ordem. Se ela devolver
+  // menos que o enviado, o restante da apostila e preservado.
+  const enriched = response.data?.questions ?? [];
+  const questions =
+    enriched.length > 0
+      ? localQuestions.map((question, index) => enriched[index] ?? question)
+      : localQuestions;
+
   return {
-    questions: response.data?.questions ?? localQuestions,
+    questions,
     detectedGabarito,
     gabaritoEvidence: gabaritoResult.evidence,
     aiApplied: Boolean(response.data),

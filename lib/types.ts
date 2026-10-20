@@ -7,6 +7,13 @@ export type Option = {
 
 export type AnswerSource = "gabarito" | "ia" | "manual" | "desconhecida";
 
+/**
+ * Limite de questoes enviadas para a IA em um unico processamento.
+ * Acima disso a apostila segue completa - apenas sem as explicacoes da IA
+ * nas questoes restantes (o gabarito do PDF vale para todas).
+ */
+export const MAX_AI_QUESTIONS = 150;
+
 export type Question = {
   id: string;
   /** Numero original da questao na apostila (pode ser null) */
@@ -25,6 +32,11 @@ export type Question = {
   answerSource: AnswerSource;
   /** Pagina do PDF de origem */
   page: number | null;
+  /**
+   * Capitulo/secao do PDF onde a questao foi encontrada (ex.: "1.1").
+   * Usado para casar o gabarito quando o PDF traz gabarito por secao.
+   */
+  section?: string | null;
 };
 
 export type Quiz = {
