@@ -116,7 +116,10 @@ async function callGeminiModel(
   apiKey: string,
 ): Promise<{ ok: true; data: unknown } | { ok: false; status: number; error: string }> {
   const MAX_TENTRIES = 3;
-  const REQUEST_TIMEOUT_MS = 20_000;
+  // No tier free o Gemini costuma demorar. O primeiro modelo tem uma
+  // folga maior; os fallbacks sao mais rapidos para nao estourar o
+  // tempo da funcao.
+  const timeoutFor = (attempt: number) => (attempt === 1 ? 45_000 : 25_000);
 
   for (let attempt = 1; attempt <= MAX_TENTRIES; attempt += 1) {
     let response: Response;
@@ -138,7 +141,7 @@ async function callGeminiModel(
           },
         }),
         // Sem isso, uma chamada travada consome todo o tempo da funcao.
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        signal: AbortSignal.timeout(timeoutFor(attempt)),
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "falha de rede";

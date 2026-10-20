@@ -177,10 +177,13 @@ async function callAI(
   body: ExtractRequest,
 ): Promise<{ data: ExtractResponse | null; error: string | null }> {
   try {
+    // No tier free o Gemini pode demorar bastante. O limite abaixo evita
+    // que a pessoa fique olhando a tela sem retorno.
     const response = await fetch("/api/extract", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(110_000),
     });
 
     if (!response.ok) {
@@ -199,12 +202,15 @@ async function callAI(
 
     return { data: (await response.json()) as ExtractResponse, error: null };
   } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    const timedOut = message.includes("timeout") || message.includes("abort");
     return {
       data: null,
-      error:
-        error instanceof Error
-          ? `Não foi possível falar com o servidor: ${error.message}`
-          : "Não foi possível falar com o servidor.",
+      error: timedOut
+        ? "A IA demorou demais para responder. O quiz segue com o gabarito do PDF — sem as explicações extras."
+        : `Não foi possível falar com o servidor: ${
+            error instanceof Error ? error.message : "erro desconhecido"
+          }`,
     };
   }
 }

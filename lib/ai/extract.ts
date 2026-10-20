@@ -5,7 +5,7 @@ import { buildEnrichPrompt, buildExtractPrompt, QUESTIONS_SCHEMA } from "./promp
 import { lookupGabarito } from "@/lib/pdf/parser";
 import { MAX_AI_QUESTIONS, type Question } from "@/lib/types";
 
-const BATCH_SIZE = 12;
+const BATCH_SIZE = 8;
 const MAX_CONCURRENCY = 3;
 export const MAX_QUESTIONS = MAX_AI_QUESTIONS;
 
