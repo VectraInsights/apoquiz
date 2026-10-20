@@ -13,9 +13,20 @@ import {
 } from "lucide-react";
 import { processPdf, type Stage as ProcessStage } from "@/lib/client/pipeline";
 import { buildQuiz, createState } from "@/lib/quiz";
-import { loadQuizzes, loadState, removeQuiz, saveQuiz, saveState } from "@/lib/storage";
+import {
+  deleteQuiz as removeQuizFrom,
+  getQuiz,
+  getState,
+  listQuizzes,
+  listStates,
+  putQuiz,
+  putState,
+  type SyncTarget,
+} from "@/lib/sync";
+import { useAuth } from "@/lib/supabase/use-auth";
 import { SAMPLE_QUESTIONS } from "@/lib/sample";
-import type { Question, Quiz, QuizSettings, QuizState } from "@/lib/types";
+import type { Question, Quiz, QuizSettings, QuizState, QuizSummary } from "@/lib/types";
+import { AuthButton } from "./auth-button";
 import { Logo, ProgressBar } from "./ui";
 import { UploadZone } from "./upload-zone";
 import { SetupPanel } from "./setup-panel";
@@ -41,13 +52,29 @@ export function QuizApp() {
 
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [quizState, setQuizState] = useState<QuizState>(() => createState());
-  const [recent, setRecent] = useState<Quiz[]>([]);
+  const [recent, setRecent] = useState<QuizSummary[]>([]);
+  const [savedStates, setSavedStates] = useState<Record<string, QuizState>>({});
+
+  const auth = useAuth();
+  // Logado = tudo vai para a nuvem e aparece em qualquer aparelho.
+  const target: SyncTarget = auth.user ? "cloud" : "local";
+
+  /* --------------------------- lista de salvos -------------------------- */
+  const refreshList = useCallback(async () => {
+    const items = await listQuizzes(target);
+    const states = await listStates(
+      target,
+      items.map((item) => item.id),
+    );
+    setRecent(items);
+    setSavedStates(states);
+  }, [target]);
 
   useEffect(() => {
     // Carregado apos o mount para nao divergir entre servidor e cliente.
-    const timeout = window.setTimeout(() => setRecent(loadQuizzes()), 0);
+    const timeout = window.setTimeout(() => void refreshList(), 0);
     return () => window.clearTimeout(timeout);
-  }, []);
+  }, [refreshList]);
 
   /* ----------------------------- processar ---------------------------- */
   const handleFile = useCallback(async (file: File) => {
@@ -105,79 +132,100 @@ export function QuizApp() {
         sourceFile,
         detectedGabarito,
       );
-      saveQuiz(built);
-      setRecent(loadQuizzes());
+      const initial = { ...createState(), startedAt: new Date().toISOString() };
+
+      void putQuiz(target, built);
+      void putState(target, built, initial);
+      void refreshList();
+
       setQuiz(built);
-      setQuizState({ ...createState(), startedAt: new Date().toISOString() });
+      setQuizState(initial);
       setStage("quiz");
     },
-    [title, sourceFile, detectedGabarito],
+    [title, sourceFile, detectedGabarito, target, refreshList],
   );
 
   const handleFinish = useCallback(() => {
     setQuizState((current) => {
       const next = { ...current, finishedAt: new Date().toISOString() };
       // Grava na hora: o save com debounce seria cancelado pela troca de tela.
-      if (quiz) saveState(quiz.id, next);
+      if (quiz) void putState(target, quiz, next);
       return next;
     });
     setStage("results");
-  }, [quiz]);
+  }, [quiz, target]);
 
   const handleRetry = useCallback(() => {
     const next = { ...createState(), startedAt: new Date().toISOString() };
-    if (quiz) saveState(quiz.id, next);
+    if (quiz) void putState(target, quiz, next);
     setQuizState(next);
     setStage("quiz");
-  }, [quiz]);
+  }, [quiz, target]);
 
   const handleNewFile = useCallback(() => {
     // Antes de sair, garante que o progresso atual ficou salvo.
-    if (quiz) saveState(quiz.id, quizState);
+    if (quiz) void putState(target, quiz, quizState);
     setStage("upload");
     setError(null);
     setQuiz(null);
     setQuestions([]);
-  }, [quiz, quizState]);
+  }, [quiz, quizState, target]);
 
   /**
    * Retoma um quiz salvo. Se ele ja foi finalizado, volta para a tela de
    * resultado; se estava em andamento, volta na mesma questao com as
    * respostas ja dadas.
    */
-  const handleResume = useCallback((saved: Quiz) => {
-    const savedState = loadState(saved.id);
-    setQuiz(saved);
+  const handleResume = useCallback(
+    async (saved: QuizSummary) => {
+      const full = await getQuiz(target, saved.id);
+      if (!full) {
+        await refreshList();
+        return;
+      }
 
-    if (savedState?.finishedAt) {
-      setQuizState(savedState);
-      setStage("results");
-      return;
-    }
+      const savedState = await getState(target, saved.id);
+      setQuiz(full);
 
-    if (savedState && Object.keys(savedState.answers).length > 0) {
-      setQuizState(savedState);
+      if (savedState?.finishedAt) {
+        setQuizState(savedState);
+        setStage("results");
+        return;
+      }
+
+      if (savedState && Object.keys(savedState.answers).length > 0) {
+        setQuizState(savedState);
+        setStage("quiz");
+        return;
+      }
+
+      setQuizState({ ...createState(), startedAt: new Date().toISOString() });
       setStage("quiz");
-      return;
-    }
-
-    setQuizState({ ...createState(), startedAt: new Date().toISOString() });
-    setStage("quiz");
-  }, []);
+    },
+    [target, refreshList],
+  );
 
   /** Zera o progresso de um quiz salvo e recomeca do zero. */
-  const handleRestart = useCallback((saved: Quiz) => {
-    const next = { ...createState(), startedAt: new Date().toISOString() };
-    saveState(saved.id, next);
-    setQuiz(saved);
-    setQuizState(next);
-    setStage("quiz");
-  }, []);
+  const handleRestart = useCallback(
+    async (saved: QuizSummary) => {
+      const full = await getQuiz(target, saved.id);
+      if (!full) return;
+      const next = { ...createState(), startedAt: new Date().toISOString() };
+      void putState(target, full, next);
+      setQuiz(full);
+      setQuizState(next);
+      setStage("quiz");
+    },
+    [target],
+  );
 
-  const handleDeleteRecent = useCallback((id: string) => {
-    removeQuiz(id);
-    setRecent(loadQuizzes());
-  }, []);
+  const handleDeleteRecent = useCallback(
+    async (id: string) => {
+      await removeQuizFrom(target, id);
+      await refreshList();
+    },
+    [target, refreshList],
+  );
 
   /* ------------------------- persistir estado -------------------------- */
   // A assinatura ignora o cronometro: assim o estado e gravado quando
@@ -192,27 +240,29 @@ export function QuizApp() {
 
   useEffect(() => {
     if (!quiz) return;
-    const timeout = window.setTimeout(
-      () => saveState(quiz.id, stateRef.current),
-      600,
-    );
+    const timeout = window.setTimeout(() => {
+      void putState(target, quiz, stateRef.current);
+    }, 600);
     return () => window.clearTimeout(timeout);
-  }, [quiz, stateSignature]);
+  }, [quiz, target, stateSignature]);
 
   const header = (
     <header className="sticky top-0 z-40 border-b border-line/60 bg-canvas/80 backdrop-blur-xl">
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-2 px-4 py-3 sm:gap-3 sm:px-6">
         <Logo />
-        {stage !== "upload" && stage !== "processing" ? (
-          <button
-            type="button"
-            onClick={handleNewFile}
-            className="btn btn-ghost"
-          >
-            <FileText className="size-4" />
-            Novo PDF
-          </button>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {stage !== "upload" && stage !== "processing" ? (
+            <button
+              type="button"
+              onClick={handleNewFile}
+              className="btn btn-ghost"
+            >
+              <FileText className="size-4" />
+              <span className="hidden sm:inline">Novo PDF</span>
+            </button>
+          ) : null}
+          <AuthButton auth={auth} compact />
+        </div>
       </div>
     </header>
   );
@@ -225,6 +275,8 @@ export function QuizApp() {
         <UploadScreen
           error={error}
           recent={recent}
+          savedStates={savedStates}
+          auth={auth}
           onFile={handleFile}
           onSample={handleSample}
           onResume={handleResume}
@@ -282,6 +334,8 @@ export function QuizApp() {
 function UploadScreen({
   error,
   recent,
+  savedStates,
+  auth,
   onFile,
   onSample,
   onResume,
@@ -289,11 +343,13 @@ function UploadScreen({
   onDelete,
 }: {
   error: string | null;
-  recent: Quiz[];
+  recent: QuizSummary[];
+  savedStates: Record<string, QuizState>;
+  auth: ReturnType<typeof useAuth>;
   onFile: (file: File) => void;
   onSample: () => void;
-  onResume: (quiz: Quiz) => void;
-  onRestart: (quiz: Quiz) => void;
+  onResume: (quiz: QuizSummary) => void;
+  onRestart: (quiz: QuizSummary) => void;
   onDelete: (id: string) => void;
 }) {
   return (
@@ -331,11 +387,19 @@ function UploadScreen({
             Quizzes salvos
           </h2>
           <p className="mt-1 text-xs text-ink-faint">
-            Guardados neste dispositivo. Clique para continuar de onde parou.
+            {auth.user
+              ? "Sincronizados com a sua conta — aparecem em qualquer aparelho."
+              : "Guardados neste dispositivo. Clique para continuar de onde parou."}
           </p>
+          {auth.configured && !auth.user ? (
+            <p className="mt-2 rounded-lg border border-brand/25 bg-brand/10 px-3 py-2 text-xs text-brand-soft">
+              Entre com o Google para guardar seus quizzes na nuvem e continuar de
+              onde parou em qualquer aparelho.
+            </p>
+          ) : null}
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             {recent.map((item) => {
-              const state = loadState(item.id);
+              const state = savedStates[item.id];
               const answered = state ? Object.keys(state.answers).length : 0;
               const finished = Boolean(state?.finishedAt);
               const started = answered > 0;

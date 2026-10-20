@@ -588,7 +588,95 @@ longo e a análise por alternativa quebram corretamente em telas estreitas.
 
 ---
 
-## 16. Estado final
+## 16. Login com Google e sincronização entre aparelhos
+
+### O pedido
+
+"Quero salvar um quiz para terminar depois, e quero que ele fique salvo mesmo
+depois de tudo pronto" — e, se necessário, um login (principalmente via
+Google).
+
+O `localStorage` já resolvia o caso de uso de um único aparelho (ver §14), mas
+não sincronizava entre celular e computador nem protegia contra a limpeza
+dos dados do navegador.
+
+### O que foi implementado
+
+**Supabase Auth com provider Google**, escolhido por já estar no padrão do
+outro projeto do usuário (`norvo-gestao`).
+
+| Arquivo | Papel |
+| --- | --- |
+| `lib/supabase/client.ts` | Cliente do navegador (`@supabase/ssr`) |
+| `lib/supabase/use-auth.ts` | Hook `useAuth()` — sessão, login e logout |
+| `lib/supabase/schema.sql` | Tabelas + RLS (para rodar no SQL Editor) |
+| `lib/sync.ts` | Persistência unificada: local **ou** nuvem |
+| `components/auth-button.tsx` | Botão de entrar/sair |
+
+**O app continua funcionando sem o Supabase.** Sem as variáveis de ambiente,
+o botão de login nem aparece e tudo usa o `localStorage`. O login é um
+upgrade opcional, não um requisito.
+
+### O que vai para a nuvem
+
+| Item | Vai para o servidor? |
+| --- | --- |
+| O **PDF** | ❌ nunca — lido e descartado no navegador |
+| Enunciados, alternativas, gabarito, explicações | ✅ |
+| Respostas e progresso | ✅ |
+
+O processamento continua 100% no cliente; só o JSON do quiz pronto é
+sincronizado.
+
+### Decisões de modelagem
+
+**Metadados separados das questões.** A lista de quizzes salvos carrega só
+os metadados (título, data, estatísticas). As questões são carregadas
+**sob demanda**, quando o quiz é aberto. Antes disso, o `localStorage`
+guardava o quiz inteiro como um blob JSON — uma apostila de 1.824 questões
+com explicações passa fácil de 5 MB, que é o limite do `localStorage` (e o
+`writeJSON` engolia o erro em silêncio).
+
+**Tabelas normalizadas.** Em vez de um JSON gigante, o Supabase recebe três
+tabelas: `quizzes` (metadados), `quiz_questions` (uma linha por questão, com
+`position` para manter a ordem) e `quiz_states` (o progresso).
+
+**RLS por usuário.** Cada tabela tem `user_id` e policies
+`auth.uid() = user_id`. As questões são acessadas via o quiz dono. A chave
+`service_role` **não** é necessária: tudo usa a chave `anon` com RLS ativa.
+
+**`qid` preservado.** O id original de cada questão é salvo em uma coluna
+própria — é ele que indexa as respostas em `quiz_states`. Sem isso, as
+respostas salvas não casariam com as questões recarregadas.
+
+**ID em UUID.** `buildQuiz` passou a gerar `crypto.randomUUID()`, que serve
+tanto como chave do `localStorage` quanto como `uuid` das tabelas.
+
+**Escritas em lote.** As questões são gravadas em chunks de 200 linhas — uma
+apostila com 1.824 questões vira 10 requests em vez de 1.824.
+
+### Interface
+
+- Botão **"Entrar com Google"** no cabeçalho (some sozinho quando o
+  Supabase não está configurado)
+- Avatar com a inicial + botão de sair, quando logado
+- Aviso na lista de salvos: "Entre com o Google para guardar seus quizzes
+  na nuvem e continuar de onde parou em qualquer aparelho."
+- A lista passa a dizer "Sincronizados com a sua conta" quando logado
+
+### Validação
+
+- **Modo local** (sem Supabase): botão de login ausente, criar → responder →
+  sair → voltar mostra "Em andamento · 2/10 respondidas", metadados sem as
+  questões e o quiz completo em chave separada ✅
+- `typecheck`, `lint` e `build` limpos ✅
+- O caminho de nuvem (login real, RLS, escrita e leitura na nuvem) **precisa
+  de um projeto Supabase com o Google provider habilitado** — não foi
+  possível exercitá-lo de ponta a ponta sem as credenciais do usuário.
+
+---
+
+## 17. Estado final
 
 | Verificação | Resultado |
 | --- | --- |
@@ -601,6 +689,8 @@ longo e a análise por alternativa quebram corretamente em telas estreitas.
 | Fluxo completo no navegador | ✅ upload → setup → quiz → resultado |
 | Salvar / retomar / reiniciar | ✅ quiz salvo sobrevive a fechar o navegador |
 | Mobile 390 × 844 | ✅ zero overflow horizontal, alvos de toque ≥ 32 px |
+| Modo local (sem Supabase) | ✅ funciona igual, sem botão de login |
+| Login com Google | ⚙️ implementado — falta ativar o provider no Supabase |
 
 ### O que falta para produção
 

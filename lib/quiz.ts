@@ -45,7 +45,12 @@ export function buildQuiz(
   const withAnswer = ordered.filter((question) => question.correct).length;
 
   return {
-    id: `quiz-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+    // UUID: o mesmo id vale para o localStorage e para as tabelas do
+    // Supabase (a coluna "id" e uuid).
+    id:
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `quiz-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`,
     title: title.trim() || "Apostila sem título",
     sourceFile,
     createdAt: new Date().toISOString(),

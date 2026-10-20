@@ -107,6 +107,55 @@ Na **Vercel**: `Project → Settings → Environment Variables` → adicione
 
 ---
 
+## Login com Google e sincronização (opcional)
+
+Sem configuração, os quizzes ficam **só neste aparelho** (localStorage).
+Com o Supabase configurado, aparece o botão **"Entrar com Google"** e os
+quizzes passam a ser sincronizados — dá para começar no celular e
+continuar no computador.
+
+### Passo a passo
+
+1. Crie o projeto em <https://supabase.com/dashboard>.
+2. **SQL Editor** → cole o conteúdo de `lib/supabase/schema.sql` → *Run*.
+   Isso cria as tabelas `quizzes`, `quiz_questions` e `quiz_states` com
+   RLS (cada usuário só enxerga o que é dele).
+3. **Authentication → Providers → Google**: ative o provider e cole o
+   *Client ID* e o *Client Secret* do Google Cloud Console.
+4. **Authentication → URL Configuration → Redirect URLs**: adicione
+   `http://localhost:3000` e a URL da Vercel.
+5. Em **Project → API Keys**, copie a URL e a chave `anon`.
+6. Preencha no `.env.local` (e nas variáveis da Vercel):
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...
+```
+
+### O que vai para a nuvem
+
+| Item | Vai para o servidor? |
+| --- | --- |
+| O **PDF** | ❌ nunca — é lido e descartado no navegador |
+| Enunciados, alternativas, gabarito, explicações | ✅ (JSON do quiz extraído) |
+| Suas respostas e o progresso | ✅ (sincronizado) |
+
+O processamento do PDF continua 100% no cliente; só o resultado vai para
+a nuvem, no formato do quiz pronto.
+
+### Modo local × nuvem
+
+| | Sem login | Com login |
+| --- | --- | --- |
+| Onde fica | `localStorage` deste aparelho | Supabase |
+| Aparece em outro aparelho | ❌ | ✅ |
+| Funciona sem internet (depois de aberto) | ✅ | ⚠️ precisa de internet para sincronizar |
+
+A chave `service_role` **não** é necessária — todas as operações usam a
+chave `anon` com RLS ativa.
+
+---
+
 ## Deploy na Vercel
 
 1. Conecte o repositório na Vercel (framework detectado: Next.js).
@@ -133,6 +182,8 @@ components/
   setup-panel.tsx           Configurações + revisão do gabarito
   quiz-player.tsx           Quiz em andamento
   results-panel.tsx         Resultado, revisão e exportação
+  option-notes.tsx          "Por que cada alternativa" (do PDF ou da IA)
+  auth-button.tsx           Entrar/sair com o Google
 lib/
   pdf/lines.ts              Reconstrução de linhas a partir do pdf.js
   pdf/extract.ts            Extração de texto (navegador)
@@ -141,10 +192,17 @@ lib/
   ai/prompts.ts             Prompts e schema de saída
   ai/extract.ts             Lotes, merge e aplicação do gabarito
   client/pipeline.ts        Pipeline completo no cliente
-  quiz.ts / storage.ts      Regras do quiz e persistência (localStorage)
+  supabase/client.ts        Cliente do Supabase (navegador)
+  supabase/use-auth.ts      Hook de login com Google
+  supabase/schema.sql       Tabelas + RLS (rode no SQL Editor)
+  sync.ts                   Persistência: local (localStorage) ou nuvem
+  storage.ts                Metadados e quizzes no localStorage
+  quiz.ts / sample.ts       Regras do quiz e quiz de exemplo
 scripts/
   copy-pdf-worker.mjs       Copia o worker do pdf.js para /public
   check-pdf.ts              Ferramenta de debug do parser
+  check-resolutions.ts      Confere as resoluções lidas do PDF
+  cache-lines.ts            Cacheia as linhas extraídas (PDFs grandes)
 ```
 
 ---

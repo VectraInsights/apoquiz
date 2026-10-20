@@ -15,6 +15,8 @@
     "cache:pdf": "tsx scripts/cache-lines.ts"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.118.0",
     "lucide-react": "^1.59.0",
     "next": "16.4.2",
     "pdfjs-dist": "^6.4.299",

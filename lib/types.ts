@@ -44,6 +44,24 @@ export type Question = {
   section?: string | null;
 };
 
+/**
+ * Metadados de um quiz salvo. Vai na lista sem carregar as questoes
+ * (uma apostila pode ter mais de mil questoes com explicacoes).
+ */
+export type QuizSummary = {
+  id: string;
+  title: string;
+  sourceFile: string;
+  createdAt: string;
+  stats: {
+    total: number;
+    withAnswer: number;
+    fromGabarito: number;
+    fromAI: number;
+    withoutAnswer: number;
+  };
+};
+
 export type Quiz = {
   id: string;
   title: string;
