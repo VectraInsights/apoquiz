@@ -9,7 +9,6 @@ import {
   Loader2,
   RotateCcw,
   Sparkles,
-  Target,
 } from "lucide-react";
 import { processPdf, type Stage as ProcessStage } from "@/lib/client/pipeline";
 import { buildQuiz, createState } from "@/lib/quiz";
@@ -364,8 +363,8 @@ function UploadScreen({
   onDelete: (id: string) => void;
 }) {
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-16 pt-10 sm:px-6 sm:pt-16">
-      <div className="mx-auto max-w-3xl text-center">
+    <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-16 pt-10 sm:px-6 sm:pt-16">
+      <div className="mx-auto max-w-3xl text-center lg:max-w-4xl">
         <span className="chip mx-auto border-brand/40 bg-brand/10 text-brand-soft">
           <Sparkles className="size-3.5" />
           Do PDF ao quiz em segundos
@@ -381,26 +380,39 @@ function UploadScreen({
         </p>
       </div>
 
-      {recent.length > 0 ? (
-        <section className="mx-auto mb-10 max-w-3xl">
-          <h2 className="text-sm font-semibold text-ink-muted">
-            Seus quizzes
-            <span className="ml-2 text-xs font-normal text-ink-faint">
-              {recent.length} sal{recent.length === 1 ? "vo" : "vos"}
-            </span>
-          </h2>
-          <p className="mt-1 text-xs text-ink-faint">
-            {auth.user
-              ? "Sincronizados com a sua conta — aparecem em qualquer aparelho."
-              : "Guardados neste dispositivo. Clique para continuar de onde parou."}
-          </p>
-          {auth.configured && !auth.user ? (
-            <p className="mt-2 rounded-lg border border-brand/25 bg-brand/10 px-3 py-2 text-xs text-brand-soft">
-              Entre com o Google para guardar seus quizzes na nuvem e continuar de
-              onde parou em qualquer aparelho.
-            </p>
+      <div className="mt-9 grid gap-6 lg:grid-cols-12 lg:items-start">
+        <div className="lg:col-span-7">
+          {error ? (
+            <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-bad/35 bg-bad/10 p-3.5 text-sm text-bad">
+              <CircleAlert className="mt-0.5 size-4 shrink-0" />
+              <span>{error}</span>
+            </div>
           ) : null}
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+
+          <UploadZone onFile={onFile} busy={false} onSample={onSample} />
+        </div>
+
+        <div className="lg:col-span-5">
+          {recent.length > 0 ? (
+          <section>
+            <h2 className="text-sm font-semibold text-ink-muted">
+              Seus quizzes
+              <span className="ml-2 text-xs font-normal text-ink-faint">
+                {recent.length} sal{recent.length === 1 ? "vo" : "vos"}
+              </span>
+            </h2>
+            <p className="mt-1 text-xs text-ink-faint">
+              {auth.user
+                ? "Sincronizados com a sua conta — aparecem em qualquer aparelho."
+                : "Guardados neste dispositivo. Clique para continuar de onde parou."}
+            </p>
+            {auth.configured && !auth.user ? (
+              <p className="mt-2 rounded-lg border border-brand/25 bg-brand/10 px-3 py-2 text-xs text-brand-soft">
+                Entre com o Google para guardar seus quizzes na nuvem e continuar de
+                onde parou em qualquer aparelho.
+              </p>
+          ) : null}
+          <div className="mt-3 grid gap-2">
             {recent.map((item) => {
               const state = savedStates[item.id];
               const answered = state ? Object.keys(state.answers).length : 0;
@@ -417,7 +429,9 @@ function UploadScreen({
                     onClick={() => onResume(item)}
                     className="min-w-0 flex-1 text-left"
                   >
-                    <p className="truncate text-sm font-medium">{item.title}</p>
+                    <p className="line-clamp-2 text-sm font-medium leading-snug">
+                      {item.title}
+                    </p>
                     <p className="mt-0.5 text-xs text-ink-faint">
                       {countLabel(item.stats.total, "questão", "questões")} ·{" "}
                       {new Date(item.createdAt).toLocaleDateString("pt-BR")}
@@ -474,54 +488,57 @@ function UploadScreen({
             })}
           </div>
         </section>
-      ) : null}
-
-      <div className="mx-auto mt-9 max-w-3xl">
-        {error ? (
-          <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-bad/35 bg-bad/10 p-3.5 text-sm text-bad">
-            <CircleAlert className="mt-0.5 size-4 shrink-0" />
-            <span>{error}</span>
-          </div>
         ) : null}
 
-        <UploadZone onFile={onFile} busy={false} onSample={onSample} />
+          <aside className="mt-6 lg:mt-0">
+            <div className="panel h-full p-6">
+              <h2 className="text-sm font-semibold text-ink-muted">
+                Como funciona
+              </h2>
+              <ol className="mt-4 space-y-5">
+                <li className="flex gap-3">
+                  <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-brand/12 text-xs font-bold text-brand-soft">
+                    1
+                  </span>
+                  <div>
+                    <p className="text-sm font-medium">Envie o PDF</p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-ink-muted">
+                      O arquivo é lido direto no seu navegador. Nada é enviado
+                      para servidores.
+                    </p>
+                  </div>
+                </li>
+                <li className="flex gap-3">
+                  <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-brand/12 text-xs font-bold text-brand-soft">
+                    2
+                  </span>
+                  <div>
+                    <p className="text-sm font-medium">Ache o gabarito</p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-ink-muted">
+                      O site localiza as questões, as alternativas e o gabarito — e a
+                      IA resolve o que faltar.
+                    </p>
+                  </div>
+                </li>
+                <li className="flex gap-3">
+                  <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-brand/12 text-xs font-bold text-brand-soft">
+                    3
+                  </span>
+                  <div>
+                    <p className="text-sm font-medium">Resolva e revise</p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-ink-muted">
+                      Quiz com correção instantânea, explicação por questão e
+                      gabarito para imprimir.
+                    </p>
+                  </div>
+                </li>
+              </ol>
+            </div>
+          </aside>
+        </div>
       </div>
 
 
-      <section className="mx-auto mt-16 max-w-5xl">
-        <h2 className="text-center text-sm font-semibold uppercase tracking-wider text-ink-faint">
-          Como funciona
-        </h2>
-        <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          {[
-            {
-              icon: FileText,
-              title: "1. Envie o PDF",
-              text: "O arquivo é lido direto no seu navegador. Nada é enviado para servidores.",
-            },
-            {
-              icon: Target,
-              title: "2. Ache o gabarito",
-              text: "O site localiza as questões, as alternativas e o gabarito — e a IA resolve o que faltar.",
-            },
-            {
-              icon: ListChecks,
-              title: "3. Resolva e revise",
-              text: "Quiz com correção instantânea, explicação por questão e gabarito para imprimir.",
-            },
-          ].map((item) => (
-            <div key={item.title} className="panel p-5">
-              <span className="grid size-9 place-items-center rounded-lg bg-brand/12 text-brand-soft">
-                <item.icon className="size-4" />
-              </span>
-              <h3 className="mt-3 text-sm font-semibold">{item.title}</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">
-                {item.text}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
 
       <section className="mx-auto mt-6 grid max-w-5xl gap-4 sm:grid-cols-3">
         <Feature

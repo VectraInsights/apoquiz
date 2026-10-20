@@ -1095,7 +1095,33 @@ largura menor que 768 px.
 
 ---
 
-## 26. Estado final
+## 26. Tela inicial em duas colunas
+
+Em telas largas, a home ficava com uma coluna estreita (768 px) centralizada
+e muita area vazia nas laterais. Agora o container vai ate 1280 px e o conteudo
+se organiza em grade de 12 colunas:
+
+| Coluna | Conteudo |
+| --- | --- |
+| 7 colunas | area de upload (drag & drop) |
+| 5 colunas | "Seus quizzes" e, abaixo, "Como funciona" |
+
+No celular continua em coluna unica, na mesma ordem (upload, quizzes, como
+funciona).
+
+Outros ajustes que vieram junto:
+
+- o titulo do quiz salvo nao trunca mais em uma linha: quebra em ate duas
+  (`line-clamp-2`), que era o que escondia "QUESTÕES CONHECIMENTOS GERAIS E
+  ATUALID...";
+- os cards de quiz sao empilhados (antes eram duas colunas dentro da
+  secao, que ficava espremida na lateral);
+- a secao "Como funciona" do rodape virou a lateral no desktop — no mobile
+  continua aparecendo logo abaixo do upload.
+
+---
+
+## 27. Estado final
 
 | Verificação | Resultado |
 | --- | --- |
