@@ -88,8 +88,16 @@ Copie `.env.example` para `.env.local`:
 
 ```bash
 GEMINI_API_KEY=...
-GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL=gemini-3.8-flash
 ```
+
+> **Atenção ao modelo.** A partir de 2026 o `gemini-2.5-flash` só continua
+> disponível para contas que já o usaram antes — em contas novas a API
+> responde `404: This model is no longer available to new users`. O app usa
+> por padrão o `gemini-3.8-flash` e, se ele falhar, tenta sozinho o
+> `gemini-3.6-flash` e o `gemini-3.5-flash-lite`. Se você definir
+> `GEMINI_MODEL` com um modelo fora dessa lista, ele é usado primeiro e os
+> outros entram como fallback.
 
 Ou qualquer endpoint compatível com a API da OpenAI:
 

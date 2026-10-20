@@ -692,6 +692,30 @@ Variáveis `NEXT_PUBLIC_*` são **inlinadas no build**: sem elas definidas no
 projeto da Vercel, é preciso adicionar e **redeployar** (Deployments →
 ⋯ → Redeploy, ou um novo push).
 
+### Bug encontrado no deploy: `gemini-2.5-flash` não existe mais para contas novas
+
+Com as variáveis no lugar, o `aiEnabled` ficou `true`, mas a chamada real ao
+Gemini respondeu:
+
+```
+404 This model models/gemini-2.5-flash is no longer available to new users.
+Please update your code to use models/gemini-3.8-flash
+```
+
+A documentação do Gemini confirma: *"we are limiting access to the 2.5 models
+to users who have actively used them in the past... For any new projects, use
+our latest models: 3.5 Flash-Lite or 3.8 Flash"*.
+
+Correções:
+
+- O modelo padrão passou a ser **`gemini-3.8-flash`**
+- O provider agora tem **fallback automático**: se o modelo responder 404
+  (indisponível para aquela conta), ele tenta sozinho `gemini-3.6-flash` e
+  `gemini-3.5-flash-lite`. Um modelo fora da lista continua sendo o
+  primeiro da fila, só entra depois como reserva
+- O erro que chega ao cliente ficou legível (modelo + status + trecho da
+  resposta da API)
+
 ### O que vai para a nuvem
 
 | Item | Vai para o servidor? |
