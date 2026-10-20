@@ -1012,7 +1012,35 @@ consumido), a segunda chamada a `event.prompt()` lanca `InvalidStateError`
 
 ---
 
-## 22. Estado final
+## 22. Brave no Android: o app instala como atalho, nao como aplicativo
+
+No Android com o **Brave**, o botao "Instalar" mostrava "instalando" e
+nada acontecia. Nao era bug do app: e uma limitacao conhecida do navegador.
+
+| Referencia | O que acontece |
+| --- | --- |
+| brave/brave-browser#56133 | No Brave para Android, PWAs **nao** sao instaladas como aplicativos standalone: apenas um atalho na tela de inicio, que abre dentro do navegador |
+| brave/brave-browser#7357 | O Brave nao gera WebAPK (o pacote real do app) |
+| community.brave.com | "when I click it it says it's installing but only gives me the option to add to home screen" |
+
+O `beforeinstallprompt` continua disparando (o ChromeCriteria e atendido),
+o dialogo nativo mostra "instalando" — e nenhum aplicativo e criado.
+
+### O que o app faz agora
+
+- **Detecta o Brave** (`navigator.brave.isBrave` + user agent) e **nao
+  promete instalacao**: o botao abre direto as instrucoes, que explicam a
+  limitacao e dao o caminho do atalho (menu **⋮** > "Adicionar a tela
+  inicial") e o caminho de instalacao real (Chrome).
+- **Timeout de 4 s** no `event.prompt()`: se o navegador travar sem
+  resolver, o app cai no caminho manual em vez de ficar esperando para
+  sempre.
+- O resto funciona normalmente no Brave: o service worker registra, o app
+  abre offline e o atalho criado pela tela inicial funciona.
+
+---
+
+## 23. Estado final
 
 | Verificação | Resultado |
 | --- | --- |

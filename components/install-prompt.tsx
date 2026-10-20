@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Download, Info, X } from "lucide-react";
+import { Download, Info, TriangleAlert, X } from "lucide-react";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -18,6 +18,19 @@ function detectIos(): boolean {
   );
 }
 
+/**
+ * Brave no Android nao instala PWA de verdade: cria apenas um atalho na
+ * tela inicial (brave/brave-browser#56133 e #7357). O evento
+ * beforeinstallprompt continua disparando e a tela "instalando" aparece,
+ * mas nenhuma aplicacao e instalada.
+ */
+function detectBrave(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const brave = (navigator as unknown as { brave?: { isBrave?: boolean } }).brave;
+  if (brave?.isBrave) return true;
+  return /Brave\//i.test(navigator.userAgent);
+}
+
 function isInstalled(): boolean {
   if (typeof window === "undefined") return false;
   if (window.matchMedia?.("(display-mode: standalone)").matches === true) {
@@ -31,6 +44,7 @@ function isInstalled(): boolean {
  * Instalacao do app (PWA).
  *
  * Android/Chrome: dispara o dialogo nativo de instalacao.
+ * Brave (Android): mostra o aviso de que so sera criado um atalho.
  * iPhone/Safari: mostra o caminho manual (o Safari nao tem dialogo nativo).
  * Qualquer navegador: o botao do cabecalho sempre mostra as instrucoes.
  */
@@ -77,14 +91,26 @@ export function InstallPrompt() {
     };
   }, []);
 
+  const platform = ready ? detectIos() : false;
+  const brave = ready ? detectBrave() : false;
+  const alreadyInstalled = justInstalled || (ready && isInstalled());
+
   const install = useCallback(async () => {
-    if (!event) {
+    // No Brave o dialogo nativo nao instala nada: vai direto para as
+    // instrucoes, em vez de prometer uma instalacao que nao acontece.
+    if (!event || brave) {
       setPanelOpen(true);
       return;
     }
 
     try {
-      await event.prompt();
+      await Promise.race([
+        event.prompt(),
+        // Se o navegador travar sem resolver, nao ficamos esperando.
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("timeout")), 4000),
+        ),
+      ]);
       const choice = await event.userChoice;
       if (choice.outcome === "accepted") {
         setUsed(true);
@@ -101,10 +127,7 @@ export function InstallPrompt() {
     // Deu ruim: mostra o caminho manual.
     setEvent(null);
     setPanelOpen(true);
-  }, [event]);
-
-  const platform = ready ? detectIos() : false;
-  const alreadyInstalled = justInstalled || (ready && isInstalled());
+  }, [event, brave]);
 
   // Banner automatico: so quando o navegador realmente pode instalar.
   const showBanner = Boolean(event) && !used && !dismissed && !panelOpen;
@@ -166,49 +189,76 @@ export function InstallPrompt() {
               </button>
             </div>
 
-            <ol className="mt-3 space-y-2.5 text-sm leading-relaxed text-ink-muted">
-              {platform ? (
-                <>
+            {brave ? (
+              <>
+                <p className="mt-3 flex items-start gap-2 rounded-lg border border-warn/30 bg-warn/10 p-3 text-xs leading-relaxed text-warn">
+                  <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
+                  <span>
+                    O <strong>Brave</strong> no Android não instala aplicativos:
+                    ele cria apenas um <strong>atalho</strong> na tela inicial.
+                    É uma limitação do navegador, não do app.
+                  </span>
+                </p>
+
+                <ol className="mt-4 space-y-2.5 text-sm leading-relaxed text-ink-muted">
                   <li>
-                    <strong className="text-ink">1.</strong> Toque em{" "}
-                    <strong className="text-ink">Compartilhar</strong> (o quadrado
-                    com a seta para cima, na barra do Safari).
-                  </li>
-                  <li>
-                    <strong className="text-ink">2.</strong> Role e toque em{" "}
+                    <strong className="text-ink">1.</strong> No Brave, toque no
+                    menu <strong className="text-ink">⋮</strong> e em{" "}
                     <strong className="text-ink">
-                      &ldquo;Adicionar &agrave; Tela de Início&rdquo;
+                      &ldquo;Adicionar à tela inicial&rdquo;
                     </strong>
-                    .
+                    . O atalho do ApoQuiz é criado e abre o app.
                   </li>
                   <li>
-                    <strong className="text-ink">3.</strong> Toque em{" "}
-                    <strong className="text-ink">Adicionar</strong>. Pronto — o
-                    ApoQuiz abre em tela cheia, como um app.
+                    <strong className="text-ink">2.</strong> Para instalar de
+                    verdade (app próprio, com ícone e tela cheia), abra o{" "}
+                    <strong className="text-ink">Chrome</strong> no mesmo
+                    celular e repita aqui — o botão &ldquo;Instalar&rdquo;
+                    funciona normalmente.
                   </li>
-                </>
-              ) : (
-                <>
-                  <li>
-                    <strong className="text-ink">1.</strong> Toque no menu{" "}
-                    <strong className="text-ink">⋮</strong> do navegador (canto
-                    superior direito).
-                  </li>
-                  <li>
-                    <strong className="text-ink">2.</strong> Toque em{" "}
-                    <strong className="text-ink">
-                      &ldquo;Instalar app&rdquo; ou{" "}
-                      &ldquo;Adicionar &agrave; tela inicial&rdquo;
-                    </strong>
-                    .
-                  </li>
-                  <li>
-                    <strong className="text-ink">3.</strong> Confirme. O ApoQuiz
-                    passa a abrir em tela cheia, como um app.
-                  </li>
-                </>
-              )}
-            </ol>
+                </ol>
+              </>
+            ) : platform ? (
+              <ol className="mt-3 space-y-2.5 text-sm leading-relaxed text-ink-muted">
+                <li>
+                  <strong className="text-ink">1.</strong> Toque em{" "}
+                  <strong className="text-ink">Compartilhar</strong> (o quadrado
+                  com a seta para cima, na barra do Safari).
+                </li>
+                <li>
+                  <strong className="text-ink">2.</strong> Role e toque em{" "}
+                  <strong className="text-ink">
+                    &ldquo;Adicionar &agrave; Tela de Início&rdquo;
+                  </strong>
+                  .
+                </li>
+                <li>
+                  <strong className="text-ink">3.</strong> Toque em{" "}
+                  <strong className="text-ink">Adicionar</strong>. Pronto — o
+                  ApoQuiz abre em tela cheia, como um app.
+                </li>
+              </ol>
+            ) : (
+              <ol className="mt-3 space-y-2.5 text-sm leading-relaxed text-ink-muted">
+                <li>
+                  <strong className="text-ink">1.</strong> Toque no menu{" "}
+                  <strong className="text-ink">⋮</strong> do navegador (canto
+                  superior direito).
+                </li>
+                <li>
+                  <strong className="text-ink">2.</strong> Toque em{" "}
+                  <strong className="text-ink">
+                    &ldquo;Instalar app&rdquo; ou{" "}
+                    &ldquo;Adicionar &agrave; tela inicial&rdquo;
+                  </strong>
+                  .
+                </li>
+                <li>
+                  <strong className="text-ink">3.</strong> Confirme. O ApoQuiz
+                  passa a abrir em tela cheia, como um app.
+                </li>
+              </ol>
+            )}
 
             <p className="mt-4 flex items-start gap-2 rounded-lg border border-line bg-canvas-soft p-3 text-xs text-ink-faint">
               <Info className="mt-0.5 size-3.5 shrink-0" />

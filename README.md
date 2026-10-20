@@ -265,6 +265,12 @@ e usar **offline**.
 - **Qualquer navegador**: o icone de download no cabecalho sempre abre as
   instrucoes da plataforma.
 
+> **Brave no Android**: o Brave nao instala aplicativos de verdade — ele cria
+> apenas um **atalho** na tela inicial (limitacao conhecida do navegador:
+> brave/brave-browser#56133). O app detecta o Brave e explica isso, em vez de
+> prometer uma instalacao que nao acontece. Para instalar de verdade, use o
+> Chrome. No Brave, use o menu **⋮** > "Adicionar a tela inicial".
+
 O service worker (`public/sw.js`) guarda o app shell (a apostila que voce
 ja abriu continua funcionando sem internet) e nunca cacheia as chamadas de
 IA, que precisam de rede.
