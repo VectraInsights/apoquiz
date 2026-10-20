@@ -108,7 +108,8 @@ export function ResultsPanel({ quiz, state, onRetry, onNewFile }: Props) {
         ) : (
           <p className="mt-4 text-sm text-ink-muted">
             Você acertou <strong className="text-ink">{score.correct}</strong> de{" "}
-            <strong className="text-ink">{score.gradeable}</strong> questões
+            <strong className="text-ink">{score.gradeable}</strong>{" "}
+            {score.gradeable === 1 ? "questão" : "questões"}
             {score.pending > 0 ? (
               <>
                 {" "}

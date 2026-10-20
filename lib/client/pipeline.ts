@@ -2,6 +2,7 @@
 
 import { extractPdfText } from "@/lib/pdf/extract";
 import { applyGabarito, detectGabarito, parseQuestions } from "@/lib/pdf/parser";
+import { diagnosePdf, type PdfDiagnostics } from "@/lib/pdf/diagnostics";
 import { MAX_AI_QUESTIONS, type ExtractRequest, type ExtractResponse, type Question } from "@/lib/types";
 
 export type Stage = {
@@ -17,6 +18,8 @@ export type ProcessOutcome = {
   aiMessage: string | null;
   /** true quando o PDF ja trazia tudo e a IA nem precisou ser chamada */
   aiNotNeeded: boolean;
+  /** relatorio de problemas encontrados no PDF */
+  diagnostics: PdfDiagnostics | null;
   pageCount: number;
   /** true quando o parser local nao achou questoes e a IA extraiu do zero */
   usedAIExtraction: boolean;
@@ -63,6 +66,11 @@ export async function processPdf(
   const gabaritoResult = detectGabarito(doc.pages);
   const parsed = parseQuestions(doc.pages);
   const applied = applyGabarito(parsed, gabaritoResult.gabarito);
+  const diagnostics = diagnosePdf(
+    doc.pages,
+    parsed,
+    gabaritoResult.gabarito,
+  );
 
   const localQuestions: Question[] = parsed.map((item, index) => ({
     id: `q${index + 1}`,
@@ -102,6 +110,7 @@ export async function processPdf(
         aiApplied: false,
         aiMessage: response.error,
         aiNotNeeded: false,
+        diagnostics,
         pageCount: doc.pageCount,
         usedAIExtraction: false,
       };
@@ -114,6 +123,7 @@ export async function processPdf(
       aiApplied: true,
       aiMessage: null,
       aiNotNeeded: false,
+      diagnostics,
       pageCount: doc.pageCount,
       usedAIExtraction: true,
     };
@@ -136,6 +146,7 @@ export async function processPdf(
       aiApplied: false,
       aiMessage: null,
       aiNotNeeded: true,
+      diagnostics,
       pageCount: doc.pageCount,
       usedAIExtraction: false,
     };
@@ -169,6 +180,7 @@ export async function processPdf(
     aiApplied: Boolean(response.data),
     aiMessage: response.data ? null : response.error,
     aiNotNeeded: false,
+    diagnostics,
     pageCount: doc.pageCount,
     usedAIExtraction: false,
   };

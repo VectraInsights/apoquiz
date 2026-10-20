@@ -250,6 +250,20 @@ chave `anon` com RLS ativa.
 
 ---
 
+## Instalar no celular (PWA)
+
+O ApoQuiz e um PWA: da para instalar na tela de inicio do Android e do iPhone
+e usar **offline**.
+
+- **Android / Chrome**: aparece um botao "Instalar" no rodape do app.
+- **iPhone / Safari**: Compartilhar > "Adicionar a Tela de Inicio".
+
+O service worker (`public/sw.js`) guarda o app shell (a apostila que voce
+ja abriu continua funcionando sem internet) e nunca cacheia as chamadas de
+IA, que precisam de rede.
+
+---
+
 ## Deploy na Vercel
 
 1. Conecte o repositório na Vercel (framework detectado: Next.js).
@@ -298,6 +312,25 @@ scripts/
   check-resolutions.ts      Confere as resoluções lidas do PDF
   cache-lines.ts            Cacheia as linhas extraídas (PDFs grandes)
 ```
+
+---
+
+## Diagnostico do PDF
+
+Quando o PDF vem com layout quebrado — cabecalho corrente grudado nas
+alternativas, numero de pagina colado no texto, camada de texto duplicada —
+o app nao falha em silencio. A tela de configuracao mostra um relatorio com:
+
+- questoes que o gabarito do PDF tem mas o parser nao leu;
+- saltos na numeracao;
+- linhas com texto sobreposto;
+- paginas com conteudo duplicado.
+
+O parser tambem **corrige** o que da para corrigir: descarta a camada
+duplicada, remove o cabecalho corrente (reconhecido pela repeticao entre
+paginas e pelo formato de caminho de secao), tira os fragmentos de
+interface e o numero de pagina, e aceita o rotulo da alternativa sozinho
+na linha.
 
 ---
 

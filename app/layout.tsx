@@ -21,6 +21,13 @@ export const metadata: Metadata = {
     "Suba o PDF da sua apostila de questões e transforme em um quiz interativo com gabarito, correção instantânea e revisão comentada.",
   applicationName: "ApoQuiz",
   keywords: ["apostila", "questões", "quiz", "gabarito", "estudo", "prova"],
+  icons: {
+    icon: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+  },
   openGraph: {
     title: "ApoQuiz",
     description:
@@ -34,6 +41,13 @@ export const viewport: Viewport = {
   themeColor: "#07070d",
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
+};
+
+export const appleWebApp = {
+  capable: true,
+  title: "ApoQuiz",
+  statusBarStyle: "black-translucent",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -1,12 +1,10 @@
 /**
- * Reconstrucao de linhas a partir dos itens de texto do PDF.
+ * Reconstrucao de linhas a partir dos itens de texto do pdf.js.
  *
  * O pdf.js devolve cada "pedaco" de texto com sua posicao. Aqui agrupamos
- * os pedacos em linhas (pela baseline) e reconstruimos os espacos usando a
- * distancia horizontal entre eles. O `x` inicial de cada linha e preservado
- * porque a indentacao e um sinal forte para distinguir:
- *   - o inicio de uma alternativa ("A ...")
- *   - a continuacao de um texto indentado
+ * os pedacos em linhas (pela baseline), reconstruimos os espacos pelo vao
+ * horizontal e guardamos a posicao de cada item - a indentacao e o que
+ * permite distinguir o inicio de uma alternativa da continuacao do texto.
  */
 
 export type RawItem = {
@@ -17,10 +15,25 @@ export type RawItem = {
   height: number;
 };
 
+export type ExtractedItem = {
+  str: string;
+  x: number;
+  width: number;
+  /** posicao do item dentro do texto da linha */
+  offset: number;
+};
+
 export type ExtractedLine = {
   text: string;
   /** posicao horizontal do primeiro item da linha */
   x: number;
+  /**
+   * true quando dois itens da linha se sobrepoem horizontalmente.
+   * Sinal de PDF com layout quebrado (cabecalho colado no texto).
+   */
+  overlap?: boolean;
+  /** itens da linha com posicao, para quem precisar do detalhe */
+  items: ExtractedItem[];
 };
 
 export type ExtractedPage = {
@@ -68,17 +81,19 @@ function joinLine(line: Line): ExtractedLine {
   const items = [...line.items].sort((a, b) => a.x - b.x);
   let out = "";
   let prev: RawItem | null = null;
+  let overlap = false;
+  const parts: ExtractedItem[] = [];
 
-  // publishers usam espacamento entre letras em titulos. Nesses casos o
+  // publishings usam espacamento entre letras em titulos. Nesses casos o
   // espaco "real" e bem maior que o espacamento entre letras, entao
   // usamos um limiar relativo a media dos vaos da propria linha.
   const gaps: number[] = [];
   for (let i = 1; i < items.length; i += 1) {
     gaps.push(items[i].x - (items[i - 1].x + items[i - 1].width));
   }
-  const shortItems = items.filter((item) => item.str.trim().length <= 2).length;
   const meanGap =
     gaps.length > 0 ? gaps.reduce((sum, gap) => sum + gap, 0) / gaps.length : 0;
+  const shortItems = items.filter((item) => item.str.trim().length <= 2).length;
   const spaced =
     items.length >= 8 &&
     shortItems / items.length > 0.6 &&
@@ -105,20 +120,169 @@ function joinLine(line: Line): ExtractedLine {
         const startsWithSpace = /^\s/.test(item.str);
         if (!endsWithSpace && !startsWithSpace) out += " ";
       }
+      // Itens que se sobrepoem horizontalmente indicam layout quebrado.
+      if (gap < -1) overlap = true;
     }
 
+    const offset = out.length;
     out += item.str;
+    parts.push({ str: item.str, x: item.x, width: item.width, offset });
     prev = item;
   }
 
   return {
     text: out.replace(/\s+/g, " ").trim(),
     x: Math.min(...items.map((item) => item.x)),
+    overlap: overlap || undefined,
+    items: parts,
   };
 }
 
+/**
+ * Alguns PDFs desenham o mesmo conteudo **duas vezes**: uma camada
+ * visivel e outra invisivel (acessibilidade/OCR) ou uma copia
+ * deslocada. O texto extraido sai com tudo duplicado e embaralhado.
+ *
+ * A assinatura de uma copia e um deslocamento vertical **constante**
+ * em varios textos ao mesmo tempo. Quando isso aparece em boa parte
+ * dos itens da pagina, a segunda passagem e descartada.
+ */
+export function removeDuplicatedPass(items: RawItem[]): RawItem[] {
+  const groups = new Map<string, RawItem[]>();
+  for (const item of items) {
+    const key = `${item.str}\u0000${Math.round(item.x)}`;
+    const list = groups.get(key);
+    if (list) list.push(item);
+    else groups.set(key, [item]);
+  }
+
+  // Deslocamentos verticais candidatos e quantos grupos distintos
+  // aparecem com cada um.
+  const offsets = new Map<number, Set<string>>();
+  for (const [key, list] of groups) {
+    if (list.length < 2) continue;
+    for (let i = 0; i < list.length; i += 1) {
+      for (let j = i + 1; j < list.length; j += 1) {
+        const delta = Math.round(list[j].y - list[i].y);
+        if (delta === 0) continue;
+        let set = offsets.get(delta);
+        if (!set) {
+          set = new Set();
+          offsets.set(delta, set);
+        }
+        set.add(key);
+      }
+    }
+  }
+
+  let bestDelta = 0;
+  let bestGroups = 0;
+  for (const [delta, set] of offsets) {
+    if (set.size > bestGroups) {
+      bestGroups = set.size;
+      bestDelta = delta;
+    }
+  }
+
+  const meaningful = items.filter((item) => item.str.trim().length > 0);
+  if (bestGroups < 6 || meaningful.length === 0) return items;
+
+  // Quantos itens de verdade participaram da copia?
+  let affected = 0;
+  for (const list of groups.values()) {
+    if (list.length < 2) continue;
+    const has = list.some((item) =>
+      list.some(
+        (other) =>
+          other !== item && Math.round(other.y - item.y) === bestDelta,
+      ),
+    );
+    if (has) affected += list.length;
+  }
+
+  if (affected < meaningful.length * 0.3) return items;
+
+  // Descarta os itens da segunda passagem (o de maior y de cada par).
+  const drop = new Set<RawItem>();
+  for (const list of groups.values()) {
+    if (list.length < 2) continue;
+    const sorted = [...list].sort((a, b) => a.y - b.y);
+    for (let i = 1; i < sorted.length; i += 1) {
+      if (Math.round(sorted[i].y - sorted[i - 1].y) === bestDelta) {
+        drop.add(sorted[i]);
+      }
+    }
+  }
+
+  if (drop.size === 0) return items;
+  return items.filter((item) => !drop.has(item));
+}
+
+/**
+ * Cabecalho corrente das apostilas editoriais ("1. Lingua Portuguesa",
+ * "1.2. Acentuacao Grafica"): repete em quase todas as paginas e, em PDF
+ * com layout quebrado, gruda no meio do texto do corpo.
+ *
+ * O que o distingue do topico da questao (que tambem repete) e o formato:
+ * o cabecalho comeca com um caminho de secao ("1.2. ..."), o topico nao.
+ */
+const SECTION_PATH_ITEM = /^\d+(?:\.\d+)*\.?\s+\S/;
+
+/**
+ * Numero de pagina no formato "113 / 2706". Costuma vir colado no fim
+ * do texto de uma alternativa.
+ */
+const PAGE_NUMBER_ITEM = /^\d{1,4}\s*\/\s*\d{3,4}$/;
+
+function findFurnitureItems(rawPages: RawItem[][]): Set<string> {
+  const total = rawPages.length;
+  const counts = new Map<string, number>();
+
+  for (const items of rawPages) {
+    const seen = new Set<string>();
+    for (const item of items) {
+      const key = item.str.trim();
+      if (key.length < 4) continue;
+      if (!SECTION_PATH_ITEM.test(key)) continue;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+  }
+
+  const minPages = Math.max(3, Math.floor(total * 0.3));
+  const furniture = new Set<string>();
+  for (const [key, count] of counts) {
+    if (count >= minPages) furniture.add(key);
+  }
+  return furniture;
+}
+
+function linesFromItems(items: RawItem[]): ExtractedLine[] {
+  return buildLines(items).map(joinLine).filter((line) => line.text.length > 0);
+}
+
 export function buildPageLines(items: RawItem[]): ExtractedLine[] {
-  return buildLines(items)
-    .map(joinLine)
-    .filter((line) => line.text.length > 0);
+  return linesFromItems(removeDuplicatedPass(items));
+}
+
+/**
+ * Monta as paginas do documento inteiro. A montagem e feita em duas
+ * etapas porque o cabecalho corrente so pode ser reconhecido depois de
+ * ver todas as paginas (ele se repete).
+ */
+export function buildDocumentPages(rawPages: RawItem[][]): ExtractedPage[] {
+  const deduped = rawPages.map(removeDuplicatedPass);
+  const furniture = findFurnitureItems(deduped);
+
+  return deduped.map((items, index) => ({
+    page: index + 1,
+    lines: linesFromItems(
+      items.filter(
+        (item) =>
+          !furniture.has(item.str.trim()) &&
+          !PAGE_NUMBER_ITEM.test(item.str.trim()),
+      ),
+    ),
+  }));
 }

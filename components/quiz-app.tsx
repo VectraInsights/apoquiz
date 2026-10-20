@@ -25,8 +25,11 @@ import {
 } from "@/lib/sync";
 import { useAuth } from "@/lib/supabase/use-auth";
 import { SAMPLE_QUESTIONS } from "@/lib/sample";
+import { countLabel } from "@/lib/plural";
+import type { PdfDiagnostics } from "@/lib/pdf/diagnostics";
 import type { Question, Quiz, QuizSettings, QuizState, QuizSummary } from "@/lib/types";
 import { AuthButton } from "./auth-button";
+import { InstallPrompt } from "./install-prompt";
 import { Logo, ProgressBar } from "./ui";
 import { UploadZone } from "./upload-zone";
 import { SetupPanel } from "./setup-panel";
@@ -50,6 +53,7 @@ export function QuizApp() {
   const [aiApplied, setAiApplied] = useState(false);
   const [aiMessage, setAiMessage] = useState<string | null>(null);
   const [aiNotNeeded, setAiNotNeeded] = useState(false);
+  const [diagnostics, setDiagnostics] = useState<PdfDiagnostics | null>(null);
 
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [quizState, setQuizState] = useState<QuizState>(() => createState());
@@ -100,6 +104,7 @@ export function QuizApp() {
       setAiApplied(outcome.aiApplied);
       setAiMessage(outcome.aiMessage);
       setAiNotNeeded(outcome.aiNotNeeded);
+      setDiagnostics(outcome.diagnostics);
       setSourceFile(file.name);
       setTitle(file.name.replace(/\.pdf$/i, "").replace(/[_-]+/g, " "));
       setStage("setup");
@@ -303,6 +308,7 @@ export function QuizApp() {
           aiApplied={aiApplied}
           aiNotNeeded={aiNotNeeded}
           aiMessage={aiMessage}
+          diagnostics={diagnostics}
           onStart={handleStart}
           onBack={handleNewFile}
         />
@@ -325,6 +331,8 @@ export function QuizApp() {
           onNewFile={handleNewFile}
         />
       ) : null}
+
+      <InstallPrompt />
 
       <footer className="mt-auto border-t border-line/60 py-8 text-center text-xs text-ink-faint">
         ApoQuiz · PDF → quiz interativo com gabarito
@@ -420,18 +428,20 @@ function UploadScreen({
                   >
                     <p className="truncate text-sm font-medium">{item.title}</p>
                     <p className="mt-0.5 text-xs text-ink-faint">
-                      {item.stats.total} questões ·{" "}
+                      {countLabel(item.stats.total, "questão", "questões")} ·{" "}
                       {new Date(item.createdAt).toLocaleDateString("pt-BR")}
                     </p>
                     {started ? (
                       <p className="mt-1 text-xs">
                         {finished ? (
                           <span className="text-ok">
-                            Finalizado · {answered}/{item.stats.total} respondidas
+                            Finalizado · {answered}/{item.stats.total}{" "}
+                            {answered === 1 ? "respondida" : "respondidas"}
                           </span>
                         ) : (
                           <span className="text-brand-soft">
-                            Em andamento · {answered}/{item.stats.total} respondidas
+                            Em andamento · {answered}/{item.stats.total}{" "}
+                            {answered === 1 ? "respondida" : "respondidas"}
                           </span>
                         )}
                       </p>

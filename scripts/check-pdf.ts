@@ -11,7 +11,7 @@ import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 
 import { applyGabarito, detectGabarito, parseQuestions } from "@/lib/pdf/parser";
-import { buildPageLines, type ExtractedPage, type RawItem } from "@/lib/pdf/lines";
+import { buildDocumentPages, type ExtractedPage, type RawItem } from "@/lib/pdf/lines";
 
 async function extractInNode(path: string): Promise<ExtractedPage[]> {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
@@ -19,7 +19,7 @@ async function extractInNode(path: string): Promise<ExtractedPage[]> {
   const loadingTask = pdfjs.getDocument({ data, useSystemFonts: true });
   const doc = await loadingTask.promise;
 
-  const pages: ExtractedPage[] = [];
+  const rawPages: RawItem[][] = [];
 
   for (let number = 1; number <= doc.numPages; number += 1) {
     const page = await doc.getPage(number);
@@ -38,10 +38,11 @@ async function extractInNode(path: string): Promise<ExtractedPage[]> {
       });
     }
 
-    pages.push({ page: number, lines: buildPageLines(items) });
+    rawPages.push(items);
   }
 
   await loadingTask.destroy();
+  const pages: ExtractedPage[] = buildDocumentPages(rawPages);
   return pages;
 }
 

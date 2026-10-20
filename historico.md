@@ -896,7 +896,94 @@ vence**.
 
 ---
 
-## 19. Estado final
+## 19. Apostilas com layout quebrado: o app interpreta e reporta
+
+Uma apostila separada por capitulo (gerada por ferramenta de split) chega com
+o texto **grudado**: o cabecalho corrente da apostila entra no meio das
+alternativas, o numero de pagina cola no fim do texto e o cabecalho da
+proxima questao gruda no rodape da anterior.
+
+### O que o app passou a fazer
+
+**1. Descarta a camada de texto duplicada.** Alguns PDFs desenham o mesmo
+conteudo duas vezes (camada visivel + camada invisivel de acessibilidade).
+A assinatura de uma copia e um deslocamento vertical **constante** em varios
+textos ao mesmo tempo. Quando isso cobre boa parte dos itens da pagina, a
+segunda passagem e descartada.
+
+**2. Remove o cabecalho corrente pela repeticao.** O cabecalho ("1. Lingua
+Portuguesa", "1.2. Acentuacao Grafica") repete em quase todas as paginas.
+O que o distingue do topico da questao (que tambem repete) e o formato: o
+cabecalho comeca com um caminho de secao, o topico nao. Como a deteccao
+precisa do documento inteiro, as paginas so sao montadas depois de ler
+todas (`buildDocumentPages`).
+
+**3. Remove fragmentos de interface grudados no texto.** "LIGHTBULB Tente
+resolver antes de conferir EYE VER GABARITO E COMENTARIOS" e afins sao
+removidos da linha antes de qualquer analise — e era isso que escondia o
+cabecalho "Questao 55" e o titulo da secao "1.2.4 Gabaritos e Comentarios".
+
+**4. Numero de pagina colado.** Itens no formato "113 / 2706" sao
+descartados; antes eles entravam no texto da alternativa.
+
+**5. Rotulo de alternativa sozinho na linha.** Algumas apostilas colocam o
+"A" numa linha e o texto na seguinte. O padrao novo cobre esse formato.
+
+### O relatorio de diagnostico
+
+O app nao falha em silencio: `lib/pdf/diagnostics.ts` analisa o documento e
+a tela de configuracao mostra o que encontrou.
+
+| Verificacao | O que detecta |
+| --- | --- |
+| `missingQuestions` | questoes que o gabarito do PDF tem mas o parser nao leu |
+| `numberingGaps` | saltos na numeracao (ex.: 58, 83, 94) |
+| `overlappingLines` | linhas com texto sobreposto (layout quebrado) |
+| `duplicatedPages` | paginas com conteudo desenhado duas vezes |
+| `withoutAnswer` | questoes sem gabarito |
+
+### Resultado no PDF de layout quebrado
+
+Antes: 54 questoes lidas, 53 com resposta (uma **questao falsa** contada
+como questao, e 4 alternativas corrompidas por cabecalho grudado).
+
+Depois:
+
+    paginas:            53
+    questoes lidas:     53
+    com resposta:       53
+    nao reconhecidas:   nenhuma
+    saltos na numeracao: nenhum
+    linhas sobrepostas: 3
+
+O PDF de verdade tem 53 questoes (54 a 106) e 53 respostas — o app agora
+bate exatamente. E o original de 2.706 paginas segue em **1.824/1.824**.
+
+---
+
+## 20. Instalar no celular (PWA)
+
+O app agora e um **PWA**: da para instalar na tela de inicio do Android e
+do iPhone, e funciona **offline**.
+
+| Arquivo | Papel |
+| --- | --- |
+| `app/manifest.ts` | manifesto (nome, cores, icones, display standalone) |
+| `public/sw.js` | service worker: rede primeiro nas navegacoes, cache nos estaticos, nunca cacheia `/api` |
+| `public/icon-192.png`, `icon-512.png`, `icon-maskable-512.png` | icones do manifesto (gerados por `scripts/gerar-icones.py`) |
+| `public/apple-touch-icon.png` | icone da tela de inicio no iOS |
+| `components/install-prompt.tsx` | registra o service worker e convida a instalar |
+
+No Android/Chrome aparece um botao **Instalar**; no iOS/Safari, um aviso
+explica o caminho (Compartilhar > "Adicionar a Tela de Inicio").
+
+O service worker guarda o app shell, entao a apostila ja aberta continua
+funcionando sem internet. As chamadas de IA sao ignoradas offline (e
+precisam de rede, claro).
+
+---
+
+## 21. Estado final
 
 | Verificação | Resultado |
 | --- | --- |

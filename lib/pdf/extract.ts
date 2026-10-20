@@ -6,7 +6,7 @@
  * script de desenvolvimento `scripts/check-pdf.ts`).
  */
 
-import { buildPageLines, type ExtractedPage, type RawItem } from "./lines";
+import { buildDocumentPages, type ExtractedPage, type RawItem } from "./lines";
 
 export type { ExtractedPage, ExtractedLine } from "./lines";
 
@@ -39,8 +39,7 @@ export async function extractPdfText(
   });
   const doc = await loadingTask.promise;
 
-  const pages: ExtractedPage[] = [];
-  let charCount = 0;
+  const rawPages: RawItem[][] = [];
 
   for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber++) {
     const page = await doc.getPage(pageNumber);
@@ -62,14 +61,19 @@ export async function extractPdfText(
       });
     }
 
-    const lines = buildPageLines(items);
-
-    charCount += lines.reduce((acc, line) => acc + line.text.length, 0);
-    pages.push({ page: pageNumber, lines });
-
+    rawPages.push(items);
     onProgress?.(pageNumber, doc.numPages);
     page.cleanup();
   }
+
+  // As paginas so podem ser montadas depois de ler todas: o cabecalho
+  // corrente da apostila e reconhecido pela repeticao entre paginas.
+  const pages: ExtractedPage[] = buildDocumentPages(rawPages);
+  const charCount = pages.reduce(
+    (total, page) =>
+      total + page.lines.reduce((sum, line) => sum + line.text.length, 0),
+    0,
+  );
 
   await loadingTask.destroy();
 

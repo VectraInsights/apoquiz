@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import type { Question, QuestionLevel, QuizSettings } from "@/lib/types";
 import { LEVEL_LABELS, QUESTION_LEVELS } from "@/lib/types";
+import { countLabel, verbFor } from "@/lib/plural";
+import type { PdfDiagnostics } from "@/lib/pdf/diagnostics";
 import { Badge, Stat, Toggle } from "./ui";
 
 type Props = {
@@ -24,6 +26,7 @@ type Props = {
   aiApplied: boolean;
   aiNotNeeded: boolean;
   aiMessage: string | null;
+  diagnostics: PdfDiagnostics | null;
   onStart: (settings: QuizSettings, questions: Question[]) => void;
   onBack: () => void;
 };
@@ -38,6 +41,7 @@ export function SetupPanel({
   aiApplied,
   aiNotNeeded,
   aiMessage,
+  diagnostics,
   onStart,
   onBack,
 }: Props) {
@@ -279,7 +283,7 @@ export function SetupPanel({
             </button>
             {filtered.length !== questions.length ? (
               <p className="text-center text-xs text-ink-faint">
-                Serão {filtered.length} questões selecionadas.
+                {countLabel(filtered.length, "questão selecionada", "questões selecionadas")}.
               </p>
             ) : null}
           </div>
@@ -298,6 +302,30 @@ export function SetupPanel({
                 tone={stats.fromAI > 0 ? "brand" : "default"}
               />
             </div>
+
+            {diagnostics && diagnostics.warnings.length > 0 ? (
+              <div className="mt-4 rounded-xl border border-warn/30 bg-warn/10 p-3.5">
+                <p className="flex items-center gap-2 text-sm font-semibold text-warn">
+                  <CircleAlert className="size-4" />
+                  O PDF tem {diagnostics.warnings.length}{" "}
+                  {diagnostics.warnings.length === 1 ? "problema" : "problemas"}
+                </p>
+                <ul className="mt-2 space-y-1.5 text-sm text-warn/90">
+                  {diagnostics.warnings.map((warning) => (
+                    <li key={warning} className="flex gap-2">
+                      <span aria-hidden>•</span>
+                      <span>{warning}</span>
+                    </li>
+                  ))}
+                </ul>
+                {diagnostics.missingQuestions.length > 0 ? (
+                  <p className="mt-2 text-xs text-warn/80">
+                    Se você corrigir o PDF e subir de novo, o app refaz a leitura
+                    automaticamente.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
 
             {aiMessage ? (
               <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-warn/30 bg-warn/10 p-3.5 text-sm text-warn">
@@ -326,8 +354,9 @@ export function SetupPanel({
               <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-warn/30 bg-warn/10 p-3.5 text-sm text-warn">
                 <CircleAlert className="mt-0.5 size-4 shrink-0" />
                 <span>
-                  {stats.without} questão(ões) ficaram sem resposta. Escolha a alternativa
-                  correta abaixo para completar o gabarito.
+                  {countLabel(stats.without, "questão", "questões")}{" "}
+                  {verbFor(stats.without, "ficou", "ficaram")} sem resposta. Escolha
+                  a alternativa correta abaixo para completar o gabarito.
                 </span>
               </div>
             ) : null}

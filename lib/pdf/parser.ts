@@ -35,7 +35,7 @@
  */
 
 import type { Option, QuestionLevel } from "@/lib/types";
-import type { ExtractedPage } from "./lines";
+import type { ExtractedItem, ExtractedPage } from "./lines";
 
 export type ParsedQuestion = {
   number: number | null;
@@ -70,6 +70,8 @@ type FlatLine = {
   x: number;
   /** indice global da linha (0-based) */
   index: number;
+  /** itens da linha com posicao, para quem precisar do detalhe */
+  items: ExtractedItem[];
 };
 
 /* ------------------------------------------------------------------ */
@@ -227,6 +229,38 @@ const ROMAN_TO_LETTER: Record<string, string> = {
 /** Diferenca maxima de indentacao para duas linhas pertencerem ao mesmo grupo. */
 const X_TOLERANCE = 3;
 
+/**
+ * Fragmentos de interface das apostilas editoriais. Eles vem colados no
+ * texto (o "Questao 55" do cabecalho pode ficar grudado no rodape), e
+ * atrapalham tanto a deteccao de cabecalho quanto a de secao.
+ *
+ * A remocao acontece antes de qualquer analise, na linha inteira.
+ */
+const NOISE_FRAGMENTS: RegExp[] = [
+  /Tente resolver antes de conferir/gi,
+  /VER GABARITO E COMENTÁRIOS/gi,
+  /Ver gabarito e comentários/gi,
+  /Continue de onde parou/gi,
+  /VOLTAR À QUESTÃO\s*\d+/gi,
+  /LIGHTBULB/gi,
+  /BOOKMARK/gi,
+  /ARROW-LEFT/gi,
+  /\bEYE\b/g,
+  /\u{1F4A1}/gu,
+];
+
+/** Remove os fragmentos de interface e normaliza o espacamento. */
+export function stripNoise(text: string): string {
+  let out = text;
+  for (const fragment of NOISE_FRAGMENTS) {
+    out = out.replace(fragment, " ");
+  }
+  return out
+    .replace(/\s+/g, " ")
+    .replace(/\s+([,.;:])/g, "$1")
+    .trim();
+}
+
 /* ------------------------------------------------------------------ */
 /* Utilitarios                                                          */
 /* ------------------------------------------------------------------ */
@@ -247,9 +281,15 @@ function flattenPages(pages: ExtractedPage[]): FlatLine[] {
   const lines: FlatLine[] = [];
   for (const page of pages) {
     for (const raw of page.lines) {
-      const text = cleanText(raw.text);
+      const text = cleanText(stripNoise(raw.text));
       if (!text) continue;
-      lines.push({ page: page.page, text, x: raw.x, index: lines.length });
+      lines.push({
+        page: page.page,
+        text,
+        x: raw.x,
+        index: lines.length,
+        items: raw.items,
+      });
     }
   }
   return lines;
@@ -307,6 +347,13 @@ type OptionCandidate = {
  * letra normalizada. Numeros romanos viram letras (I->A, II->B, ...).
  */
 function matchOptionCandidate(text: string): { label: string; text: string } | null {
+  // Rotulo sozinho na linha: o texto da alternativa vem na linha seguinte.
+  const alone = text.match(/^\s*\(?\s*([A-Ea-e])\s*\)?\s*$/);
+  if (alone) {
+    const label = alone[1].toUpperCase();
+    if (label) return { label, text: "" };
+  }
+
   const roman = text.match(OPTION_ROMAN);
   if (roman) {
     const raw = (roman[1] ?? roman[2] ?? roman[3] ?? "").toUpperCase();
