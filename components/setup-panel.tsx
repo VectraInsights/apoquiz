@@ -260,7 +260,9 @@ export function SetupPanel({
                   <p className="mt-2 text-[11px] text-ink-faint">
                     {levels.length === 0
                       ? "Todos os níveis"
-                      : `${levels.length} nível${levels.length > 1 ? "is" : ""} selecionado${levels.length > 1 ? "s" : ""}`}
+                      : levels.length === 1
+                        ? "1 nível selecionado"
+                        : `${levels.length} níveis selecionados`}
                   </p>
                 </div>
               ) : null}
@@ -277,7 +279,7 @@ export function SetupPanel({
             </button>
             {filtered.length !== questions.length ? (
               <p className="text-center text-xs text-ink-faint">
-                Serão {filtered.length} questões do assunto selecionado.
+                Serão {filtered.length} questões selecionadas.
               </p>
             ) : null}
           </div>
