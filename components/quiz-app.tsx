@@ -381,21 +381,13 @@ function UploadScreen({
         </p>
       </div>
 
-      <div className="mx-auto mt-9 max-w-3xl">
-        {error ? (
-          <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-bad/35 bg-bad/10 p-3.5 text-sm text-bad">
-            <CircleAlert className="mt-0.5 size-4 shrink-0" />
-            <span>{error}</span>
-          </div>
-        ) : null}
-
-        <UploadZone onFile={onFile} busy={false} onSample={onSample} />
-      </div>
-
       {recent.length > 0 ? (
-        <section className="mx-auto mt-10 max-w-3xl">
+        <section className="mx-auto mb-10 max-w-3xl">
           <h2 className="text-sm font-semibold text-ink-muted">
-            Quizzes salvos
+            Seus quizzes
+            <span className="ml-2 text-xs font-normal text-ink-faint">
+              {recent.length} sal{recent.length === 1 ? "vo" : "vos"}
+            </span>
           </h2>
           <p className="mt-1 text-xs text-ink-faint">
             {auth.user
@@ -483,6 +475,18 @@ function UploadScreen({
           </div>
         </section>
       ) : null}
+
+      <div className="mx-auto mt-9 max-w-3xl">
+        {error ? (
+          <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-bad/35 bg-bad/10 p-3.5 text-sm text-bad">
+            <CircleAlert className="mt-0.5 size-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        ) : null}
+
+        <UploadZone onFile={onFile} busy={false} onSample={onSample} />
+      </div>
+
 
       <section className="mx-auto mt-16 max-w-5xl">
         <h2 className="text-center text-sm font-semibold uppercase tracking-wider text-ink-faint">

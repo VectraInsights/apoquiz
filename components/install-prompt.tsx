@@ -31,6 +31,15 @@ function detectBrave(): boolean {
   return /Brave\//i.test(navigator.userAgent);
 }
 
+/** True em celular/tablet (ponteiro grosso ou tela estreita). */
+function isMobileDevice(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia?.("(pointer: coarse)").matches === true ||
+    window.innerWidth < 768
+  );
+}
+
 function isInstalled(): boolean {
   if (typeof window === "undefined") return false;
   if (window.matchMedia?.("(display-mode: standalone)").matches === true) {
@@ -93,6 +102,7 @@ export function InstallPrompt() {
 
   const platform = ready ? detectIos() : false;
   const brave = ready ? detectBrave() : false;
+  const mobile = ready ? isMobileDevice() : false;
   const alreadyInstalled = justInstalled || (ready && isInstalled());
 
   const install = useCallback(async () => {
@@ -138,8 +148,8 @@ export function InstallPrompt() {
         <button
           type="button"
           onClick={() => void install()}
-          title="Instalar o app no celular"
-          aria-label="Instalar o app no celular"
+          title={mobile ? "Instalar no celular" : "Instalar o app"}
+          aria-label={mobile ? "Instalar no celular" : "Instalar o app"}
           className="grid size-9 place-items-center rounded-lg border border-line text-ink-muted transition hover:border-brand/50 hover:text-ink"
         >
           <Download className="size-4" />
@@ -160,8 +170,10 @@ export function InstallPrompt() {
               </>
             ) : (
               <>
-                <strong className="text-ink">Instale o ApoQuiz</strong> e estude
-                offline, direto da tela de início do celular.
+                <strong className="text-ink">Instale o ApoQuiz</strong>{" "}
+                {mobile
+                  ? "e estude offline, direto da tela de início do celular."
+                  : "no seu computador, como um app de verdade."}
               </>
             )}
           </div>

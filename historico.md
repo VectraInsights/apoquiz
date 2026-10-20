@@ -1058,7 +1058,44 @@ que falha e a criacao do WebAPK, que e do navegador.
 
 ---
 
-## 24. Estado final
+## 24. Onde ficam os quizzes salvos
+
+O salvamento e **automatico**: ao iniciar um quiz, ele vai para o
+`localStorage` do navegador (ate 20 quizzes) junto com o progresso das
+respostas. Nao ha botao de "salvar".
+
+Para reencontrar, a secao **"Seus quizzes"** fica **no topo da tela
+inicial** (antes da area de upload), com um card por quiz:
+
+| Estado do quiz | Acao principal | Acoes |
+| --- | --- | --- |
+| Nunca iniciado | **Começar** | Remover |
+| Em andamento | **Continuar** (volta na mesma questao, com as respostas) | Refazer, Remover |
+| Finalizado | **Ver resultado** | Refazer, Remover |
+
+Sem login, o quiz fica **so naquele aparelho e naquele navegador**. Com o
+login do Google, ele vai para o Supabase e aparece em qualquer aparelho —
+e o progresso continua sincronizado.
+
+---
+
+## 25. Rotulos do PWA por dispositivo
+
+O botao de instalacao aparecia no PC escrito como "Instalar o app no
+celular", o que nao faz sentido numa tela de computador. Agora o rotulo
+acompanha o dispositivo:
+
+| Dispositivo | Rotulo do botao | Texto do banner |
+| --- | --- | --- |
+| Celular/tablet | "Instalar no celular" | "...direto da tela de início do celular" |
+| Computador | "Instalar o app" | "...no seu computador, como um app de verdade" |
+
+A deteccao usa `pointer: coarse` (ponteiro grosso, tipico de toque) ou
+largura menor que 768 px.
+
+---
+
+## 26. Estado final
 
 | Verificação | Resultado |
 | --- | --- |
