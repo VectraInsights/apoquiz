@@ -662,6 +662,36 @@ use o deploy de produção; a saída definitiva seria um domínio próprio
 
 A configuração correta ficou no README e na página `/supabase-setup`.
 
+**Configuração final validada** (URL de produção `https://apoquiz.vercel.app`):
+
+| Onde | Valor |
+| --- | --- |
+| Google → Authorized JavaScript origins | `https://apoquiz.vercel.app` (sem barra final) |
+| Google → Authorized redirect URIs | `https://gxzzcdywhjhasjttklry.supabase.co/auth/v1/callback` |
+| Supabase → Site URL | `https://apoquiz.vercel.app` |
+| Supabase → Redirect URLs | `https://apoquiz.vercel.app` (+ `http://localhost:3000` em dev) |
+
+### Validação da configuração do Supabase
+
+Testada direto na API REST do projeto:
+
+| Teste | Resultado |
+| --- | --- |
+| Provider Google | ✅ `google: true` e 302 para `accounts.google.com` |
+| Tabelas `quizzes`, `quiz_questions`, `quiz_states` | ✅ existem, com as colunas esperadas (inclusive `qid`) |
+| Insert anônimo em `quizzes` | ✅ bloqueado: `42501 new row violates row-level security policy` |
+| Fluxo do botão "Entrar" | ✅ `client_id`, `response_type=code`, `scope=email profile` e `redirect_uri` = callback do Supabase |
+
+### O deploy está no ar — mas sem as variáveis de ambiente
+
+O bundle publicado em `https://apoquiz.vercel.app` contém o *placeholder*
+`process.env.NEXT_PUBLIC_SUPABASE_URL` (não substituído), o que faz
+`isSupabaseConfigured()` retornar `false` e **o botão de login não aparecer**.
+
+Variáveis `NEXT_PUBLIC_*` são **inlinadas no build**: sem elas definidas no
+projeto da Vercel, é preciso adicionar e **redeployar** (Deployments →
+⋯ → Redeploy, ou um novo push).
+
 ### O que vai para a nuvem
 
 | Item | Vai para o servidor? |

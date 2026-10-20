@@ -159,14 +159,11 @@ export default function SupabaseSetup() {
         <li>
           <strong className="text-ink">4.</strong> Em{" "}
           <em>Authentication → URL Configuration</em>: <strong>Site URL</strong> ={" "}
-          <code className="text-brand-soft">
-            https://SEU-PROJETO.vercel.app
-          </code>{" "}
+          <code className="text-brand-soft">https://apoquiz.vercel.app</code>{" "}
           e em <strong>Redirect URLs</strong> adicione{" "}
-          <code className="text-brand-soft">
-            https://*-SEU-TIME.vercel.app/**
-          </code>
-          . O Supabase aceita curinga; o Google não.
+          <code className="text-brand-soft">https://apoquiz.vercel.app</code>{" "}
+          (e <code className="text-brand-soft">http://localhost:3000</code> se for
+          desenvolver local).
           <p className="mt-1.5 rounded-lg border border-warn/30 bg-warn/10 p-2.5 text-warn">
             <strong>Atenção:</strong> se a lista de Redirect URLs ficar vazia, o
             Supabase aceita <em>qualquer</em> URL como destino do login — isso
@@ -183,7 +180,7 @@ export default function SupabaseSetup() {
           >
             Google Cloud
           </a>
-          , crie um OAuth Client do tipo <em>Web application</em>:
+          , o OAuth Client do tipo <em>Web application</em>:
           <ul className="mt-1 list-disc pl-5 text-ink-faint">
             <li>
               <strong>Authorized redirect URIs</strong>:{" "}
@@ -193,12 +190,8 @@ export default function SupabaseSetup() {
             </li>
             <li>
               <strong>Authorized JavaScript origins</strong>:{" "}
-              <code className="text-brand-soft">
-                https://SEU-PROJETO.vercel.app
-              </code>{" "}
-              — sem curinga, sem caminho e sem barra final: o Google exige a
-              origem exata. A URL do app é a que aparece na barra de endereço
-              (Vercel → projeto → Deployments → produção).
+              <code className="text-brand-soft">https://apoquiz.vercel.app</code>{" "}
+              — sem barra final e sem curinga: o Google exige a origem exata.
             </li>
           </ul>
         </li>

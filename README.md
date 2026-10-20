@@ -128,12 +128,12 @@ desenvolvimento local — pode deixar de fora se nunca for rodar local.
 3. **Authentication → Providers → Google**: ative o provider e cole o
    *Client ID* e o *Client Secret* do Google Cloud Console.
 4. **Authentication → URL Configuration**:
-   - **Site URL**: `https://SEU-PROJETO.vercel.app`
+   - **Site URL**: `https://apoquiz.vercel.app`
    - **Redirect URLs**:
 
      ```
-     https://SEU-PROJETO.vercel.app
-     https://*-SEU-TIME.vercel.app/**
+     https://apoquiz.vercel.app
+     https://*-apoquiz.vercel.app/**
      ```
 
      O curinga é aceito **pelo Supabase** (é o padrão recomendado na
@@ -165,7 +165,7 @@ navegador e copie da barra de endereço. O formato é
 | Campo | Valor |
 | --- | --- |
 | **Authorized redirect URIs** | `https://gxzzcdywhjhasjttklry.supabase.co/auth/v1/callback` |
-| **Authorized JavaScript origins** | `https://SEU-PROJETO.vercel.app` |
+| **Authorized JavaScript origins** | `https://apoquiz.vercel.app` |
 
 ⚠️ Duas regras do Google que dão erro se não forem respeitadas:
 
