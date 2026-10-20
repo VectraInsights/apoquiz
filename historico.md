@@ -1040,7 +1040,25 @@ o dialogo nativo mostra "instalando" — e nenhum aplicativo e criado.
 
 ---
 
-## 23. Estado final
+## 23. Banner e painel adaptados ao Brave
+
+Com o Brave no Android confirmado como o navegador em uso, o app deixou de
+prometer uma instalacao que nao acontece:
+
+- o banner diz **"Adicione à tela inicial"** (em vez de "Instale") e o botao
+  vira **"Como adicionar"**;
+- dentro, explica a limitacao do navegador e da o caminho do atalho;
+- inclui a dica do **modo aviao**: sem manifesto disponivel, o Brave deixa de
+  tentar criar o aplicativo e cria o atalho normalmente.
+
+O app em si esta correto: o manifesto cumpre todos os criterios do Chrome
+(verificado por `scripts/check-pwa.ts`: HTTPS, name, short_name, start_url,
+display standalone, icones 192/512, service worker com handler de fetch). O
+que falha e a criacao do WebAPK, que e do navegador.
+
+---
+
+## 24. Estado final
 
 | Verificação | Resultado |
 | --- | --- |

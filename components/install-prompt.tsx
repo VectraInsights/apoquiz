@@ -149,8 +149,20 @@ export function InstallPrompt() {
       {showBanner ? (
         <div className="no-print fixed inset-x-3 bottom-3 z-50 mx-auto flex max-w-md items-center gap-3 rounded-2xl border border-line bg-panel/95 p-3.5 shadow-2xl shadow-black/50 backdrop-blur sm:inset-x-auto sm:right-4">
           <div className="flex-1 text-xs leading-relaxed text-ink-muted">
-            <strong className="text-ink">Instale o ApoQuiz</strong> e estude
-            offline, direto da tela de início do celular.
+            {brave ? (
+              <>
+                <strong className="text-ink">Adicione à tela inicial</strong> e
+                estude offline direto do celular.{" "}
+                <span className="text-warn">
+                  No Brave isso vira um atalho — o app em si instala pelo Chrome.
+                </span>
+              </>
+            ) : (
+              <>
+                <strong className="text-ink">Instale o ApoQuiz</strong> e estude
+                offline, direto da tela de início do celular.
+              </>
+            )}
           </div>
           <button
             type="button"
@@ -158,7 +170,7 @@ export function InstallPrompt() {
             className="btn btn-primary min-h-9 px-3 py-1.5 text-xs"
           >
             <Download className="size-3.5" />
-            Instalar
+            {brave ? "Como adicionar" : "Instalar"}
           </button>
           <button
             type="button"
@@ -207,14 +219,25 @@ export function InstallPrompt() {
                     <strong className="text-ink">
                       &ldquo;Adicionar à tela inicial&rdquo;
                     </strong>
-                    . O atalho do ApoQuiz é criado e abre o app.
+                    . O atalho do ApoQuiz é criado na tela inicial e abre o app
+                    (o offline funciona).
                   </li>
                   <li>
-                    <strong className="text-ink">2.</strong> Para instalar de
-                    verdade (app próprio, com ícone e tela cheia), abra o{" "}
+                    <strong className="text-ink">2.</strong> Se o Brave mostrar
+                    &ldquo;Instalar app&rdquo; e nada acontecer, ele está
+                    tentando criar o aplicativo e falhando. Nesse caso,{" "}
+                    <strong className="text-ink">
+                      desligue a internet (modo avião) e repita
+                    </strong>{" "}
+                    — sem manifesto disponível, o Brave cria o atalho
+                    normalmente.
+                  </li>
+                  <li>
+                    <strong className="text-ink">3.</strong> Para instalar de
+                    verdade (ícone próprio, tela cheia, sem barra do
+                    navegador), abra o{" "}
                     <strong className="text-ink">Chrome</strong> no mesmo
-                    celular e repita aqui — o botão &ldquo;Instalar&rdquo;
-                    funciona normalmente.
+                    celular neste mesmo link — lá funciona de primeira.
                   </li>
                 </ol>
               </>
