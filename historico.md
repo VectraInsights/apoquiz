@@ -290,7 +290,7 @@ Nome final escolhido pelo usuário. Alterado em:
 
 ---
 
-## 12. Apostilas editoriais: seções e gabarito por capítulo
+## 11. Apostilas editoriais: seções e gabarito por capítulo
 
 ### O problema
 
@@ -359,7 +359,7 @@ sequência A→B→C→D→E mais completa. Isso resolve de uma vez:
 | 23 | ~900 questões fantasma | O cabeçalho corrente `1. Língua Portuguesa 1.1. Ortografia Oficial` casava com o padrão de número + separador | `isRunningHeader` — reconhece o cabeçalho pelo caminho de seção e apenas o descarta |
 | 24 | Alternativa E absorvia o resto do documento | O laço de recuperação das alternativas ia até o fim do arquivo | A sequência para na última alternativa e respeita o limite da questão |
 | 25 | Quebra de página no meio da questão fechava a questão | Rodapé (`12 / 2706`) e cabeçalho corrente caem entre as alternativas | Ruído é descartado sem fechar a questão |
-| 26 | Assertivas romanas viravam alternativas | `I.`, `II.`, `III.` do enunciado casavam com `OPTION_ROMAN` | Extração por indentação (§12) |
+| 26 | Assertivas romanas viravam alternativas | `I.`, `II.`, `III.` do enunciado casavam com `OPTION_ROMAN` | Extração por indentação (§11) |
 | 27 | Ordem das alternativas embaralhada | O agrupamento por `x` ordenava por coordenada, e a coordenada das alternativas varia ~0,4 pt | Agrupamento preserva a ordem do documento |
 | 28 | `"2009), o alfabeto…"` virava questão 2009 | Ano seguido de `)` no início da linha casa com o padrão de cabeçalho | Enunciado que começa com `,` ou `;` é continuação de frase |
 | 29 | `"2.200 W permanece…"` virava seção 2.200 | `2.200` + título casa com o padrão de cabeçalho de seção | Componente numérico > 99 e título com frase são rejeitados |
@@ -384,7 +384,7 @@ Testado também no navegador real (build de produção): **1.824 questões,
 
 ---
 
-## 13. Estado final
+## 12. Estado final
 
 | Verificação | Resultado |
 | --- | --- |

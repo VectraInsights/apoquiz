@@ -28,6 +28,13 @@ PDF ──► navegador (pdf.js) ──► parser heurístico ──┬─► ga
      alternativa da continuação do texto)
    - Gabarito em grade (`1-B 2-C 3-A`), em colunas (`1  B`), por número
      (`Questão 12: C`) e inline (`Resposta: C`)
+   - **Apostilas editoriais** (ex.: Qconcursos, Estratégia): o documento é
+     indexado por seções numeradas (`1.1.1 Questões Fáceis`,
+     `1.1.4 Gabaritos e Comentários`). O gabarito é lido de cada seção de
+     comentários no formato `A alternativa correta é a C` e guardado por
+     `capitulo#numero`, porque o número da questão reinicia a cada capítulo.
+     Nesses PDFs o gabarito costuma vir **espalhado** pelo documento, e não
+     em um bloco único no final.
 3. **IA (opcional)** — quando há `GEMINI_API_KEY` no servidor, a IA limpa os
    enunciados, escreve a explicação de cada questão e **resolve** as
    questões que não têm gabarito. Quando o PDF tem gabarito, ele sempre
@@ -141,7 +148,9 @@ scripts/
   selecionável. O app detecta e avisa.
 - O parser é heurístico. Por isso a tela de **revisão do gabarito** existe:
   sempre confira e ajuste a alternativa correta antes de começar.
-- A IA processa no máximo 150 questões por PDF (proteção de custo).
+- A IA processa no máximo 150 questões por PDF (proteção de custo). Acima
+  disso a apostila segue **completa**: apenas as questões restantes ficam
+  sem a explicação da IA — o gabarito lido do PDF vale para todas.
 - A API de extração tem limite de 40 requisições a cada 10 minutos por IP.
 
 ---
