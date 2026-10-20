@@ -15,6 +15,7 @@ type AIRawQuestion = {
   options?: { label?: string; text?: string }[];
   correct?: string;
   explanation?: string;
+  optionNotes?: { label?: string; text?: string }[];
   topic?: string;
 };
 
@@ -153,8 +154,18 @@ export async function enrichQuestions(
     }
 
     const statement = (ai.statement ?? "").trim();
-    const explanation = (ai.explanation ?? "").trim();
+    const aiExplanation = (ai.explanation ?? "").trim();
     const topic = (ai.topic ?? "").trim();
+
+    // A explicacao e a analise por alternativa escritas no PDF (secao de
+    // comentarios) tem prioridade sobre as da IA. A IA so preenche o que
+    // o PDF nao traz.
+    const ownExplanation = (question.explanation ?? "").trim();
+    const ownNotes = question.optionNotes ?? {};
+    const aiNotes = normalizeOptionNotes(ai.optionNotes);
+
+    const optionNotes =
+      Object.keys(ownNotes).length > 0 ? ownNotes : aiNotes;
 
     return {
       ...question,
@@ -165,10 +176,29 @@ export async function enrichQuestions(
         answerSource === "desconhecida" && question.correct
           ? question.answerSource
           : answerSource,
-      explanation: explanation.length > 0 ? explanation : question.explanation,
+      explanation:
+        ownExplanation.length > 0 ? ownExplanation : aiExplanation || question.explanation,
+      optionNotes,
       topic: topic.length > 0 ? topic : question.topic,
     };
   });
+}
+
+/** Normaliza a lista de analises por alternativa vinda da IA. */
+function normalizeOptionNotes(
+  notes: { label?: string; text?: string }[] | undefined,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const note of notes ?? []) {
+    const label = (note.label ?? "").toUpperCase().trim();
+    // O icone (X ou ✓) e o veredito ja sao exibidos pela interface.
+    const text = (note.text ?? "")
+      .trim()
+      .replace(/^(?:Incorreta|Correta)\.?\s*/i, "");
+    if (!label || !text) continue;
+    out[label] = text;
+  }
+  return out;
 }
 
 function normalizeOptions(

@@ -384,7 +384,81 @@ Testado também no navegador real (build de produção): **1.824 questões,
 
 ---
 
-## 12. Estado final
+## 12. Explicações e análise por alternativa vindas do PDF
+
+### O pedido
+
+O gabarito do PDF já era lido desde o começo, mas o **comentário** de cada
+questão — a justificativa da resposta correta e o motivo de cada alternativa
+errada — ficava de fora. Nas apostilas editoriais esse conteúdo já está
+escrito no próprio PDF, na seção de comentários:
+
+```
+Resolução da Questão 1464
+1464 Check-Circle GABARITO
+TABELAS-VERDADE, NEGAÇÃO DE PROPOSIÇÕES, EQUIVALÊNCIAS E IM- …
+A alternativa correta é a C
+O Princípio do Terceiro Excluído dita que uma proposição só pode assumir um de dois
+valores (V ou F), excluindo-se uma terceira via.
+Análise Detalhada das Alternativas
+Times (A) Incorreta. O valor depende dos conectivos e dos valores das proposições simples.
+Times (B) Incorreta. Refere-se à dupla negação, não ao princípio do terceiro excluído.
+Check (C) Correta. Define exatamente a impossibilidade de um terceiro valor lógico.
+```
+
+Não fazia sentido pedir isso à IA quando a resposta já está no material.
+
+### O que foi implementado
+
+**Parser (`lib/pdf/parser.ts`)** — nova função `detectResolutions()`, que lê as
+seções de comentários e extrai, por questão:
+
+| Dado | Origem no PDF |
+| --- | --- |
+| Resposta correta | `A alternativa correta é a C` |
+| Explicação | o parágrafo seguinte, até “Análise Detalhada das Alternativas” |
+| Análise por alternativa | `Times (A) Incorreta. …` / `Check (C) Correta. …` |
+
+As linhas de continuação são reconhecidas pela indentação (a continuação vem
+mais recuada que a linha da alternativa).
+
+Detalhe do formato: **“Times” e “Check” são os nomes dos ícones** (✗ e ✓)
+impressos no PDF — não são palavras do texto. E o veredito varia: `Incorreta`
+(7.046 ocorrências), `Correta` (2.017), `Não é a resposta`, `Verdadeira`,
+`Falsa`. Por isso o veredito é **opcional** no padrão — sem isso, as linhas
+com “Não é a resposta” não casavam e o texto vazava para a alternativa
+errada.
+
+**Prioridade PDF > IA** — assim como o gabarito, a explicação e a análise por
+alternativa do PDF têm prioridade sobre as da IA (`lib/ai/extract.ts`). A IA
+só entra no que o PDF não traz:
+
+- `optionNotes` entrou no schema de saída da IA (`lib/ai/prompts.ts`), como
+  lista de `{ label, text }`;
+- quando o PDF não traz a análise, a IA a produz;
+- a explicação do PDF nunca é sobrescrita pela IA.
+
+**Interface** — novo componente `components/option-notes.tsx`, exibido:
+
+- no feedback do quiz, logo abaixo da explicação;
+- na revisão final (`components/results-panel.tsx`), com a nota de cada
+  alternativa logo abaixo dela;
+- na exportação JSON (`analiseAlternativas`).
+
+### Resultado na apostila de 2.706 páginas
+
+| | Antes | Depois |
+| --- | --- | --- |
+| Questões com explicação do PDF | 0 | **1.824** ✅ |
+| Questões com análise por alternativa | 0 | **1.824** ✅ |
+
+As 16 questões sem análise completa são casos em que o **próprio PDF** não
+repete a alternativa correta na seção de análise (a explicação acima já a
+cobre) — o app reflete o material como ele é.
+
+---
+
+## 13. Estado final
 
 | Verificação | Resultado |
 | --- | --- |
@@ -393,7 +467,7 @@ Testado também no navegador real (build de produção): **1.824 questões,
 | `npm run build` | ✅ `/` estático, `/api/extract` dinâmico |
 | PDF com gabarito | ✅ 10/10 questões com resposta do PDF |
 | PDF real (1.pdf) | ✅ 43/43 questões extraídas |
-| **Apostila editorial (2.706 pág.)** | ✅ **1.824/1.824 questões e 1.824/1.824 gabarito** |
+| **Apostila editorial (2.706 pág.)** | ✅ **1.824/1.824 questões, 1.824/1.824 gabarito, 1.824/1.824 explicações, 1.824/1.824 análises por alternativa** |
 | Fluxo completo no navegador | ✅ upload → setup → quiz → resultado |
 
 ### O que falta para produção

@@ -35,6 +35,10 @@ PDF ──► navegador (pdf.js) ──► parser heurístico ──┬─► ga
      `capitulo#numero`, porque o número da questão reinicia a cada capítulo.
      Nesses PDFs o gabarito costuma vir **espalhado** pelo documento, e não
      em um bloco único no final.
+   - **Comentários do PDF**: quando a apostila traz a resolução comentada, o
+     app também lê a **explicação da resposta correta** e a **análise de cada
+     alternativa** (`Times (A) Incorreta. …` / `Check (C) Correta. …`).
+     O que o PDF traz tem sempre prioridade sobre a IA.
 3. **IA (opcional)** — quando há `GEMINI_API_KEY` no servidor, a IA limpa os
    enunciados, escreve a explicação de cada questão e **resolve** as
    questões que não têm gabarito. Quando o PDF tem gabarito, ele sempre
@@ -64,6 +68,9 @@ Abra <http://localhost:3000>.
 | `npm run lint` | ESLint |
 | `npm run typecheck` | TypeScript sem emitir |
 | `npm run check:pdf -- <arquivo.pdf>` | Mostra como o parser interpretou um PDF (debug) |
+| `npm run check:pdf -- <arquivo.pdf> --dump 3` | Mostra o texto reconstruído da página 3 (com x) |
+| `npm run check:pdf -- <arquivo.pdf> --find gabarito` | Busca um termo no documento |
+| `npm run cache:pdf -- <arquivo.pdf> <cache.json>` | Extrai as linhas uma vez e cacheia (PDFs grandes) |
 
 > O `check:pdf` é a ferramenta para depurar apostilas: ela imprime o texto
 > reconstruído de cada página (`--dump 3`), busca um termo (`--find gabarito`)

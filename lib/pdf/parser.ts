@@ -47,6 +47,10 @@ export type ParsedQuestion = {
   inlineAnswer: string | null;
   /** Capitulo onde a questao foi encontrada (ex.: "1.1"); null se nao houver */
   section: string | null;
+  /** Explicacao da resposta escrita no PDF (secao de comentarios) */
+  explanation: string | null;
+  /** Analise de cada alternativa escrita no PDF: { "A": "Incorreta. ..." } */
+  optionNotes: Record<string, string>;
 };
 
 export type GabaritoResult = {
@@ -124,6 +128,16 @@ const ANSWER_NUMBER_MARKER = /^\s*(\d{1,4})\s+Check[-\s]?Circle\s+GABARITO/i;
 // "A alternativa correta e a C"
 const ANSWER_LETTER =
   /alternativa\s+correta\s*[ée]\s+(?:a\s+|ao\s+)?(?:alternativa\s+)?([A-E])(?![A-Za-z])/i;
+
+// "Times (A) Incorreta. ..." / "Check (C) Correta. ..."
+// "Times" e "Check" sao os nomes dos icones (X e ✓) impressos no PDF.
+// O veredito varia ("Incorreta", "Correta", "Nao e a resposta", ...), por isso
+// ele e opcional.
+const OPTION_ANALYSIS =
+  /^\s*(?:Times|Check)\s*\(\s*([A-Ea-e])\s*\)\s*(?:Incorret[oa]|Corret[oa]|Verdadeir[oa]|Fals[oa]|N[ãa]o\s*[ée]\s+(?:a\s+)?resposta)?[.\s]*(.*)$/i;
+
+// "Analise Detalhada das Alternativas" - inicio da analise por alternativa
+const ANALYSIS_MARKER = /An[áa]lise\s+Detalhada\s+das\s+Alternativas/i;
 
 /* --------------------------- ruido comum ---------------------------- */
 
@@ -524,6 +538,184 @@ function isRunningHeader(text: string, paths: Set<string>): boolean {
 }
 
 /* ------------------------------------------------------------------ */
+/* Resolucoes escritas no PDF (secao de comentarios)                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Resolucao de uma questao, como escrita na secao de comentarios do PDF:
+ *
+ *     Resolucao da Questao 12
+ *     12 Check-Circle GABARITO
+ *     A alternativa correta e a C
+ *     Explicacao da resposta correta...
+ *     Analise Detalhada das Alternativas
+ *     Times (A) Incorreta. ...
+ *     Check (C) Correta. ...
+ */
+export type Resolution = {
+  /** Letra da alternativa correta */
+  correct: string;
+  /** Explicacao da resposta correta */
+  explanation: string | null;
+  /** Analise de cada alternativa: { "A": "..." } */
+  optionNotes: Record<string, string>;
+};
+
+type NoteDraft = { label: string; parts: string[]; x: number };
+
+/** Tira o prefixo "Correta." da explicacao (o PDF usa em parte das questoes). */
+function cleanExplanation(parts: string[]): string | null {
+  const text = joinParts(parts).replace(/^Correta\.\s*/i, "").trim();
+  return text.length > 0 ? text : null;
+}
+
+/**
+ * Le as resolucoes (explicacao + analise por alternativa) das secoes de
+ * comentarios do PDF. A chave e "capitulo#numero", igual ao gabarito.
+ */
+function detectResolutions(
+  lines: FlatLine[],
+  sections: DocSection[],
+): Map<string, Resolution> {
+  const resolutions = new Map<string, Resolution>();
+  const sectionPaths = new Set(sections.map((section) => section.path));
+
+  for (const section of sections) {
+    if (section.kind !== "answers") continue;
+
+    let number: number | null = null;
+    let correct: string | null = null;
+    let explanation: string[] = [];
+    let explanationX = 0;
+    let notes: NoteDraft[] = [];
+    let mode: "idle" | "explanation" | "options" = "idle";
+
+    const flush = () => {
+      if (number !== null && !resolutions.has(`${section.chapter}#${number}`)) {
+        const optionNotes: Record<string, string> = {};
+        for (const note of notes) {
+          const text = cleanText(note.parts.join(" "));
+          if (text) optionNotes[note.label] = text;
+        }
+        resolutions.set(`${section.chapter}#${number}`, {
+          correct: correct ?? "",
+          explanation: cleanExplanation(explanation),
+          optionNotes,
+        });
+      }
+      number = null;
+      correct = null;
+      explanation = [];
+      notes = [];
+      mode = "idle";
+    };
+
+    for (let i = section.start; i < section.end; i += 1) {
+      const line = lines[i];
+      const text = line.text;
+
+      // "Resolucao da Questao 12" - comeca uma resolucao nova.
+      const marker = text.match(ANSWER_QUESTION_MARKER);
+      if (marker) {
+        flush();
+        number = Number(marker[1]);
+        continue;
+      }
+
+      // "12 Check-Circle GABARITO" - numero alternativo.
+      const numbered = text.match(ANSWER_NUMBER_MARKER);
+      if (numbered) {
+        if (number === null) number = Number(numbered[1]);
+        continue;
+      }
+
+      // "A alternativa correta e a C" - abre a explicacao.
+      const letter = text.match(ANSWER_LETTER);
+      if (letter) {
+        correct = letter[1].toUpperCase();
+        mode = "explanation";
+        explanationX = line.x;
+        continue;
+      }
+
+      // Resposta inline dentro da secao de comentarios ("Gabarito: C")
+      GABARITO_INLINE.lastIndex = 0;
+      const inline = GABARITO_INLINE.exec(text);
+      if (inline && number !== null && !correct) {
+        correct = inline[1].toUpperCase();
+        continue;
+      }
+
+      // "Analise Detalhada das Alternativas" - fecha a explicacao.
+      if (ANALYSIS_MARKER.test(text)) {
+        mode = "options";
+        continue;
+      }
+
+      // "Times (A) Incorreta. ..." / "Check (C) Correta. ..."
+      const analysis = text.match(OPTION_ANALYSIS);
+      if (analysis) {
+        mode = "options";
+        const label = analysis[1].toUpperCase();
+        const body = cleanText(analysis[2] ?? "");
+        const existing = notes.find((note) => note.label === label);
+        if (existing) {
+          existing.parts = [body];
+          existing.x = line.x;
+        } else {
+          notes.push({ label, parts: [body], x: line.x });
+        }
+        continue;
+      }
+
+      if (isNoise(text)) continue;
+      if (isTopicLine(text)) continue;
+      // Cabecalho corrente ("1. Língua Portuguesa 1.18. ...").
+      if (isRunningHeader(text, sectionPaths)) continue;
+
+      if (mode === "explanation") {
+        // Continuacao da explicacao: mesma indentacao da linha da resposta.
+        if (line.x >= explanationX - 3) {
+          explanation.push(text);
+        }
+        continue;
+      }
+
+      if (mode === "options" && notes.length > 0) {
+        // Continuacao da analise: vem indentada (x maior que o da alternativa).
+        const last = notes[notes.length - 1];
+        if (line.x >= last.x + 5) {
+          last.parts.push(text);
+        }
+      }
+    }
+
+    flush();
+  }
+
+  return resolutions;
+}
+
+/* ------------------------------------------------------------------ */
+/* Analise do documento                                                 */
+/* ------------------------------------------------------------------ */
+
+type DocumentAnalysis = {
+  lines: FlatLine[];
+  sections: DocSection[];
+  /** Resolucoes por "capitulo#numero" */
+  resolutions: Map<string, Resolution>;
+};
+
+/** Monta a visao estruturada do documento (usada pelo gabarito e pelas questoes). */
+function analyzeDocument(pages: ExtractedPage[]): DocumentAnalysis {
+  const lines = flattenPages(pages);
+  const sections = detectSections(lines);
+  const resolutions = detectResolutions(lines, sections);
+  return { lines, sections, resolutions };
+}
+
+/* ------------------------------------------------------------------ */
 /* Secao do gabarito                                                   */
 /* ------------------------------------------------------------------ */
 
@@ -627,52 +819,16 @@ export function compareGabaritoKey(a: string, b: string): number {
  *  - secao "Gabaritos e Comentarios" com "A alternativa correta e a C"
  */
 export function detectGabarito(pages: ExtractedPage[]): GabaritoResult {
-  const lines = flattenPages(pages);
-  const sections = detectSections(lines);
+  const { lines, resolutions } = analyzeDocument(pages);
   const gabarito: Record<string, string> = {};
   let evidence = "";
 
   /* 1) Gabarito por secao: "1.1.4 Gabaritos e Comentarios" */
-  for (const section of sections) {
-    if (section.kind !== "answers") continue;
-
-    let currentNumber: number | null = null;
-
-    for (let i = section.start; i < section.end; i += 1) {
-      const text = lines[i].text;
-
-      const marker = text.match(ANSWER_QUESTION_MARKER);
-      if (marker) {
-        currentNumber = Number(marker[1]);
-        continue;
-      }
-
-      const numbered = text.match(ANSWER_NUMBER_MARKER);
-      if (numbered) {
-        currentNumber = Number(numbered[1]);
-        continue;
-      }
-
-      const letter = text.match(ANSWER_LETTER);
-      if (letter && currentNumber !== null) {
-        const key = `${section.chapter}#${currentNumber}`;
-        if (!gabarito[key]) {
-          gabarito[key] = letter[1].toUpperCase();
-          if (!evidence) evidence = text.slice(0, 240);
-        }
-        continue;
-      }
-
-      // Resposta inline dentro da secao de comentarios ("Gabarito: C")
-      GABARITO_INLINE.lastIndex = 0;
-      const inline = GABARITO_INLINE.exec(text);
-      if (inline && currentNumber !== null) {
-        const key = `${section.chapter}#${currentNumber}`;
-        if (!gabarito[key]) {
-          gabarito[key] = inline[1].toUpperCase();
-          if (!evidence) evidence = text.slice(0, 240);
-        }
-      }
+  for (const [key, resolution] of resolutions) {
+    if (!resolution.correct) continue;
+    if (!gabarito[key]) {
+      gabarito[key] = resolution.correct;
+      if (!evidence) evidence = `A alternativa correta é a ${resolution.correct}`;
     }
   }
 
@@ -738,8 +894,7 @@ export function lookupGabarito(
  * Extrai as questoes (enunciado + alternativas) do texto.
  */
 export function parseQuestions(pages: ExtractedPage[]): ParsedQuestion[] {
-  const lines = flattenPages(pages);
-  const sections = detectSections(lines);
+  const { lines, sections, resolutions } = analyzeDocument(pages);
   const sectionMap = buildSectionMap(lines, sections);
   const sectionPaths = new Set(sections.map((section) => section.path));
 
@@ -786,6 +941,13 @@ export function parseQuestions(pages: ExtractedPage[]): ParsedQuestion[] {
         .filter((option) => option.text.length > 0);
 
       if (statement.length > 0 && options.length >= 2) {
+        // Resolucao escrita no PDF (secao de comentarios): traz a
+        // explicacao da resposta correta e a analise de cada alternativa.
+        const resolution =
+          current.number !== null && current.section
+            ? resolutions.get(`${current.section}#${current.number}`)
+            : undefined;
+
         questions.push({
           number: current.number,
           statement,
@@ -794,6 +956,8 @@ export function parseQuestions(pages: ExtractedPage[]): ParsedQuestion[] {
           page: current.page,
           inlineAnswer: current.inlineAnswer,
           section: current.section,
+          explanation: resolution?.explanation ?? null,
+          optionNotes: resolution?.optionNotes ?? {},
         });
       }
     }

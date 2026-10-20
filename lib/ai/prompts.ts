@@ -29,6 +29,17 @@ export const QUESTIONS_SCHEMA: JsonSchema = {
           },
           correct: { type: "STRING" },
           explanation: { type: "STRING" },
+          optionNotes: {
+            type: "ARRAY",
+            items: {
+              type: "OBJECT",
+              properties: {
+                label: { type: "STRING" },
+                text: { type: "STRING" },
+              },
+              required: ["label", "text"],
+            },
+          },
           topic: { type: "STRING" },
         },
         required: [
@@ -97,7 +108,11 @@ Para cada questao:
 - "statement": enunciado limpo, sem o numero na frente.
 - "options": as alternativas, na ordem original, com "label" de A em diante.
 - "correct": a letra correta.
-- "explanation": justificativa breve.
+- "explanation": justificativa breve da resposta CORRETA (2 a 4 frases).
+- "optionNotes": analise de CADA alternativa (A a E), em uma frase cada,
+  explicando por que ela esta correta ou incorreta. Ex.:
+  [{"label":"A","text":"Incorreta. Trata de dupla negacao."}, ...].
+  Use [] se nao for possivel justificar as alternativas.
 - "topic": disciplina/topico, escrito por extenso. Se o "topico" vier com letras
   separadas por espaco (ex.: "E T I C A S N O S E R V I C O"), junte as letras
   e reconstrua as palavras.

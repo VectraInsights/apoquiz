@@ -14,6 +14,7 @@ import {
 import type { Question, Quiz, QuizState } from "@/lib/types";
 import { formatTime, scoreQuiz } from "@/lib/quiz";
 import { Badge, ProgressBar } from "./ui";
+import { OptionNotes } from "./option-notes";
 
 type Props = {
   quiz: Quiz;
@@ -386,6 +387,7 @@ function Feedback({ question, chosen }: { question: Question; chosen: string }) 
           {question.explanation}
         </p>
       ) : null}
+      <OptionNotes question={question} className="mt-3 border-t border-white/10 pt-3" />
     </div>
   );
 }

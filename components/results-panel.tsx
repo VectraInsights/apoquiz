@@ -53,6 +53,7 @@ export function ResultsPanel({ quiz, state, onRetry, onNewFile }: Props) {
         correta: question.correct,
         suaResposta: state.answers[question.id] ?? null,
         explicacao: question.explanation,
+        analiseAlternativas: question.optionNotes ?? {},
         assunto: question.topic,
       })),
     };
@@ -202,20 +203,32 @@ export function ResultsPanel({ quiz, state, onRetry, onNewFile }: Props) {
                   {question.options.map((option) => {
                     const isCorrect = option.label === question.correct;
                     const isChosen = option.label === chosen;
+                    const note = question.optionNotes?.[option.label];
                     return (
-                      <div
-                        key={option.label}
-                        className={`flex items-start gap-2 rounded-md px-2 py-1 ${
-                          isCorrect
-                            ? "bg-ok/12 text-ink"
-                            : isChosen
-                              ? "bg-bad/12 text-ink-muted line-through"
-                              : "text-ink-faint"
-                        }`}
-                      >
-                        <span className="font-semibold">{option.label}</span>
-                        <span className="flex-1">{option.text}</span>
-                        {isCorrect ? <Check className="size-3.5 shrink-0 text-ok" /> : null}
+                      <div key={option.label}>
+                        <div
+                          className={`flex items-start gap-2 rounded-md px-2 py-1 ${
+                            isCorrect
+                              ? "bg-ok/12 text-ink"
+                              : isChosen
+                                ? "bg-bad/12 text-ink-muted line-through"
+                                : "text-ink-faint"
+                          }`}
+                        >
+                          <span className="font-semibold">{option.label}</span>
+                          <span className="flex-1">{option.text}</span>
+                          {isCorrect ? <Check className="size-3.5 shrink-0 text-ok" /> : null}
+                        </div>
+                        {note ? (
+                          <p className="flex items-start gap-1.5 px-2 py-0.5 text-[11px] leading-relaxed text-ink-faint">
+                            {isCorrect ? (
+                              <Check className="mt-0.5 size-3 shrink-0 text-ok" />
+                            ) : (
+                              <X className="mt-0.5 size-3 shrink-0 text-bad" />
+                            )}
+                            <span>{note}</span>
+                          </p>
+                        ) : null}
                       </div>
                     );
                   })}

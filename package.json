@@ -11,6 +11,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "check:pdf": "tsx scripts/check-pdf.ts",
+    "check:resolutions": "tsx scripts/check-resolutions.ts",
     "cache:pdf": "tsx scripts/cache-lines.ts"
   },
   "dependencies": {

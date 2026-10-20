@@ -26,6 +26,11 @@ export type Question = {
   correct: string | null;
   /** Explicacao curta do gabarito */
   explanation: string | null;
+  /**
+   * Analise de cada alternativa, vinda do PDF (secao de comentarios) ou
+   * gerada pela IA: { "A": "Incorreta. ...", "B": "..." }
+   */
+  optionNotes?: Record<string, string> | null;
   /** Topico / disciplina inferido */
   topic: string | null;
   /** De onde veio a resposta correta */
