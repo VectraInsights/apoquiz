@@ -5,6 +5,7 @@ import {
   ArrowRight,
   Check,
   ChevronDown,
+  ChevronLeft,
   CircleAlert,
   FileText,
   Sparkles,
@@ -96,9 +97,10 @@ export function SetupPanel({
       <button
         type="button"
         onClick={onBack}
-        className="mb-4 text-sm text-ink-muted transition hover:text-ink"
+        className="mb-4 inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-sm text-ink-muted transition hover:text-ink"
       >
-        ← Enviar outro PDF
+        <ChevronLeft className="size-4" />
+        Enviar outro PDF
       </button>
 
       <div className="grid gap-5 lg:grid-cols-12">

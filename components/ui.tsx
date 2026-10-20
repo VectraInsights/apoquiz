@@ -81,13 +81,13 @@ export function Toggle({
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className={`relative mt-0.5 h-5 w-9 shrink-0 rounded-full transition ${
+        className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition ${
           checked ? "bg-brand" : "bg-white/15"
         }`}
       >
         <span
-          className={`absolute top-0.5 size-4 rounded-full bg-white transition-all ${
-            checked ? "left-4.5" : "left-0.5"
+          className={`absolute top-0.5 size-5 rounded-full bg-white transition-all ${
+            checked ? "left-5" : "left-0.5"
           }`}
         />
       </button>

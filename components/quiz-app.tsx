@@ -1,18 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CircleAlert,
   FileText,
   Gauge,
   ListChecks,
   Loader2,
+  RotateCcw,
   Sparkles,
   Target,
 } from "lucide-react";
 import { processPdf, type Stage as ProcessStage } from "@/lib/client/pipeline";
 import { buildQuiz, createState } from "@/lib/quiz";
-import { loadQuizzes, removeQuiz, saveQuiz, saveState } from "@/lib/storage";
+import { loadQuizzes, loadState, removeQuiz, saveQuiz, saveState } from "@/lib/storage";
 import { SAMPLE_QUESTIONS } from "@/lib/sample";
 import type { Question, Quiz, QuizSettings, QuizState } from "@/lib/types";
 import { Logo, ProgressBar } from "./ui";
@@ -114,28 +115,62 @@ export function QuizApp() {
   );
 
   const handleFinish = useCallback(() => {
-    setQuizState((current) => ({
-      ...current,
-      finishedAt: new Date().toISOString(),
-    }));
+    setQuizState((current) => {
+      const next = { ...current, finishedAt: new Date().toISOString() };
+      // Grava na hora: o save com debounce seria cancelado pela troca de tela.
+      if (quiz) saveState(quiz.id, next);
+      return next;
+    });
     setStage("results");
-  }, []);
+  }, [quiz]);
 
   const handleRetry = useCallback(() => {
-    setQuizState({ ...createState(), startedAt: new Date().toISOString() });
+    const next = { ...createState(), startedAt: new Date().toISOString() };
+    if (quiz) saveState(quiz.id, next);
+    setQuizState(next);
     setStage("quiz");
-  }, []);
+  }, [quiz]);
 
   const handleNewFile = useCallback(() => {
+    // Antes de sair, garante que o progresso atual ficou salvo.
+    if (quiz) saveState(quiz.id, quizState);
     setStage("upload");
     setError(null);
     setQuiz(null);
     setQuestions([]);
+  }, [quiz, quizState]);
+
+  /**
+   * Retoma um quiz salvo. Se ele ja foi finalizado, volta para a tela de
+   * resultado; se estava em andamento, volta na mesma questao com as
+   * respostas ja dadas.
+   */
+  const handleResume = useCallback((saved: Quiz) => {
+    const savedState = loadState(saved.id);
+    setQuiz(saved);
+
+    if (savedState?.finishedAt) {
+      setQuizState(savedState);
+      setStage("results");
+      return;
+    }
+
+    if (savedState && Object.keys(savedState.answers).length > 0) {
+      setQuizState(savedState);
+      setStage("quiz");
+      return;
+    }
+
+    setQuizState({ ...createState(), startedAt: new Date().toISOString() });
+    setStage("quiz");
   }, []);
 
-  const handleResume = useCallback((saved: Quiz) => {
+  /** Zera o progresso de um quiz salvo e recomeca do zero. */
+  const handleRestart = useCallback((saved: Quiz) => {
+    const next = { ...createState(), startedAt: new Date().toISOString() };
+    saveState(saved.id, next);
     setQuiz(saved);
-    setQuizState({ ...createState(), startedAt: new Date().toISOString() });
+    setQuizState(next);
     setStage("quiz");
   }, []);
 
@@ -145,11 +180,24 @@ export function QuizApp() {
   }, []);
 
   /* ------------------------- persistir estado -------------------------- */
+  // A assinatura ignora o cronometro: assim o estado e gravado quando
+  // muda algo relevante (respostas, posicao, marcadores, fim) e nao a
+  // cada segundo do relogio.
+  const stateSignature = `${quizState.currentIndex}:${Object.keys(quizState.answers).length}:${quizState.flagged.length}:${quizState.finishedAt ?? ""}`;
+  const stateRef = useRef(quizState);
+
   useEffect(() => {
-    if (!quiz || stage !== "quiz") return;
-    const timeout = window.setTimeout(() => saveState(quiz.id, quizState), 800);
+    stateRef.current = quizState;
+  }, [quizState]);
+
+  useEffect(() => {
+    if (!quiz) return;
+    const timeout = window.setTimeout(
+      () => saveState(quiz.id, stateRef.current),
+      600,
+    );
     return () => window.clearTimeout(timeout);
-  }, [quiz, quizState, stage]);
+  }, [quiz, stateSignature]);
 
   const header = (
     <header className="sticky top-0 z-40 border-b border-line/60 bg-canvas/80 backdrop-blur-xl">
@@ -180,6 +228,7 @@ export function QuizApp() {
           onFile={handleFile}
           onSample={handleSample}
           onResume={handleResume}
+          onRestart={handleRestart}
           onDelete={handleDeleteRecent}
         />
       ) : null}
@@ -236,6 +285,7 @@ function UploadScreen({
   onFile,
   onSample,
   onResume,
+  onRestart,
   onDelete,
 }: {
   error: string | null;
@@ -243,6 +293,7 @@ function UploadScreen({
   onFile: (file: File) => void;
   onSample: () => void;
   onResume: (quiz: Quiz) => void;
+  onRestart: (quiz: Quiz) => void;
   onDelete: (id: string) => void;
 }) {
   return (
@@ -276,33 +327,82 @@ function UploadScreen({
 
       {recent.length > 0 ? (
         <section className="mx-auto mt-10 max-w-3xl">
-          <h2 className="text-sm font-semibold text-ink-muted">Quizzes recentes</h2>
+          <h2 className="text-sm font-semibold text-ink-muted">
+            Quizzes salvos
+          </h2>
+          <p className="mt-1 text-xs text-ink-faint">
+            Guardados neste dispositivo. Clique para continuar de onde parou.
+          </p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            {recent.map((item) => (
-              <div
-                key={item.id}
-                className="panel-soft flex items-center justify-between gap-3 p-3.5"
-              >
-                <button
-                  type="button"
-                  onClick={() => onResume(item)}
-                  className="min-w-0 flex-1 text-left"
+            {recent.map((item) => {
+              const state = loadState(item.id);
+              const answered = state ? Object.keys(state.answers).length : 0;
+              const finished = Boolean(state?.finishedAt);
+              const started = answered > 0;
+
+              return (
+                <div
+                  key={item.id}
+                  className="panel-soft flex flex-col gap-2.5 p-3.5"
                 >
-                  <p className="truncate text-sm font-medium">{item.title}</p>
-                  <p className="text-xs text-ink-faint">
-                    {item.stats.total} questões ·{" "}
-                    {new Date(item.createdAt).toLocaleDateString("pt-BR")}
-                  </p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onDelete(item.id)}
-                  className="text-xs text-ink-faint transition hover:text-bad"
-                >
-                  Remover
-                </button>
-              </div>
-            ))}
+                  <button
+                    type="button"
+                    onClick={() => onResume(item)}
+                    className="min-w-0 flex-1 text-left"
+                  >
+                    <p className="truncate text-sm font-medium">{item.title}</p>
+                    <p className="mt-0.5 text-xs text-ink-faint">
+                      {item.stats.total} questões ·{" "}
+                      {new Date(item.createdAt).toLocaleDateString("pt-BR")}
+                    </p>
+                    {started ? (
+                      <p className="mt-1 text-xs">
+                        {finished ? (
+                          <span className="text-ok">
+                            Finalizado · {answered}/{item.stats.total} respondidas
+                          </span>
+                        ) : (
+                          <span className="text-brand-soft">
+                            Em andamento · {answered}/{item.stats.total} respondidas
+                          </span>
+                        )}
+                      </p>
+                    ) : null}
+                  </button>
+
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => onResume(item)}
+                      className="btn btn-primary min-h-9 px-3 py-2 text-xs"
+                    >
+                      {finished
+                        ? "Ver resultado"
+                        : started
+                          ? "Continuar"
+                          : "Começar"}
+                    </button>
+                    {started ? (
+                      <button
+                        type="button"
+                        onClick={() => onRestart(item)}
+                        className="btn btn-ghost min-h-9 px-3 py-2 text-xs"
+                      >
+                        <RotateCcw className="size-3" />
+                        Refazer
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => onDelete(item.id)}
+                      className="btn btn-ghost min-h-9 px-3 py-2 text-xs"
+                    >
+                      Remover
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </section>
       ) : null}

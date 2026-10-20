@@ -145,7 +145,7 @@ export function QuizPlayer({ quiz, state, onStateChange, onFinish }: Props) {
                 setPaletteOpen(false);
               }}
               title={`Questão ${item.number ?? index + 1}`}
-              className={`relative grid size-9 place-items-center rounded-lg border text-xs font-semibold transition ${
+              className={`relative grid size-10 place-items-center rounded-lg border text-xs font-semibold transition ${
                 isCurrent
                   ? "border-brand bg-brand text-white"
                   : showResult
@@ -241,13 +241,13 @@ export function QuizPlayer({ quiz, state, onStateChange, onFinish }: Props) {
                   type="button"
                   onClick={toggleFlag}
                   aria-label="Marcar para revisar"
-                  className={`rounded-lg border p-1.5 transition ${
+                  className={`grid size-10 place-items-center rounded-lg border transition ${
                     state.flagged.includes(question.id)
                       ? "border-warn/50 bg-warn/15 text-warn"
                       : "border-line text-ink-faint hover:text-ink"
                   }`}
                 >
-                  <Flag className="size-3.5" />
+                  <Flag className="size-4" />
                 </button>
               </div>
             </div>

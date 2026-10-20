@@ -514,7 +514,81 @@ gabarito vem do PDF.
 
 ---
 
-## 14. Estado final
+## 14. Salvar, retomar e reiniciar um quiz
+
+### O que já existia
+
+O app guardava o **quiz** (as questões extraídas) no `localStorage` e mostrava
+uma lista de "quizzes recentes". Mas o **progresso** não sobrevivia:
+
+- `loadState()` existia em `lib/storage.ts` e **nunca era chamado**;
+- `handleResume` ignorava o estado salvo e começava do zero;
+- o save só acontecia enquanto `stage === "quiz"`, com debounce de 800 ms.
+
+### O que mudou
+
+**Persistência em todas as telas.** O estado passou a ser gravado com
+debounce de 600 ms em qualquer etapa (quiz ou resultado). Para não gravar a
+cada segundo do cronômetro, o efeito depende de uma *assinatura* do estado
+(`índice:respostas:marcadores:fim`) e não do objeto inteiro.
+
+**Retomar.** A lista de "Quizzes salvos" mostra o estado de cada um:
+
+| Estado | Ação principal |
+| --- | --- |
+| Nunca iniciado | **Começar** |
+| Em andamento | **Continuar** (volta na mesma questão, com as respostas) |
+| Finalizado | **Ver resultado** (abre a tela de placar) |
+
+Além disso, cada item tem **Refazer** (zera o progresso e recomeça) e
+**Remover**.
+
+**Reiniciar do zero.** O botão "Refazer" zera respostas, marcador, posição e
+cronômetro, tanto na lista de quizzes salvos quanto na tela de resultado.
+
+### Bug encontrado no caminho
+
+| # | Problema | Causa | Correção |
+| --- | --- | --- | --- |
+| 30 | A última resposta se perdia ao sair do quiz | Ao clicar "Novo PDF", `quiz` virava `null` e o efeito de save era cancelado — o timeout pendente nunca disparava | Os handlers de transição (`handleNewFile`, `handleFinish`, `handleRetry`, `handleRestart`) gravam o estado **na hora**, antes de trocar de tela |
+
+Validação: responder 3 questões e sair imediatamente (sem esperar o
+debounce) → `3/3` respostas salvas.
+
+---
+
+## 15. Auditoria de mobile (390 × 844)
+
+O app foi auditado num viewport de **390 × 844 px** (iPhone 14/15), usando
+um iframe de teste com as mesmas medidas — a largura do iframe é o que
+dispara as media queries do Tailwind.
+
+### Resultado por tela
+
+| Tela | Overflow horizontal | Alvos de toque pequenos |
+| --- | --- | --- |
+| Landing | 0 px | — |
+| Configuração | 0 px | 3 switches (44×24) |
+| Quiz | 0 px | — |
+| Quiz respondida | 0 px | — |
+| Resultado | 0 px | — |
+
+### Correções aplicadas
+
+| Elemento | Antes | Depois |
+| --- | --- | --- |
+| Botão "marcar para revisar" | 28 × 28 px | 40 × 40 px |
+| Botões da paleta de questões | 36 × 36 px | 40 × 40 px |
+| Switch de configuração | 36 × 20 px | 44 × 24 px |
+| Botões Continuar/Refazer/Remover | 28–30 px de altura | 36 px (`min-h-9`) |
+| "Enviar outro PDF" | link de 20 px | botão com ícone e 36 px |
+
+Nenhuma tela apresentou scroll horizontal — as alternativas, o enunciado
+longo e a análise por alternativa quebram corretamente em telas estreitas.
+
+---
+
+## 16. Estado final
 
 | Verificação | Resultado |
 | --- | --- |
@@ -525,6 +599,8 @@ gabarito vem do PDF.
 | PDF real (1.pdf) | ✅ 43/43 questões extraídas |
 | **Apostila editorial (2.706 pág.)** | ✅ **1.824/1.824 questões, 1.824/1.824 gabarito, 1.824/1.824 explicações, 1.824/1.824 análises por alternativa** |
 | Fluxo completo no navegador | ✅ upload → setup → quiz → resultado |
+| Salvar / retomar / reiniciar | ✅ quiz salvo sobrevive a fechar o navegador |
+| Mobile 390 × 844 | ✅ zero overflow horizontal, alvos de toque ≥ 32 px |
 
 ### O que falta para produção
 

@@ -54,3 +54,8 @@ export function loadState(quizId: string): QuizState | null {
   const states = readJSON<Record<string, QuizState>>(STATE_KEY, {});
   return states[quizId] ?? null;
 }
+
+/** Todos os estados salvos, indexados pelo id do quiz. */
+export function loadStates(): Record<string, QuizState> {
+  return readJSON<Record<string, QuizState>>(STATE_KEY, {});
+}
