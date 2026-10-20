@@ -31,13 +31,16 @@ function detectBrave(): boolean {
   return /Brave\//i.test(navigator.userAgent);
 }
 
-/** True em celular/tablet (ponteiro grosso ou tela estreita). */
+/**
+ * True em celular/tablet.
+ *
+ * Usa apenas a largura: `pointer: coarse` dava falso positivo em
+ * notebooks com tela sensivel ao toque (o ponteiro principal continua
+ * sendo o mouse, mas o navegador reporta "grosso").
+ */
 function isMobileDevice(): boolean {
   if (typeof window === "undefined") return false;
-  return (
-    window.matchMedia?.("(pointer: coarse)").matches === true ||
-    window.innerWidth < 768
-  );
+  return window.innerWidth < 900;
 }
 
 function isInstalled(): boolean {
