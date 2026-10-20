@@ -740,6 +740,48 @@ Observação de privacidade: no tier free o conteúdo enviado ao Gemini pode ser
 usado pelo Google para melhorar os produtos — isso vale para os enunciados
 das questões. Documentado no README.
 
+### O Gemini ficou instável (503 e travas de 60 s)
+
+No deploy com as variáveis, a chamada real respondeu:
+
+```
+504 FUNCTION_INVOCATION_TIMEOUT   (a função foi morta em 60 s)
+502 Gemini 503 (gemini-3.8-flash)  (modelo sobrecarregado)
+```
+
+A cadeia de fallback só reagia a **404** (modelo inexistente), então uma
+falha de *capacidade* derrubava a chamada inteira. Correções:
+
+- **timeout de 20 s por chamada** (`AbortSignal.timeout`): uma requisição
+  travada não consome mais o tempo inteiro da função
+- **503 e 504 também caem no fallback** para o próximo modelo da família
+- **429 passa a respeitar o header `Retry-After`**
+- `maxDuration` da rota: 60 s → **120 s** (o limite do plano Hobby é 300 s)
+
+Validação no ar depois da correção: **HTTP 200 em 33 s**, com a letra `C`
+mantida do gabarito do PDF e a explicação escrita pelo Gemini.
+
+### A IA estava refazendo o que o PDF já entregava
+
+O detalhe mais importante do diagnóstico: numa apostila editorial com seção
+de comentários, **todas as 1.824 questões já vêm com explicação e análise por
+alternativa** lidas do PDF. A IA estava regenerando tudo isso — gastando
+30 s+ para um resultado que era descartado logo depois (o PDF sempre tem
+prioridade).
+
+Agora a IA é chamada **só para o que falta**:
+
+| Situação | Chamadas à IA |
+| --- | --- |
+| Apostila com seção de comentários | **zero** — resultado instantâneo |
+| Apostila só com gabarito | só as 150 primeiras, em lotes de 12 |
+| PDF sem Recognizable (parser falhou) | extração completa do texto |
+
+A checagem existe nos dois lados: o cliente não faz a requisição, e o
+servidor também não chama a API se não houver nada a enricher. A tela de
+configuração mostra *"O PDF já trazia a resolução comentada de cada questão
+— a IA não precisou ser chamada"*.
+
 ### O que vai para a nuvem
 
 | Item | Vai para o servidor? |
@@ -813,17 +855,17 @@ apostila com 1.824 questões vira 10 requests em vez de 1.824.
 | Salvar / retomar / reiniciar | ✅ quiz salvo sobrevive a fechar o navegador |
 | Mobile 390 × 844 | ✅ zero overflow horizontal, alvos de toque ≥ 32 px |
 | Modo local (sem Supabase) | ✅ funciona igual, sem botão de login |
-| Login com Google | ⚙️ implementado — falta ativar o provider no Supabase |
+| Login com Google | ⚙️ implementado e configurado — provider ativo, RLS validada |
+| IA no ar (deploy) | ✅ `POST /api/extract` → HTTP 200 com explicação real do Gemini |
 
 ### O que falta para produção
 
-1. **Chave de IA**: adicionar `GEMINI_API_KEY` nas variáveis de ambiente da
-   Vercel. Sem ela o app funciona normalmente com o gabarito do PDF — apenas
-   sem as explicações e sem resolver questões sem gabarito.
-2. **Conectar a Vercel**: importar o repositório e fazer o deploy. Nenhuma
-   configuração extra é necessária.
-3. **Apostilas com gabarito**: o `1.pdf` testado não tinha gabarito. Com um
-   PDF que tenha, a detecção já funciona (validado no PDF de teste).
-4. **Limite de 150 questões por PDF** na camada de IA: um PDF com 1.824
+1. **Teste do login real** — o botão leva ao Google com o `client_id`,
+   `response_type=code` e o `redirect_uri` corretos (validado), mas falta
+   concluir a autenticação para conferir as linhas nas tabelas do Supabase.
+2. **Preencher a lista de Redirect URLs do Supabase** — hoje está vazia, e
+   com a lista vazia o Supabase aceita qualquer URL como destino do login
+   (open redirect). Ver §16.
+3. **Limite de 150 questões por PDF** na camada de IA: um PDF com 1.824
    questões recebe explicação só nas primeiras 150. O gabarito do PDF, esse,
    vale para todas.
