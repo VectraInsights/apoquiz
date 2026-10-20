@@ -7,7 +7,10 @@ import {
 } from "@/lib/ai/extract";
 import type { ExtractRequest, ExtractResponse, Question } from "@/lib/types";
 
-export const maxDuration = 60;
+// A Vercel (Hobby) permite ate 300s. O provedor do Gemini ja tem
+// timeout proprio por chamada, entao este limite e apenas uma rede
+// de seguranca.
+export const maxDuration = 120;
 
 /* ------------------------------------------------------------------ */
 /* Limite de requisicoes (por instancia)                               */

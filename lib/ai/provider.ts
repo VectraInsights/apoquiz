@@ -94,8 +94,11 @@ async function completeGemini(
 
     lastError = result.error;
 
-    // 404 = modelo indisponivel para esta conta: tenta o proximo.
-    if (result.status !== 404) break;
+    // 404 = modelo indisponivel para esta conta.
+    // 503 = modelo sobrecarregado (comum no mais novo logo apos lancado).
+    // 504 = chamada travada.
+    // Nos tres casos, outro modelo da familia pode servir.
+    if (![404, 503, 504].includes(result.status)) break;
   }
 
   throw new Error(lastError);
@@ -112,25 +115,46 @@ async function callGeminiModel(
   schema: JsonSchema,
   apiKey: string,
 ): Promise<{ ok: true; data: unknown } | { ok: false; status: number; error: string }> {
-  const MAX_TENTRIES = 4;
+  const MAX_TENTRIES = 3;
+  const REQUEST_TIMEOUT_MS = 20_000;
 
   for (let attempt = 1; attempt <= MAX_TENTRIES; attempt += 1) {
-    const response = await fetch(`${base}/models/${model}:generateContent`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": apiKey,
-      },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.15,
-          maxOutputTokens: 8192,
-          responseMimeType: "application/json",
-          responseSchema: schema,
+    let response: Response;
+
+    try {
+      response = await fetch(`${base}/models/${model}:generateContent`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey,
         },
-      }),
-    });
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.15,
+            maxOutputTokens: 8192,
+            responseMimeType: "application/json",
+            responseSchema: schema,
+          },
+        }),
+        // Sem isso, uma chamada travada consome todo o tempo da funcao.
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "falha de rede";
+      const timedOut = message.includes("timeout") || message.includes("abort");
+
+      if (attempt < MAX_TENTRIES) {
+        await wait(1500 * attempt);
+        continue;
+      }
+
+      return {
+        ok: false,
+        status: timedOut ? 504 : 502,
+        error: `Gemini ${model}: ${timedOut ? "tempo esgotado" : message}.`,
+      };
+    }
 
     if (response.ok) {
       const data = (await response.json()) as {
@@ -146,8 +170,12 @@ async function callGeminiModel(
 
     // 429 = limite do tier free. Espera e tenta de novo.
     if (response.status === 429 && attempt < MAX_TENTRIES) {
-      const wait = 2000 * attempt + Math.floor(Math.random() * 1000);
-      await new Promise((resolve) => setTimeout(resolve, wait));
+      const retryAfter = Number(response.headers.get("retry-after"));
+      const waitMs =
+        Number.isFinite(retryAfter) && retryAfter > 0
+          ? retryAfter * 1000
+          : 2000 * attempt;
+      await wait(waitMs);
       continue;
     }
 
@@ -159,6 +187,10 @@ async function callGeminiModel(
     status: 429,
     error: `Gemini 429 (${model}): limite de requisicoes do tier free excedido.`,
   };
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function completeOpenAI(
