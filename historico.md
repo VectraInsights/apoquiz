@@ -1,0 +1,312 @@
+# Histórico de desenvolvimento — ApoQuiz
+
+Registro cronológico de tudo o que foi feito no app, com o motivo de cada
+decisão e os problemas encontrados durante os testes.
+
+**Repositório:** https://github.com/VectraInsights/apoquiz
+**Início:** 19/10/2026
+
+---
+
+## 1. Escopo definido
+
+Antes de escrever código, três decisões foram tomadas com o usuário:
+
+| Tema | Decisão |
+| --- | --- |
+| Gabarito | Detectar no PDF **e** usar IA para resolver o que faltar |
+| Stack | Next.js (App Router) |
+| Uso | Upload livre de PDF por qualquer visitante |
+
+O app nasce como **ApoQuiz** (nome alterado durante o projeto — ver §9).
+
+---
+
+## 2. Scaffold do projeto
+
+Criado com `create-next-app@latest`:
+
+```bash
+npx create-next-app@latest apostila-quiz --ts --tailwind --app --eslint \
+  --no-src-dir --import-alias "@/*" --use-npm --yes --turbopack
+```
+
+**Next.js 16.4.2** — versão com breaking changes em relação ao modelo
+treinado. O `AGENTS.md` gerado pede a leitura de `node_modules/next/dist/docs/`
+antes de codar. Documentos lidos:
+
+- `01-getting-started/15-route-handlers.md` — Route Handlers, cache, `RouteContext`
+- `02-guides/interactive-apps.md` — `useOptimistic`, `useTransition`, `data-pending`
+- `02-guides/environment-variables.md` — `.env*`, `NEXT_PUBLIC_`, runtime env
+- `02-guides/upgrading/version-16.md` — breaking changes
+- `03-file-conventions/route.md` e `02-route-segment-config/maxDuration.md`
+
+### Dependências adicionadas
+
+| Pacote | Versão | Motivo |
+| --- | --- | --- |
+| `pdfjs-dist` | 6.4.299 | Leitura e extração de texto do PDF no navegador |
+| `lucide-react` | 1.59 | Ícones |
+| `server-only` | 0.0.1 | Garante que o código de IA nunca entre no bundle do cliente |
+| `tsx` (dev) | — | Rodar o script de debug do parser em Node |
+
+O `next.config.ts` já veio com `cacheComponents: true` e
+`partialPrefetching: true` — mantidos.
+
+---
+
+## 3. Design system
+
+`app/globals.css` reescrito do zero sobre Tailwind CSS 4 (sistema `@theme`):
+
+- Paleta própria (`--color-canvas`, `--color-panel`, `--color-brand`, …)
+- Gradientes radiais no `body` (roxo no topo-esquerda, verde no topo-direita)
+- Componentes em `@layer components`: `.panel`, `.panel-soft`, `.btn`
+  (`.btn-primary`, `.btn-ghost`), `.chip`, `.option` (com `data-state` para
+  correta/errada/selecionada), `.bubble`
+- Scrollbar discreta
+- `@media print` com `.no-print` e `.print-break` para o gabarito impresso
+
+`app/layout.tsx`: fontes `Inter` (texto) + `Instrument Serif` (display, itálico
+nos títulos), `lang="pt-BR"`, metadata e Open Graph.
+
+---
+
+## 4. Núcleo de parsing do PDF
+
+O coração do app. Todo o PDF é lido **no navegador** — o arquivo nunca é
+enviado ao servidor.
+
+### 4.1 `lib/pdf/lines.ts`
+
+Reconstrução de linhas a partir dos itens de texto do pdf.js. O pdf.js
+devolve "pedaços" com posição; sem reconstruir, o parser não reconheceria
+`a)`, `Gabarito`, etc.
+
+- Agrupa itens por baseline (`transform[5]`) com tolerância proporcional à
+  altura da fonte
+- Insere espaço entre itens quando o vão horizontal supera o limiar
+- **Preserva o `x` inicial de cada linha** — a indentação é a chave para
+  distinguir o início de uma alternativa da continuação de um texto
+- Detecta linhas com **espaçamento entre letras** (títulos editoriais):
+  quando a maioria dos itens tem 1–2 caracteres e o vão médio está entre
+  10% e 45% da altura da fonte, o limiar passa a ser relativo à média dos
+  vãos da própria linha
+
+### 4.2 `lib/pdf/extract.ts`
+
+Extração no cliente com `pdfjs-dist/build/pdf.min.mjs`. O worker é copiado
+para `/public` pelo script `prebuild` (`scripts/copy-pdf-worker.mjs`) em vez
+de depender de *magic imports* do bundler — determinístico em dev e na Vercel.
+
+Detecta PDF escaneado (menos de 120 caracteres por página) e avisa o usuário.
+
+### 4.3 `lib/pdf/parser.ts`
+
+O arquivo mais complexo do projeto. Reconhece:
+
+**Alternativas**
+- explícitas: `a)`, `(B)`, `C.`, `D -`, `IV)`
+- implícitas: `A texto` — letra + espaço. Aqui a **indentação decide**: o
+  parser calcula o `x` modal das linhas candidatas e só aceita como
+  alternativa as que estão nesse alinhamento (±3 pt). Sem isso, um enunciado
+  começando com "A consolidação urbana…" seria lido como a alternativa A
+
+**Gabarito** (fonte primária da resposta correta)
+- grade: `1-B  2-C  3-A`
+- parêntese: `1) B  2) C`
+- colunas: `1  B`
+- por número: `Questão 12: C`
+- inline: `Resposta: C`
+
+Detecta a seção de gabarito pelo cabeçalho (`Gabarito`, `Respostas`,
+`Chave de respostas`); sem cabeçalho, procura uma grade de pares no fim do
+documento. O mapeamento usa o **número** da questão quando há correspondência
+(≥50% de acerto) e cai para o **posicional** quando não há.
+
+**Ruído filtrado** (linhas que não são enunciado)
+- cabeçalho corrente: `1. Conhecimentos Gerais … Físicos, …`
+- marcador de dificuldade: `2 ○ ○ ○ FÁCIL`
+- interface editorial: `LIGHTBULB Tente resolver antes de conferir EYE VER GABARITO E COMENTÁRIOS`
+- paginação: `7 / 538`
+- linhas decorativas
+
+**Tópico** — linhas em caixa alta (`ASPECTOS GEOGRÁFICOS, HISTÓRICOS, …`)
+viram o campo `topic`, usado no filtro por assunto.
+
+---
+
+## 5. Camada de IA
+
+O gabarito do PDF **sempre prevalece**. A IA entra para limpar o enunciado,
+escrever a explicação de cada questão e resolver o que não tem gabarito.
+
+- `lib/ai/provider.ts` — abstração com dois provedores:
+  - **Gemini** (padrão): `x-goog-api-key`, `responseMimeType: application/json`
+    + `responseSchema` (saída estruturada garantida)
+  - **OpenAI-compatible**: `response_format: json_object` (funciona em Groq,
+    OpenRouter, OpenAI)
+- `lib/ai/prompts.ts` — prompt em português + schema JSON de saída
+- `lib/ai/extract.ts` — lotes de 12 questões, 3 chamadas em paralelo,
+  mesclagem por índice, gabarito do PDF sobrescreve a resposta da IA
+- `app/api/extract/route.ts` — Route Handler com:
+  - limite de 40 requisições / 10 min por IP
+  - `maxDuration = 60`
+  - 503 com código `NO_AI_PROVIDER` quando não há chave (o cliente cai no
+    modo local)
+- `app/api/status/route.ts` — informa o cliente se há IA configurada
+
+Limite de 150 questões por PDF (proteção de custo).
+
+---
+
+## 6. Interface
+
+| Componente | Função |
+| --- | --- |
+| `components/quiz-app.tsx` | Orquestra as telas e o estado (`upload → processing → setup → quiz → results`) |
+| `components/upload-zone.tsx` | Drag & drop do PDF + botão de quiz de exemplo |
+| `components/setup-panel.tsx` | Título, modo de resposta, tempo limite, filtro por assunto e **revisão do gabarito** (clique na alternativa para corrigir) |
+| `components/quiz-player.tsx` | Quiz: progressão, paleta de navegação, marcador, cronômetro, atalhos de teclado, correção instantânea |
+| `components/results-panel.tsx` | Score, desempenho por assunto, revisão comentada, impressão e exportação JSON |
+| `components/ui.tsx` | `Logo`, `Stat`, `Toggle`, `Badge`, `ProgressBar` |
+
+Recursos: embaralhar questões/alternativas, correção instantânea ou no fim,
+cronômetro opcional, filtro por assunto, histórico no `localStorage`, atalhos
+`A–E` / `1–5` / setas, e gabarito imprimível (CSS de impressão).
+
+---
+
+## 7. Testes com PDFs reais
+
+### Ferramenta de debug: `scripts/check-pdf.ts`
+
+```bash
+npm run check:pdf -- <arquivo.pdf>            # questões + gabarito extraídos
+npm run check:pdf -- <arquivo.pdf> --dump 3   # texto reconstruído da página 3 (com x)
+npm run check:pdf -- <arquivo.pdf> --find gabarito
+```
+
+Usa a **mesma** lógica de linha do navegador (`lib/pdf/lines.ts`), então o
+debug reflete exatamente o que o app faz.
+
+### PDF de teste (com gabarito)
+
+Gerado com `reportlab` para simular uma apostila: 10 questões com `a)`…`e)` e
+uma página final com `GABARITO` e a grade `1-C 2-A 3-B …`.
+
+```
+=> 10 questoes, 10 com resposta, 0 sem resposta
+```
+
+Todas as 10 letras conferidas com o gabarito original. ✅
+
+### PDF real do usuário (`1.pdf`, 32 páginas, apostila editorial)
+
+Estrutura real encontrada:
+
+```
+Questão 2
+2 ○ ○ ○ FÁCIL
+ASPECTOS GEOGRÁFICOS, HISTÓRICOS, FÍSICOS, ECONÔMICOS, SOCI- …
+No contexto das pesquisas censitárias do IBGE, o conceito de
+'População Residente' é fundamental para a contagem oficial…
+A Conjunto de pessoas que têm o município como seu local habitual de residência
+na data de referência do Censo.
+B Conjunto de pessoas que estavam presentes no domicílio…
+```
+
+```
+=> 43 questoes, 0 com resposta, 43 sem resposta
+```
+
+43/43 questões detectadas com enunciado e alternativas corretos. Zero
+respostas porque **este PDF não contém o gabarito** — é a seção de questões
+do livro (32 páginas de um volume de 538); a resolução comentada fica em
+outra parte. Nesse caso a IA entra para resolver.
+
+### Teste de ponta a ponta no navegador
+
+Upload → setup → quiz → resultados, validado com o navegador real:
+
+- 43 questões extraídas do `1.pdf`
+- aviso "Sem chave de IA no servidor" exibido corretamente
+- filtro por assunto populado (2 tópicos, com contagem)
+- 10/10 questões com gabarito no PDF de teste, badge "Do PDF" em cada uma
+- correção instantânea: "Boa! Você acertou." e placar 1/10
+- resultado: 10% de acerto, 1 acerto, 0 erros, 9 sem resposta
+- revisão final destaca a alternativa correta e a resposta do usuário
+
+---
+
+## 8. Bugs encontrados e corrigidos
+
+Todos descobertos durante os testes com PDFs reais.
+
+| # | Problema | Causa | Correção |
+| --- | --- | --- | --- |
+| 1 | `TypeError: Cannot read properties of undefined (reading 'toUpperCase')` | `String.match` com regex `/g/` retorna **todos** os matches, não o primeiro — o grupo de captura vinha `undefined` | Trocado por `RegExp.exec()` com `lastIndex = 0` |
+| 2 | Gabarito de um PDF não era detectado | `RegExp.test()` com `/g/` avança `lastIndex` entre chamadas | `lastIndex = 0` antes de cada `test()` |
+| 3 | **0 questões** extraídas de um PDF com `a) b) c)` | O regex de alternativa exigia `(` antes do `)`, ou seja, não cobria `a)` | Regex reescrita com alternativa própria para `X)` |
+| 4 | Alternativas em numeral romano (`I)`, `II.`) | Mesma limitação do item 3 | Idem |
+| 5 | Questões "sumiam" entre páginas | Um cabeçalho `Questão 2` após `Questão 12` era lido como continuação do enunciado | Antes de descartar, tenta recuperar as alternativas implícitas: se a questão anterior tem alternativas, ela **está** completa e a nova é legítima |
+| 6 | Enunciado começando com "A " virava alternativa A | Detecção por regex não distinguia enunciado de alternativa | Alinhamento modal do `x` das candidatas (±3 pt) |
+| 7 | Cabeçalho corrente `1. Conhecimentos Gerais …` virava questão 1 | Casava com o padrão de número + separador | Regra de ruído `RUNNING_HEADER` (termina em `…`) |
+| 8 | `2 ○ ○ ○ FÁCIL` entrava no enunciado | Não havia filtro de marcador de dificuldade | Regra `DIFFICULTY_LINE` |
+| 9 | `LIGHTBULB … VER GABARITO E COMENTÁRIOS` entrava no enunciado | Ruído de interface | Regra `UI_NOISE` |
+| 10 | `7 / 538` (paginação) entrava no enunciado | O filtro só cobria "Página 12" | `PAGE_NUMBER_LINE` passou a aceitar `7 / 538` |
+| 11 | `doc.destroy is not a function` | No pdf.js v6 quem tem `destroy()` é a *loading task* | `loadingTask.destroy()` |
+| 12 | `isEvalSupported` não existe mais | Removido no pdf.js v6 | Opção deletada |
+| 13 | Build falhava: `unstable value new Date() in a Client Component` | `createState()` rodava no render (prerender) | `startedAt` passou a ser preenchido nos handlers (`Iniciar`/`Refazer`) |
+| 14 | Build falhava: `Route segment config "dynamic"/"runtime" is not compatible with cacheComponents` | Next 16 + Cache Components | Removidos `dynamic` e `runtime` das rotas (Node é o padrão) |
+| 15 | ESLint reclamava do worker do pdf.js | Arquivo de terceiros em `public/` | `public/**` no `globalIgnores` |
+| 16 | Resultado mostrava "0 de 0 questões" e "0%" | Sem gabarito, `gradeable = 0` | Score vira `null` → exibe "—" e "sem gabarito" |
+| 17 | Respostas sem gabarito contavam como **erro** | `scoreQuiz` comparava contra `null` | Só conta acerto/erro quando a questão tem resposta cadastrada |
+| 18 | Tópico com letras separadas (`É T I CA N O S E RV I Ç O`) virava gibirish ao "corrigir" | O espaçamento é do próprio PDF — as palavras originais não são recuperáveis | Removida a correção por heurística; o tópico segue como no PDF e a **IA o normaliza** (instrução específica no prompt) |
+
+---
+
+## 9. Renomeação para "ApoQuiz"
+
+Nome final escolhido pelo usuário. Alterado em:
+
+- `components/ui.tsx` — logo
+- `app/layout.tsx` — `title`, `applicationName`, Open Graph
+- `components/quiz-app.tsx` — rodapé
+- `package.json` / `package-lock.json` — `name`
+- `lib/storage.ts` — chaves do `localStorage` (`apoquiz:quizzes:v1`)
+
+---
+
+## 10. Infraestrutura de deploy
+
+- `scripts/copy-pdf-worker.mjs` — copia `pdf.worker.min.mjs` para `/public`;
+  ligado a `predev` e `prebuild` (a Vercel executa `prebuild` automaticamente)
+- `.env.example` — modelo de variáveis, com `!.env.example` no `.gitignore`
+  para o modelo ser versionado e o `.env.local` não
+- `public/pdf.worker.min.mjs` no `.gitignore` (artefato de build)
+- `README.md` completo: arquitetura, comandos, configuração de IA, deploy,
+  estrutura de pastas e limitações conhecidas
+
+---
+
+## 11. Estado final
+
+| Verificação | Resultado |
+| --- | --- |
+| `npm run typecheck` | ✅ sem erros |
+| `npm run lint` | ✅ sem erros |
+| `npm run build` | ✅ `/` estático, `/api/extract` dinâmico |
+| PDF com gabarito | ✅ 10/10 questões com resposta do PDF |
+| PDF real (1.pdf) | ✅ 43/43 questões extraídas |
+| Fluxo completo no navegador | ✅ upload → setup → quiz → resultado |
+
+### O que falta para produção
+
+1. **Chave de IA**: adicionar `GEMINI_API_KEY` nas variáveis de ambiente da
+   Vercel. Sem ela o app funciona normalmente com o gabarito do PDF — apenas
+   sem as explicações e sem resolver questões sem gabarito.
+2. **Conectar a Vercel**: importar o repositório e fazer o deploy. Nenhuma
+   configuração extra é necessária.
+3. **Apostilas com gabarito**: o `1.pdf` testado não tinha gabarito. Com um
+   PDF que tenha, a detecção já funciona (validado no PDF de teste).
