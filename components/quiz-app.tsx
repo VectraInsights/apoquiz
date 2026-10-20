@@ -269,6 +269,7 @@ export function QuizApp() {
               <span className="hidden sm:inline">Novo PDF</span>
             </button>
           ) : null}
+          <InstallPrompt />
           <AuthButton auth={auth} compact />
         </div>
       </div>
@@ -331,8 +332,6 @@ export function QuizApp() {
           onNewFile={handleNewFile}
         />
       ) : null}
-
-      <InstallPrompt />
 
       <footer className="mt-auto border-t border-line/60 py-8 text-center text-xs text-ink-faint">
         ApoQuiz · PDF → quiz interativo com gabarito

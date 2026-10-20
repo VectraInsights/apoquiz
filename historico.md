@@ -983,7 +983,36 @@ precisam de rede, claro).
 
 ---
 
-## 21. Estado final
+## 21. Botao de instalacao: Android e iPhone
+
+O primeiro botao "Instalar" aparecia mas **nao fazia nada** no Android. A
+causa: o evento `beforeinstallprompt` do Chrome so pode ser usado **uma
+vez**. Se a pessoa recusou o dialogo nativo uma vez (ou o evento ja
+consumido), a segunda chamada a `event.prompt()` lanca `InvalidStateError`
+— e a excecao nao era tratada, entao o clique morria em silencio.
+
+### Correcoes
+
+| Problema | Correcao |
+| --- | --- |
+| `prompt()` rejeitado engolia o erro | `try/catch` + queda no caminho manual |
+| Botao sumia se o evento nao tivesse chegado a tempo | Botao de download **sempre** no cabecalho, com as instrucoes da plataforma |
+| iPadOS 13+ nao era reconhecido (se passa por Mac) | Deteccao por `maxTouchPoints > 1` |
+| App ja instalado continuava mostrando o botao | Deteccao de `display-mode: standalone` e do evento `appinstalled` |
+| Chrome mostrava o mini-infobar do navegador | `preventDefault()` no `beforeinstallprompt` (mantido) |
+
+### Como instalar em cada plataforma
+
+- **Android / Chrome**: banner "Instalar" no rodape, ou o icone de download no
+  cabecalho. Se o dialogo nativo for recusado, o app mostra o caminho manual
+  (menu **⋮** > "Instalar app").
+- **iPhone / Safari**: o Safari nao tem dialogo nativo de instalacao; o app
+  mostra o caminho manual (Compartilhar > "Adicionar a Tela de Inicio").
+- **PC**: tambem funciona (Chrome/Edge), com o mesmo banner.
+
+---
+
+## 22. Estado final
 
 | Verificação | Resultado |
 | --- | --- |

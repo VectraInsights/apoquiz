@@ -6,9 +6,11 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "ApoQuiz",
     description:
       "Transforme o PDF da sua apostila de questões em um quiz interativo com gabarito, correção instantânea e explicações.",
+    id: "/",
     start_url: "/",
     scope: "/",
     display: "standalone",
+    display_override: ["standalone", "minimal-ui", "browser"],
     orientation: "portrait",
     background_color: "#07070d",
     theme_color: "#07070d",

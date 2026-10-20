@@ -255,8 +255,15 @@ chave `anon` com RLS ativa.
 O ApoQuiz e um PWA: da para instalar na tela de inicio do Android e do iPhone
 e usar **offline**.
 
-- **Android / Chrome**: aparece um botao "Instalar" no rodape do app.
-- **iPhone / Safari**: Compartilhar > "Adicionar a Tela de Inicio".
+- **Android / Chrome**: aparece um botao "Instalar" no rodape (e tambem um
+  icone de download no cabecalho). Se o navegador recusar o dialogo nativo
+  (ele so pode ser usado uma vez), o app mostra o caminho manual: menu
+  **⋮** > "Instalar app".
+- **iPhone / Safari**: o app mostra o caminho manual — Compartilhar >
+  "Adicionar a Tela de Inicio" (o Safari nao tem dialogo nativo de
+  instalacao).
+- **Qualquer navegador**: o icone de download no cabecalho sempre abre as
+  instrucoes da plataforma.
 
 O service worker (`public/sw.js`) guarda o app shell (a apostila que voce
 ja abriu continua funcionando sem internet) e nunca cacheia as chamadas de

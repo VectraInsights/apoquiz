@@ -1,24 +1,49 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Download, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Download, Info, X } from "lucide-react";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
+function detectIos(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  // iPadOS 13+ se apresenta como Mac: so o touchPoints revela que e iPad.
+  return (
+    /iphone|ipad|ipod/i.test(ua) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
+}
+
+function isInstalled(): boolean {
+  if (typeof window === "undefined") return false;
+  if (window.matchMedia?.("(display-mode: standalone)").matches === true) {
+    return true;
+  }
+  // iOS Safari usa o navigator.standalone
+  return (navigator as unknown as { standalone?: boolean }).standalone === true;
+}
+
 /**
- * Registra o service worker e oferece a instalacao do app na tela de
- * inicio (Android/Chrome: botao de instalar; iOS/Safari: instrucao de
- * "Adicionar a Tela de Inicio").
+ * Instalacao do app (PWA).
+ *
+ * Android/Chrome: dispara o dialogo nativo de instalacao.
+ * iPhone/Safari: mostra o caminho manual (o Safari nao tem dialogo nativo).
+ * Qualquer navegador: o botao do cabecalho sempre mostra as instrucoes.
  */
 export function InstallPrompt() {
   const [event, setEvent] = useState<BeforeInstallPromptEvent | null>(null);
+  const [used, setUsed] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [justInstalled, setJustInstalled] = useState(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // Registra o service worker (libera o uso offline).
+    // Registra o service worker (libera o uso offline e a instalacao).
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {
         // Sem service worker: o app continua funcionando online.
@@ -26,72 +51,173 @@ export function InstallPrompt() {
     }
 
     const onPrompt = (raw: Event) => {
+      // Sem preventDefault o Chrome mostra o mini-infobar; com ele, o
+      // evento fica sob nosso controle.
       raw.preventDefault();
       setEvent(raw as BeforeInstallPromptEvent);
     };
 
+    const onInstalled = () => {
+      setJustInstalled(true);
+      setEvent(null);
+      setDismissed(true);
+    };
+
     window.addEventListener("beforeinstallprompt", onPrompt);
-    return () => window.removeEventListener("beforeinstallprompt", onPrompt);
+    window.addEventListener("appinstalled", onInstalled);
+
+    // A deteccao de plataforma acontece depois da hidratacao, para o
+    // servidor e o cliente concordarem.
+    const timer = window.setTimeout(() => setReady(true), 0);
+
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
   }, []);
 
-  const ios =
-    typeof navigator !== "undefined" && /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const install = useCallback(async () => {
+    if (!event) {
+      setPanelOpen(true);
+      return;
+    }
 
-  if (dismissed) return null;
+    try {
+      await event.prompt();
+      const choice = await event.userChoice;
+      if (choice.outcome === "accepted") {
+        setUsed(true);
+        setEvent(null);
+        setDismissed(true);
+        return;
+      }
+    } catch {
+      // O evento so pode ser usado uma vez. Se o Chrome recusou (ja
+      // recusado antes, ou a pagina nao esta mais preparada), cai no
+      // caminho manual.
+    }
 
-  if (ios) {
-    return (
-      <div className="no-print fixed inset-x-3 bottom-3 z-50 mx-auto max-w-md rounded-2xl border border-line bg-panel/95 p-3.5 shadow-2xl shadow-black/50 backdrop-blur sm:inset-x-auto sm:right-4">
-        <div className="flex items-start gap-3">
-          <p className="flex-1 text-xs leading-relaxed text-ink-muted">
-            Para instalar o ApoQuiz no iPhone: toque em{" "}
-            <strong className="text-ink">Compartilhar</strong> e depois em{" "}
-            <strong className="text-ink">&ldquo;Adicionar &agrave; Tela de Início&rdquo;</strong>.
-          </p>
+    // Deu ruim: mostra o caminho manual.
+    setEvent(null);
+    setPanelOpen(true);
+  }, [event]);
+
+  const platform = ready ? detectIos() : false;
+  const alreadyInstalled = justInstalled || (ready && isInstalled());
+
+  // Banner automatico: so quando o navegador realmente pode instalar.
+  const showBanner = Boolean(event) && !used && !dismissed && !panelOpen;
+
+  return (
+    <>
+      {alreadyInstalled ? null : (
+        <button
+          type="button"
+          onClick={() => void install()}
+          title="Instalar o app no celular"
+          aria-label="Instalar o app no celular"
+          className="grid size-9 place-items-center rounded-lg border border-line text-ink-muted transition hover:border-brand/50 hover:text-ink"
+        >
+          <Download className="size-4" />
+        </button>
+      )}
+
+      {showBanner ? (
+        <div className="no-print fixed inset-x-3 bottom-3 z-50 mx-auto flex max-w-md items-center gap-3 rounded-2xl border border-line bg-panel/95 p-3.5 shadow-2xl shadow-black/50 backdrop-blur sm:inset-x-auto sm:right-4">
+          <div className="flex-1 text-xs leading-relaxed text-ink-muted">
+            <strong className="text-ink">Instale o ApoQuiz</strong> e estude
+            offline, direto da tela de início do celular.
+          </div>
           <button
             type="button"
-            onClick={() => setDismissed(true)}
+            onClick={() => void install()}
+            className="btn btn-primary min-h-9 px-3 py-1.5 text-xs"
+          >
+            <Download className="size-3.5" />
+            Instalar
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setDismissed(true);
+              setEvent(null);
+            }}
             aria-label="Fechar"
             className="text-ink-faint transition hover:text-ink"
           >
             <X className="size-4" />
           </button>
         </div>
-      </div>
-    );
-  }
+      ) : null}
 
-  if (!event) return null;
+      {panelOpen ? (
+        <div className="no-print fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 backdrop-blur-sm sm:items-center">
+          <div className="w-full max-w-sm rounded-2xl border border-line bg-panel p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="text-sm font-semibold">Instalar o ApoQuiz</h2>
+              <button
+                type="button"
+                onClick={() => setPanelOpen(false)}
+                aria-label="Fechar"
+                className="text-ink-faint transition hover:text-ink"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
 
-  return (
-    <div className="no-print fixed inset-x-3 bottom-3 z-50 mx-auto flex max-w-md items-center gap-3 rounded-2xl border border-line bg-panel/95 p-3.5 shadow-2xl shadow-black/50 backdrop-blur sm:inset-x-auto sm:right-4">
-      <div className="flex-1 text-xs leading-relaxed text-ink-muted">
-        <strong className="text-ink">Instale o ApoQuiz</strong> e estude offline,
-        direto da tela de início do celular.
-      </div>
-      <button
-        type="button"
-        onClick={async () => {
-          await event.prompt();
-          await event.userChoice;
-          setEvent(null);
-        }}
-        className="btn btn-primary min-h-9 px-3 py-1.5 text-xs"
-      >
-        <Download className="size-3.5" />
-        Instalar
-      </button>
-      <button
-        type="button"
-        onClick={() => {
-          setDismissed(true);
-          setEvent(null);
-        }}
-        aria-label="Fechar"
-        className="text-ink-faint transition hover:text-ink"
-      >
-        <X className="size-4" />
-      </button>
-    </div>
+            <ol className="mt-3 space-y-2.5 text-sm leading-relaxed text-ink-muted">
+              {platform ? (
+                <>
+                  <li>
+                    <strong className="text-ink">1.</strong> Toque em{" "}
+                    <strong className="text-ink">Compartilhar</strong> (o quadrado
+                    com a seta para cima, na barra do Safari).
+                  </li>
+                  <li>
+                    <strong className="text-ink">2.</strong> Role e toque em{" "}
+                    <strong className="text-ink">
+                      &ldquo;Adicionar &agrave; Tela de Início&rdquo;
+                    </strong>
+                    .
+                  </li>
+                  <li>
+                    <strong className="text-ink">3.</strong> Toque em{" "}
+                    <strong className="text-ink">Adicionar</strong>. Pronto — o
+                    ApoQuiz abre em tela cheia, como um app.
+                  </li>
+                </>
+              ) : (
+                <>
+                  <li>
+                    <strong className="text-ink">1.</strong> Toque no menu{" "}
+                    <strong className="text-ink">⋮</strong> do navegador (canto
+                    superior direito).
+                  </li>
+                  <li>
+                    <strong className="text-ink">2.</strong> Toque em{" "}
+                    <strong className="text-ink">
+                      &ldquo;Instalar app&rdquo; ou{" "}
+                      &ldquo;Adicionar &agrave; tela inicial&rdquo;
+                    </strong>
+                    .
+                  </li>
+                  <li>
+                    <strong className="text-ink">3.</strong> Confirme. O ApoQuiz
+                    passa a abrir em tela cheia, como um app.
+                  </li>
+                </>
+              )}
+            </ol>
+
+            <p className="mt-4 flex items-start gap-2 rounded-lg border border-line bg-canvas-soft p-3 text-xs text-ink-faint">
+              <Info className="mt-0.5 size-3.5 shrink-0" />
+              O app também funciona offline depois de instalado — a apostila que
+              você já abriu continua disponível sem internet.
+            </p>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
