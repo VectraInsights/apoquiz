@@ -21,6 +21,7 @@ type Props = {
   sourceFile: string;
   detectedGabarito: Record<string, string>;
   aiApplied: boolean;
+  aiNotNeeded: boolean;
   aiMessage: string | null;
   onStart: (settings: QuizSettings, questions: Question[]) => void;
   onBack: () => void;
@@ -34,6 +35,7 @@ export function SetupPanel({
   sourceFile,
   detectedGabarito,
   aiApplied,
+  aiNotNeeded,
   aiMessage,
   onStart,
   onBack,
@@ -240,6 +242,14 @@ export function SetupPanel({
               <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-warn/30 bg-warn/10 p-3.5 text-sm text-warn">
                 <CircleAlert className="mt-0.5 size-4 shrink-0" />
                 <span>{aiMessage}</span>
+              </div>
+            ) : aiNotNeeded ? (
+              <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-ok/30 bg-ok/10 p-3.5 text-sm text-ok">
+                <Check className="mt-0.5 size-4 shrink-0" />
+                <span>
+                  O PDF já trazia a resolução comentada de cada questão — a IA não
+                  precisou ser chamada.
+                </span>
               </div>
             ) : aiApplied ? (
               <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-brand/30 bg-brand/10 p-3.5 text-sm text-brand-soft">

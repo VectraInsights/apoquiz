@@ -95,6 +95,10 @@ function gabaritoForBatch(
  *
  * A lista completa volta ao cliente: apenas as primeiras MAX_QUESTIONS
  * sao processadas pela IA, mas as demais mantem o gabarito lido do PDF.
+ *
+ * Otimizacao: a IA so e chamada para o que o PDF **nao** trouxe. Numa
+ * apostila editorial com secao de comentarios, todas as questoes ja vem
+ * com explicacao e analise por alternativa - e nenhuma chamada e feita.
  */
 export async function enrichQuestions(
   provider: AIProvider,
@@ -102,14 +106,30 @@ export async function enrichQuestions(
   gabarito: Record<string, string> | null,
 ): Promise<Question[]> {
   const limited = questions.slice(0, MAX_QUESTIONS);
-  const batches = chunk(limited, BATCH_SIZE);
+
+  // Quais questoes realmente precisam da IA.
+  const pending = limited
+    .map((question, index) => ({ question, index }))
+    .filter(
+      ({ question }) => !hasExplanation(question) || !hasOptionNotes(question),
+    );
+
+  if (pending.length === 0) {
+    // O PDF ja trouxe tudo: nao ha por que chamar a IA.
+    return limited;
+  }
+
+  const batches = chunk(pending, BATCH_SIZE);
 
   const answers = await mapWithConcurrency(batches, MAX_CONCURRENCY, async (batch) => {
     // Manda so o gabarito das questoes do lote. Com uma apostila de 1.824
     // questoes, o gabarito completo entraria em todos os lotes.
-    const batchGabarito = gabaritoForBatch(gabarito, batch);
+    const batchGabarito = gabaritoForBatch(
+      gabarito,
+      batch.map((item) => item.question),
+    );
     const raw = (await provider.complete(
-      buildEnrichPrompt(batch, batchGabarito),
+      buildEnrichPrompt(batch.map((item) => item.question), batchGabarito),
       QUESTIONS_SCHEMA,
     )) as { questions?: AIRawQuestion[] };
 
@@ -121,16 +141,18 @@ export async function enrichQuestions(
     return map;
   });
 
-  const merged = new Map<number, AIRawQuestion>();
+  // Reconstroi: cada lote sabe quais indicesoriginally ele cobria.
+  const byIndex = new Map<number, AIRawQuestion>();
   answers.forEach((map, batchIndex) => {
     const offset = batchIndex * BATCH_SIZE;
     map.forEach((value, localIndex) => {
-      merged.set(offset + localIndex, value);
+      const original = pending[offset + localIndex];
+      if (original) byIndex.set(original.index, value);
     });
   });
 
-  return questions.map((question, index) => {
-    const ai = merged.get(index);
+  return limited.map((question, index) => {
+    const ai = byIndex.get(index);
     if (!ai) return question;
 
     const options = normalizeOptions(ai, question);
@@ -199,6 +221,18 @@ function normalizeOptionNotes(
     out[label] = text;
   }
   return out;
+}
+
+/** A questao ja tem explicacao vinda do PDF? */
+export function hasExplanation(question: Question): boolean {
+  return Boolean(question.explanation && question.explanation.trim().length > 0);
+}
+
+/** A questao ja tem analise por alternativa vinda do PDF? */
+export function hasOptionNotes(question: Question): boolean {
+  const notes = question.optionNotes;
+  if (!notes) return false;
+  return Object.keys(notes).length > 0;
 }
 
 function normalizeOptions(

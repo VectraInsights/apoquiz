@@ -15,6 +15,8 @@ export type ProcessOutcome = {
   gabaritoEvidence: string;
   aiApplied: boolean;
   aiMessage: string | null;
+  /** true quando o PDF ja trazia tudo e a IA nem precisou ser chamada */
+  aiNotNeeded: boolean;
   pageCount: number;
   /** true quando o parser local nao achou questoes e a IA extraiu do zero */
   usedAIExtraction: boolean;
@@ -98,6 +100,7 @@ export async function processPdf(
         gabaritoEvidence: gabaritoResult.evidence,
         aiApplied: false,
         aiMessage: response.error,
+        aiNotNeeded: false,
         pageCount: doc.pageCount,
         usedAIExtraction: false,
       };
@@ -109,8 +112,31 @@ export async function processPdf(
       gabaritoEvidence: gabaritoResult.evidence,
       aiApplied: true,
       aiMessage: null,
+      aiNotNeeded: false,
       pageCount: doc.pageCount,
       usedAIExtraction: true,
+    };
+  }
+
+  // A IA so e necessaria para o que o PDF nao trouxe (explicacao e
+  // analise por alternativa). Numa apostila editorial com secao de
+  // comentarios, nenhuma chamada e feita - e o resultado chega na hora.
+  const needsAI = localQuestions.some(
+    (question) =>
+      !question.explanation ||
+      Object.keys(question.optionNotes ?? {}).length === 0,
+  );
+
+  if (!needsAI) {
+    return {
+      questions: localQuestions,
+      detectedGabarito,
+      gabaritoEvidence: gabaritoResult.evidence,
+      aiApplied: false,
+      aiMessage: null,
+      aiNotNeeded: true,
+      pageCount: doc.pageCount,
+      usedAIExtraction: false,
     };
   }
 
@@ -141,6 +167,7 @@ export async function processPdf(
     gabaritoEvidence: gabaritoResult.evidence,
     aiApplied: Boolean(response.data),
     aiMessage: response.data ? null : response.error,
+    aiNotNeeded: false,
     pageCount: doc.pageCount,
     usedAIExtraction: false,
   };

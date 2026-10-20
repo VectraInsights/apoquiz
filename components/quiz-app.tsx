@@ -49,6 +49,7 @@ export function QuizApp() {
   const [detectedGabarito, setDetectedGabarito] = useState<Record<string, string>>({});
   const [aiApplied, setAiApplied] = useState(false);
   const [aiMessage, setAiMessage] = useState<string | null>(null);
+  const [aiNotNeeded, setAiNotNeeded] = useState(false);
 
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [quizState, setQuizState] = useState<QuizState>(() => createState());
@@ -98,6 +99,7 @@ export function QuizApp() {
       setDetectedGabarito(outcome.detectedGabarito);
       setAiApplied(outcome.aiApplied);
       setAiMessage(outcome.aiMessage);
+      setAiNotNeeded(outcome.aiNotNeeded);
       setSourceFile(file.name);
       setTitle(file.name.replace(/\.pdf$/i, "").replace(/[_-]+/g, " "));
       setStage("setup");
@@ -117,6 +119,7 @@ export function QuizApp() {
     );
     setAiApplied(false);
     setAiMessage(null);
+    setAiNotNeeded(false);
     setSourceFile("quiz-de-exemplo.pdf");
     setTitle("Quiz de exemplo — 10 questões");
     setStage("setup");
@@ -298,6 +301,7 @@ export function QuizApp() {
           sourceFile={sourceFile}
           detectedGabarito={detectedGabarito}
           aiApplied={aiApplied}
+          aiNotNeeded={aiNotNeeded}
           aiMessage={aiMessage}
           onStart={handleStart}
           onBack={handleNewFile}
