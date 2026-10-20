@@ -157,10 +157,43 @@ export default function SupabaseSetup() {
           Client ID e o Client Secret do Google Cloud Console.
         </li>
         <li>
-          <strong className="text-ink">5.</strong> Em{" "}
-          <em>Authentication → URL Configuration → Redirect URLs</em>, adicione{" "}
-          <code className="text-brand-soft">http://localhost:3000</code> e a
-          URL da Vercel.
+          <strong className="text-ink">4.</strong> Em{" "}
+          <em>Authentication → URL Configuration</em>: <strong>Site URL</strong> ={" "}
+          <code className="text-brand-soft">
+            https://apoquiz-vectrainsights-projects.vercel.app
+          </code>{" "}
+          e em <strong>Redirect URLs</strong> adicione{" "}
+          <code className="text-brand-soft">
+            https://*-vectrainsights-projects.vercel.app/**
+          </code>
+          . O Supabase aceita curinga; o Google não.
+        </li>
+        <li>
+          <strong className="text-ink">5.</strong> No{" "}
+          <a
+            className="text-brand-soft underline"
+            href="https://console.cloud.google.com/auth/clients"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Google Cloud
+          </a>
+          , crie um OAuth Client do tipo <em>Web application</em>:
+          <ul className="mt-1 list-disc pl-5 text-ink-faint">
+            <li>
+              <strong>Authorized redirect URIs</strong>:{" "}
+              <code className="text-brand-soft">
+                https://gxzzcdywhjhasjttklry.supabase.co/auth/v1/callback
+              </code>
+            </li>
+            <li>
+              <strong>Authorized JavaScript origins</strong>:{" "}
+              <code className="text-brand-soft">
+                https://apoquiz-vectrainsights-projects.vercel.app
+              </code>{" "}
+              — sem curinga e sem barra final: o Google exige a origem exata
+            </li>
+          </ul>
         </li>
       </ol>
 

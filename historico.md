@@ -638,6 +638,30 @@ para os deploys de preview (URL aleatória).
 Supabase responde `Unsupported provider: provider is not enabled`. O botão de
 login agora mostra essa mensagem em vez de falhar em silêncio.
 
+### Limitação do Google: origem exata nas "JavaScript origins"
+
+A instrução original sugeria o curinga `https://*.vercel.app` nas **Authorized
+JavaScript origins** do Google Cloud. **Está errada** — o Google recusa:
+
+> Origem inválida: não é permitido que o domínio contenha um caractere
+> curinga ('*').
+
+E também recusa caminho e barra final: a origem precisa ser exatamente
+`https://host`.
+
+| Onde | Curinga? |
+| --- | --- |
+| **Supabase** → Redirect URLs | ✅ aceito (`*`, `**`, `?`, `[a-z]`) — é o padrão recomendado pela doc do Supabase para Vercel: `https://*-<time>.vercel.app/**` |
+| **Google** → Authorized JavaScript origins | ❌ recusado — só a origem exata de produção |
+
+Consequência: os deploys de **preview** da Vercel (URL aleatória) não
+conseguem entrar com Google, porque o Google exige a origem exata. Não
+afeta o restante do app — só o login nesses previews. Para testar o login,
+use o deploy de produção; a saída definitiva seria um domínio próprio
+(fixo em todos os ambientes) ou cadastrar cada origem manualmente.
+
+A configuração correta ficou no README e na página `/supabase-setup`.
+
 ### O que vai para a nuvem
 
 | Item | Vai para o servidor? |

@@ -128,17 +128,17 @@ desenvolvimento local — pode deixar de fora se nunca for rodar local.
 3. **Authentication → Providers → Google**: ative o provider e cole o
    *Client ID* e o *Client Secret* do Google Cloud Console.
 4. **Authentication → URL Configuration**:
-   - **Site URL**: `https://seu-app.vercel.app`
+   - **Site URL**: `https://apoquiz-vectrainsights-projects.vercel.app`
    - **Redirect URLs**:
 
      ```
-     https://seu-app.vercel.app
-     https://*.vercel.app
+     https://apoquiz-vectrainsights-projects.vercel.app
+     https://*-vectrainsights-projects.vercel.app/**
      ```
 
-     O curinga `https://*.vercel.app` faz o login funcionar também nos
-     deploys de preview (que têm URL aleatória). Se preferir, use
-     `http://localhost:3000` no lugar dele enquanto desenvolve local.
+     O curinga é aceito **pelo Supabase** (é o padrão recomendado na
+     documentação deles para Vercel). Ele **não** é aceito pelo Google —
+     lá as origens JavaScript precisam ser exatas, sem `*`.
 5. Em **Project → API Keys**, copie a URL e a chave `anon`.
 6. Preencha no `.env.local` (e nas variáveis da Vercel):
 
@@ -152,11 +152,36 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...
 | Campo | Valor |
 | --- | --- |
 | **Authorized redirect URIs** | `https://gxzzcdywhjhasjttklry.supabase.co/auth/v1/callback` |
-| **Authorized JavaScript origins** | `https://seu-app.vercel.app` e `https://*.vercel.app` |
+| **Authorized JavaScript origins** | `https://apoquiz-vectrainsights-projects.vercel.app` |
 
-A redirect URI do Google é sempre o **callback do Supabase** — nunca a URL
-do seu app. A URL do app vai em "JavaScript origins" e na lista de
-"Redirect URLs" do próprio Supabase.
+⚠️ Duas regras do Google que dão erro se não forem respeitadas:
+
+- **Não aceita curinga no domínio.** `https://*.vercel.app` é rejeitado com
+  *"não é permitido que o domínio contenha um caractere curinga"*. As
+  origens JavaScript precisam ser **exatas**, uma por linha.
+- **Não aceita caminho nem barra final.** Só `https://host` — sem
+  `/sub/pasta` e sem `/` no final.
+
+A redirect URI do Google é sempre o **callback do Supabase** — nunca a URL do
+seu app. A URL do app vai em "JavaScript origins" (Google) e na lista de
+"Redirect URLs" (Supabase).
+
+**Consequência:** deploys de *preview* da Vercel têm URL aleatória e não
+conseguem entrar com Google, porque o Google exige a origem exata. Isso não
+afeta o app em si — só o login nesses previews. Para testar o login, use o
+deploy de produção. Se precisar de login em preview, a saída é um domínio
+próprio (fixo em todos os ambientes) ou cadastrar cada origem manualmente.
+
+### No Supabase (aqui o curinga É permitido)
+
+| Campo | Valor |
+| --- | --- |
+| **Site URL** | `https://apoquiz-vectrainsights-projects.vercel.app` |
+| **Redirect URLs** | `https://apoquiz-vectrainsights-projects.vercel.app` e `https://*-vectrainsights-projects.vercel.app/**` |
+
+O Supabase aceita curingas (`*`, `**`, `?`, `[a-z]`) nas Redirect URLs — o
+padrão `https://*-<seu-time>.vercel.app/**` é o que a própria documentação do
+Supabase recomenda para deploys da Vercel.
 
 ### O que vai para a nuvem
 
