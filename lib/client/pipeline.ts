@@ -1,0 +1,171 @@
+"use client";
+
+import { extractPdfText } from "@/lib/pdf/extract";
+import { applyGabarito, detectGabarito, parseQuestions } from "@/lib/pdf/parser";
+import type { ExtractRequest, ExtractResponse, Question } from "@/lib/types";
+
+export type Stage = {
+  label: string;
+  progress: number;
+};
+
+export type ProcessOutcome = {
+  questions: Question[];
+  detectedGabarito: Record<string, string>;
+  gabaritoEvidence: string;
+  aiApplied: boolean;
+  aiMessage: string | null;
+  pageCount: number;
+  /** true quando o parser local nao achou questoes e a IA extraiu do zero */
+  usedAIExtraction: boolean;
+};
+
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+const MAX_TEXT_CHARS = 400_000;
+
+export function isPdf(file: File): boolean {
+  return (
+    file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
+  );
+}
+
+export async function processPdf(
+  file: File,
+  onStage: (stage: Stage) => void,
+): Promise<ProcessOutcome> {
+  if (!isPdf(file)) {
+    throw new Error("Envie um arquivo PDF.");
+  }
+  if (file.size > MAX_UPLOAD_BYTES) {
+    throw new Error("O PDF passa de 25 MB. Divida o arquivo e tente novamente.");
+  }
+
+  onStage({ label: "Lendo o PDF…", progress: 0.04 });
+
+  const buffer = await file.arrayBuffer();
+  const doc = await extractPdfText(buffer, (page, total) => {
+    onStage({
+      label: `Extraindo texto — página ${page} de ${total}…`,
+      progress: 0.05 + (page / total) * 0.4,
+    });
+  });
+
+  if (doc.isProbablyScanned) {
+    throw new Error(
+      "Este PDF parece ser um escaneamento (sem texto selecionável). Converta para PDF digital antes de enviar.",
+    );
+  }
+
+  onStage({ label: "Procurando questões e gabarito…", progress: 0.5 });
+
+  const gabaritoResult = detectGabarito(doc.pages);
+  const parsed = parseQuestions(doc.pages);
+  const applied = applyGabarito(parsed, gabaritoResult.gabarito);
+
+  const localQuestions: Question[] = parsed.map((item, index) => ({
+    id: `q${index + 1}`,
+    number: item.number,
+    statement: item.statement,
+    options: item.options,
+    correct: applied[index].correct,
+    explanation: null,
+    topic: item.topic,
+    answerSource: applied[index].source,
+    page: item.page,
+  }));
+
+  const detectedGabarito = gabaritoResult.gabarito;
+
+  // Caso o parser local nao tenha encontrado questoes, a IA extrai do texto.
+  if (localQuestions.length < 2) {
+    onStage({
+      label: "Layout não reconhecido — a IA está lendo o PDF…",
+      progress: 0.6,
+    });
+
+    const response = await callAI({
+      mode: "extract",
+      text: doc.text.slice(0, MAX_TEXT_CHARS),
+      gabarito: detectedGabarito,
+    });
+
+    if (!response.data) {
+      return {
+        questions: [],
+        detectedGabarito,
+        gabaritoEvidence: gabaritoResult.evidence,
+        aiApplied: false,
+        aiMessage: response.error,
+        pageCount: doc.pageCount,
+        usedAIExtraction: false,
+      };
+    }
+
+    return {
+      questions: response.data.questions,
+      detectedGabarito,
+      gabaritoEvidence: gabaritoResult.evidence,
+      aiApplied: true,
+      aiMessage: null,
+      pageCount: doc.pageCount,
+      usedAIExtraction: true,
+    };
+  }
+
+  onStage({
+    label: "A IA está conferindo o gabarito e explicando as questões…",
+    progress: 0.7,
+  });
+
+  const response = await callAI({
+    mode: "enrich",
+    questions: localQuestions,
+    gabarito: detectedGabarito,
+  });
+
+  return {
+    questions: response.data?.questions ?? localQuestions,
+    detectedGabarito,
+    gabaritoEvidence: gabaritoResult.evidence,
+    aiApplied: Boolean(response.data),
+    aiMessage: response.data ? null : response.error,
+    pageCount: doc.pageCount,
+    usedAIExtraction: false,
+  };
+}
+
+async function callAI(
+  body: ExtractRequest,
+): Promise<{ data: ExtractResponse | null; error: string | null }> {
+  try {
+    const response = await fetch("/api/extract", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        code?: string;
+      };
+      return {
+        data: null,
+        error:
+          payload.code === "NO_AI_PROVIDER"
+            ? "Sem chave de IA no servidor: o quiz usará apenas o gabarito detectado no PDF."
+            : (payload.error ?? `Falha na API (${response.status}).`),
+      };
+    }
+
+    return { data: (await response.json()) as ExtractResponse, error: null };
+  } catch (error) {
+    return {
+      data: null,
+      error:
+        error instanceof Error
+          ? `Não foi possível falar com o servidor: ${error.message}`
+          : "Não foi possível falar com o servidor.",
+    };
+  }
+}

@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // worker do pdf.js copiado pelo prebuild (arquivo de terceiros)
+    "public/**",
   ]),
 ]);
 
