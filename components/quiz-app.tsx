@@ -59,6 +59,15 @@ export function QuizApp() {
   const [quizState, setQuizState] = useState<QuizState>(() => createState());
   const [recent, setRecent] = useState<QuizSummary[]>([]);
   const [savedStates, setSavedStates] = useState<Record<string, QuizState>>({});
+  // O cabecalho so ganha fundo quando a pagina rola (ver o bloco do header).
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const auth = useAuth();
   // Logado = tudo vai para a nuvem e aparece em qualquer aparelho.
@@ -255,7 +264,14 @@ export function QuizApp() {
   }, [quiz, target, stateSignature]);
 
   const header = (
-    <header className="sticky top-0 z-40 border-b border-line/60 bg-canvas/80 backdrop-blur-xl">
+    <header
+      className={[
+        "sticky top-0 z-40 transition-colors duration-300",
+        scrolled
+          ? "border-b border-line/60 bg-canvas/80 backdrop-blur-xl"
+          : "border-b border-transparent bg-transparent",
+      ].join(" ")}
+    >
       <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
         <Logo />
         <div className="flex shrink-0 items-center gap-1.5">
@@ -478,7 +494,7 @@ function UploadScreen({
           <Sparkles className="size-3.5" />
           Do PDF ao quiz em segundos
         </span>
-        <h1 className="mt-5 text-4xl leading-[1.1] font-semibold tracking-tight sm:text-5xl">
+        <h1 className="font-round mt-5 text-4xl leading-[1.1] font-bold tracking-tight sm:text-5xl">
           Sua apostila de questões
           <br />
           <span className="font-display italic text-brand-soft">virou quiz</span>

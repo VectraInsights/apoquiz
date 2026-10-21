@@ -19,6 +19,7 @@
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-instrument), ui-serif, Georgia, serif;
+  --font-round: var(--font-fredoka), ui-rounded, "Segoe UI", system-ui, sans-serif;
 }
 
 * {

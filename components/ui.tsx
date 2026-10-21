@@ -5,32 +5,69 @@ import type { ReactNode } from "react";
 export function Logo({ className = "" }: { className?: string }) {
   return (
     <span className={`inline-flex items-center gap-2.5 ${className}`}>
-      <span className="grid place-items-center size-9 rounded-xl bg-gradient-to-br from-brand to-brand-deep text-white shadow-lg shadow-brand/25">
-        <svg viewBox="0 0 24 24" className="size-5" fill="none" aria-hidden>
+      <span className="relative grid size-9 shrink-0 place-items-center">
+        <span className="absolute inset-0 rounded-full bg-brand/25 blur-[10px]" />
+        <svg viewBox="0 0 24 24" className="relative size-7" fill="none" aria-hidden>
+          <defs>
+            <linearGradient
+              id="apoquiz-glass"
+              x1="4"
+              y1="2"
+              x2="19"
+              y2="18"
+              gradientUnits="userSpaceOnUse"
+            >
+              <stop stopColor="#C4B5FD" />
+              <stop offset="0.45" stopColor="#8B7CFF" />
+              <stop offset="1" stopColor="#3B82F6" />
+            </linearGradient>
+            <linearGradient
+              id="apoquiz-base"
+              x1="9"
+              y1="19"
+              x2="15"
+              y2="22"
+              gradientUnits="userSpaceOnUse"
+            >
+              <stop stopColor="#FDE68A" />
+              <stop offset="1" stopColor="#F59E0B" />
+            </linearGradient>
+          </defs>
+
+          {/* vidro da lampada */}
           <path
-            d="M5 4.75h9.2L19 9.5v9.75H5V4.75Z"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinejoin="round"
+            d="M12 2C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7Z"
+            fill="url(#apoquiz-glass)"
           />
+
+          {/* base */}
           <path
-            d="M14 4.75V9.5h5"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinejoin="round"
+            d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1Z"
+            fill="url(#apoquiz-base)"
           />
+
+          {/* interrogacao dentro da lampada */}
           <path
-            d="m8.4 14.6 2.1 2.1 4.6-4.7"
-            stroke="currentColor"
+            d="M9.4 8.2A2.6 2.6 0 0 1 14.56 7.75L12.45 10.5"
+            stroke="#fff"
             strokeWidth="1.7"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
+          <circle cx="12.2" cy="12.5" r="1.05" fill="#fff" />
+
+          {/* faisca de ideia */}
+          <path
+            d="M19.8 2.3c.2 1.1.6 1.5 1.7 1.7-1.1.2-1.5.6-1.7 1.7-.2-1.1-.6-1.5-1.7-1.7 1.1-.2 1.5-.6 1.7-1.7Z"
+            fill="#34D399"
+          />
         </svg>
       </span>
       <span className="flex flex-col leading-none">
-        <span className="font-semibold tracking-tight text-[15px]">ApoQuiz</span>
-        <span className="text-[11px] text-ink-faint">PDF → quiz com gabarito</span>
+        <span className="font-round text-[17px] font-bold tracking-tight">
+          Apo<span className="text-brand-soft">Quiz</span>
+        </span>
+        <span className="mt-1 text-[11px] text-ink-faint">PDF → quiz com gabarito</span>
       </span>
     </span>
   );

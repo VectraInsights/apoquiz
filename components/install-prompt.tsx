@@ -143,16 +143,19 @@ export function InstallPrompt() {
   }, [event, brave]);
 
   // Banner automatico: so quando o navegador realmente pode instalar.
-  const showBanner = Boolean(event) && !used && !dismissed && !panelOpen;
+  // No computador o botao nao aparece: a instalacao no PC e opcional e
+  // fica para o menu do proprio navegador.
+  const showBanner =
+    Boolean(event) && !used && !dismissed && !panelOpen && mobile;
 
   return (
     <>
-      {alreadyInstalled ? null : (
+      {alreadyInstalled || !mobile ? null : (
         <button
           type="button"
           onClick={() => void install()}
-          title={mobile ? "Instalar no celular" : "Instalar o app"}
-          aria-label={mobile ? "Instalar no celular" : "Instalar o app"}
+          title="Instalar no celular"
+          aria-label="Instalar no celular"
           className="grid size-9 place-items-center rounded-lg border border-line text-ink-muted transition hover:border-brand/50 hover:text-ink"
         >
           <Download className="size-4" />

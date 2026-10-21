@@ -1104,7 +1104,8 @@ acompanha o dispositivo:
 
 A deteccao usava `pointer: coarse` (ponteiro grosso, tipico de toque) ou
 largura menor que 768 px. *(Depois corrigida: ver §26 — agora e so pela
-largura, porque o `pointer: coarse` dava falso positivo no PC.)*
+largura, porque o `pointer: coarse` dava falso positivo no PC. E o botao
+nem aparece mais no computador: ver §28.)*
 
 ---
 
@@ -1173,7 +1174,60 @@ Outros ajustes que vieram junto:
 
 ---
 
-## 28. Estado final
+## 28. Identidade visual: logo nova e cabeçalho integrado ao fundo
+
+### A logo
+
+A marca era um quadrado roxo com o ícone de "folha com visto". Agora é uma
+**lâmpada com uma interrogação dentro** — o "?" dentro do vidro é a questão
+que vira ideia, e a lâmpada carrega o "aha!".
+
+| Elemento | Cor |
+| --- | --- |
+| Vidro da lâmpada | roxo (`#C4B5FD` → `#8B7CFF`) |
+| Base do vidro | azul royal (`#3B82F6`) |
+| Soquete | amarelo (`#FDE68A` → `#F59E0B`) |
+| Faísca de ideia | verde (`#34D399`) |
+
+A tipografia da marca passou a **Fredoka** — arredondada e em negrito, como
+pede a identidade (acessível, de entretenimento leve). A fonte entrou no
+`layout.tsx` como `--font-fredoka` e no `globals.css` como `--font-round`
+(utilitário `font-round`).
+
+O título grande da home também passou a usar a fonte arredondada, mantendo
+*"virou quiz"* na serifada itálica, para o contraste não ficar tudo igual.
+
+### O cabeçalho saiu da "barra"
+
+O cabeçalho tinha fundo (`bg-canvas/80`), blur e uma borda embaixo. No
+monitor, virava uma faixa escura solta em cima da página, que não batia com
+o fundo e chamava mais atenção que o conteúdo.
+
+Agora ele **começa transparente**, integrado ao fundo: logo, nome e botão de
+login pousam direto no fundo da página. O fundo sutil (com blur) e a borda
+aparecem **só depois que a página rola** (`scrollY > 8`), para o conteúdo que
+passa por baixo não atrapalhar o logo.
+
+### O botão de instalar some no computador
+
+O botão de instalar aparecia em **todos** os dispositivos — o Chrome do PC
+também dispara `beforeinstallprompt`. Agora ele é **só no celular**: no
+computador, nem o botão nem o banner aparecem.
+
+A instalação no PC continua possível pelo menu do próprio navegador
+("Instalar app"), mas o app não insiste nisso.
+
+### Ícones do PWA
+
+`scripts/gerar-icones.py` foi reescrito com a identidade nova: fundo em
+gradiente roxo → azul royal, lâmpada branca com a interrogação recortada,
+soquete amarelo e a faísca verde. Os quatro PNGs (`icon-192`, `icon-512`,
+`icon-maskable-512` e `apple-touch-icon`) foram regenerados — o ícone que
+aparece na tela de início do celular agora é o novo.
+
+---
+
+## 29. Estado final
 
 ### Verificações
 
