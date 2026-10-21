@@ -79,9 +79,6 @@ export function AuthButton({
               {email ? (
                 <p className="mt-0.5 truncate text-xs text-ink-faint">{email}</p>
               ) : null}
-              <p className="mt-1 text-[11px] text-ink-faint">
-                Sincronizado com a sua conta
-              </p>
             </div>
 
             <div className="p-1.5">

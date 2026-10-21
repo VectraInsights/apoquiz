@@ -63,11 +63,8 @@ export function Logo({ className = "" }: { className?: string }) {
           />
         </svg>
       </span>
-      <span className="flex flex-col leading-none">
-        <span className="font-round text-[17px] font-bold tracking-tight">
-          Apo<span className="text-brand-soft">Quiz</span>
-        </span>
-        <span className="mt-1 text-[11px] text-ink-faint">PDF → quiz com gabarito</span>
+      <span className="font-round text-[17px] font-bold tracking-tight">
+        Apo<span className="text-brand-soft">Quiz</span>
       </span>
     </span>
   );
