@@ -83,7 +83,6 @@ export function SetupPanel({
     const withAnswer = questions.filter((question) => question.correct).length;
     return {
       total: questions.length,
-      withAnswer,
       without: questions.length - withAnswer,
       fromGabarito: questions.filter((q) => q.answerSource === "gabarito").length,
       fromAI: questions.filter((q) => q.answerSource === "ia").length,
@@ -298,12 +297,11 @@ export function SetupPanel({
         {/* Coluna de revisao */}
         <div className="lg:col-span-7">
           <div className="panel p-5">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-3 gap-3">
               <Stat label="Questões" value={stats.total} />
-              <Stat label="Com gabarito" value={stats.withAnswer} tone="ok" />
               <Stat label="Do PDF" value={stats.fromGabarito} tone="brand" />
               <Stat
-                label="Resolvidas pela IA"
+                label="Pela IA"
                 value={stats.fromAI}
                 tone={stats.fromAI > 0 ? "brand" : "default"}
               />
