@@ -332,6 +332,74 @@ function cleanTopic(text: string): string {
   return cleanText(text.replace(/\s*…\s*$/, "").replace(/\s*-\s*$/, "")).slice(0, 80);
 }
 
+/** True quando o texto tem mais palavras separadas por espaco. */
+function temMaisPalavras(um: string, outro: string): boolean {
+  const conta = (texto: string) =>
+    texto.split(/\s+/).filter((parte) => parte.length > 0).length;
+  return conta(um) > conta(outro);
+}
+
+/**
+ * Alguns PDFs desenham o topico em capsulas menores e **perdem o espaco
+ * entre as palavras** ("ETICAE GESTAOPUBLICA"), ou cortam o cabecalho
+ * ("... COMPONENTES E"). O titulo da secao vem limpo: quando ele
+ * explica o topico, o topico e refeito com ele.
+ */
+function repararTopico(topico: string, tituloSecao: string | null): string {
+  if (!tituloSecao) return topico;
+
+  // O PDF costuma cortar o cabecalho com "..." ou "-": fica sem o corte.
+  const titulo = tituloSecao
+    .replace(/\s*…\s*$/, "")
+    .replace(/\s*-\s*$/, "")
+    .trim();
+  if (!titulo) return topico;
+
+  const semEspaco = (texto: string) => texto.replace(/\s+/g, "");
+  const alvo = semEspaco(titulo);
+  const colado = semEspaco(topico);
+  if (alvo.length < 8 || colado.length < 8) return topico;
+
+  // 1) o topico termina com a versao colada do titulo: troca so o final
+  if (colado.endsWith(alvo)) {
+    const sobra = colado.length - alvo.length;
+    let contados = 0;
+    let posicao = 0;
+    while (posicao < topico.length && contados < sobra) {
+      if (!/\s/.test(topico[posicao])) contados += 1;
+      posicao += 1;
+    }
+    const prefixo = topico.slice(0, posicao).trimEnd();
+    return prefixo ? `${prefixo} ${titulo}` : titulo;
+  }
+
+  // 2) o topico e o titulo cortado pelo PDF: usa o titulo inteiro
+  if (alvo.startsWith(colado) && colado.length / alvo.length >= 0.45) {
+    return titulo;
+  }
+
+  // 3) o topico e a versao colada do titulo: o titulo vem limpo, entao
+  //    ele substitui o topico (desde que os dois falem do mesmo assunto)
+  const razaoDeEspacos = (texto: string) =>
+    (texto.match(/\s/g)?.length ?? 0) / Math.max(1, texto.length);
+  if (
+    razaoDeEspacos(topico) < razaoDeEspacos(titulo) * 0.75 &&
+    prefixoComum(colado, alvo) >= 12
+  ) {
+    return titulo;
+  }
+
+  return topico;
+}
+
+/** Quantos caracteres iniciais dois textos compartilham. */
+function prefixoComum(um: string, outro: string): number {
+  const tamanho = Math.min(um.length, outro.length);
+  let i = 0;
+  while (i < tamanho && um[i] === outro[i]) i += 1;
+  return i;
+}
+
 /* ------------------------------------------------------------------ */
 /* Alternativas                                                         */
 /* ------------------------------------------------------------------ */
@@ -1150,8 +1218,16 @@ export function parseQuestions(pages: ExtractedPage[]): ParsedQuestion[] {
 
     // Topico em caixa alta (ex.: "ASPECTOS GEOGRÁFICOS, ... SOCI- ...")
     if (isTopicLine(line.text)) {
-      if (current && !current.topic) {
-        current.topic = cleanTopic(line.text);
+      if (current) {
+        const candidato = repararTopico(
+          cleanTopic(line.text),
+          section?.title ?? null,
+        );
+        // O mesmo cabecalho pode aparecer em duas versoes: uma com os
+        // espacos e outra colada. Vale a versao com mais palavras.
+        if (!current.topic || temMaisPalavras(candidato, current.topic)) {
+          current.topic = candidato;
+        }
       }
       continue;
     }

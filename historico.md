@@ -1529,7 +1529,46 @@ navegador; foram escondidas por CSS.
 
 ---
 
-## 33. Estado final
+## 33. Tópico sem espaços colados
+
+Alguns PDFs desenham o cabeçalho corrente (o "assunto") em **capsulas
+menores** e o texto sai colado:
+
+```
+Antes:  ADMINISTRACAO· ÉTICAE GESTÃOPÚBLICA
+Agora:  ADMINISTRACAO· ÉTICA E GESTÃO PÚBLICA
+```
+
+Nesses arquivos, a camada antiga do PDF (a do documento de origem) tem o
+mesmo cabeçalho **com os espaços** — em small caps, o espaço entre
+palavras some no texto extraído.
+
+### Como foi resolvido
+
+O **título da seção** vem sempre limpo ("2.5 ÉTICA E GESTÃO PÚBLICA") e
+fala do mesmo assunto. O parser passou a comparar o tópico com ele
+(`repararTopico`):
+
+| Situação | O que faz |
+| --- | --- |
+| o tópico termina com a versão colada do título | troca o final pelo título limpo |
+| o tópico é o título cortado pelo PDF ("… COMPONENTES E") | usa o título inteiro |
+| o título é a versão colada do tópico (mesmo assunto, menos espaços) | usa o título |
+
+O corte do PDF ("…" ou "-") também sai do texto final.
+
+Além disso, quando o mesmo cabeçalho aparece em duas versões, vale a
+que tem **mais palavras** (a colada tem menos).
+
+### Verificação
+
+- 19 arquivos de ADMINISTRAÇÃO: todos os tópicos limpos;
+- apostila completa (2.706 páginas): **1.824/1.824** e os tópicos
+  continuam iguais ("LÍNGUA PORTUGUESA · ORTOGRAFIA OFICIAL").
+
+---
+
+## 34. Estado final
 
 ### Verificações
 
