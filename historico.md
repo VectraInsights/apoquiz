@@ -1411,38 +1411,39 @@ estudo (sem gabarito no PDF), e quem responde é a IA.
 
 ## 31. Tela de configuração enxuta
 
-A tela "Quase lá" (o passo entre subir o PDF e começar o quiz) estava
-pesada: três contadores grandes, o aviso do gabarito e a lista com **todas**
-as questões abertas de uma vez.
+A tela "Quase lá" (o passo entre subir o PDF e começar o quiz) tinha duas
+colunas: à esquerda a configuração, à direita os contadores e a **revisão
+do gabarito** — uma lista com todas as questões abertas de uma vez.
 
 ### O que saiu
 
-| Antes | Agora |
-| --- | --- |
-| "Com gabarito: 38" | sumiu (o app já puxa o gabarito) |
-| "Do PDF: 38" | sumiu (é o dado do gabarito, e ele já está na revisão) |
-| "Resolvidas pela IA: 0" | aparece só quando a IA resolveu algo |
+- **"Revisar gabarito" foi removido por completo**: o botão, a lista de
+  cartões com todas as questões, a linha "Gabarito detectado no PDF: N
+  resposta(s)" e o componente `ReviewCard` (junto com a lógica de corrigir
+  a resposta na mão).
+- **"Com gabarito"** (o contador) — o app já puxa o gabarito, o número
+  era redundante.
 
-O que ficou no lugar é uma **linha compacta**:
+### O que ficou
+
+A tela virou **uma coluna** (768 px, centralizada) na ordem:
 
 ```
-38 questões  ·  2 resolvidas pela IA
+1. Quase lá           título do quiz + arquivo
+2. Números            QUESTÕES · DO PDF · PELA IA
+3. Opções             modo de resposta, tempo limite, assunto, nível
+4. Iniciar quiz
 ```
 
-### A revisão do gabarito
+Os três contadores voltaram (quantas questões, quantas têm resolução do
+PDF, quantas a IA resolveu) e as opções desceram para logo abaixo deles.
 
-A lista de questões vinha **sempre aberta** — 38 cartões antes de a pessoa
-conseguir chegar no botão "Iniciar quiz". Agora ela só abre quando há
-algo para conferir:
+### Detalhe do aviso
 
-- se alguma questão ficou **sem resposta**, a revisão abre sozinha e o
-  título avisa: *"2 questões para conferir"*;
-- se o PDF traz tudo, ela fica **recolhida** (um clique abre).
-
-O aviso de "questões sem resposta" também passou a dizer "na revisão do
-gabarito" em vez de "abaixo" — que era enganoso quando a lista estava
-recolhida.
-
+Quando alguma questão fica sem resposta (o PDF não trazia o gabarito e a
+IA não soube responder), o aviso agora diz que elas **aparecem no quiz
+sem correção** — antes ele mandava a pessoa corrigir na revisão do
+gabarito, que não existe mais.
 ---
 
 ## 32. Estado final

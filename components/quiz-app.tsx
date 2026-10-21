@@ -309,9 +309,7 @@ export function QuizApp() {
           title={title}
           onTitleChange={setTitle}
           questions={questions}
-          onQuestionsChange={setQuestions}
           sourceFile={sourceFile}
-          detectedGabarito={detectedGabarito}
           aiApplied={aiApplied}
           aiNotNeeded={aiNotNeeded}
           aiMessage={aiMessage}
