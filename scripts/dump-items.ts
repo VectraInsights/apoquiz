@@ -17,10 +17,17 @@ async function main() {
   const page = await doc.getPage(alvo);
   const content = await page.getTextContent();
 
-  const itens = content.items
-    .filter((raw): raw is typeof raw & { str: string } => "str" in raw && raw.str.trim() !== "")
+  const brutos = content.items as unknown as {
+    str: string;
+    transform: number[];
+    width: number;
+    height: number;
+  }[];
+
+  const itens = brutos
+    .filter((raw) => raw.str && raw.str.trim() !== "")
     .map((raw, i) => {
-      const t = raw.transform as number[];
+      const t = raw.transform;
       return {
         i,
         x: t[4] ?? 0,
