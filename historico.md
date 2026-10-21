@@ -1495,6 +1495,20 @@ abaixo da dobra. O que mudou:
 - painéis com `p-4` (antes `p-5`), margens internas e gaps menores;
 - os números (Stat) ficaram mais compactos.
 
+### Título por tema
+
+Quando vinha mais de um PDF, o título era gerado por contagem ("3 apostilas
+— 102 questões"). Agora o título fala do **conteúdo**: os próprios arquivos
+são os temas, então eles viram o título.
+
+| Arquivos | Título |
+| --- | --- |
+| A BUROCRACIA E O ESTADO.pdf | A BUROCRACIA E O ESTADO |
+| A BUROCRACIA… + GESTÃO LOCAL… | A BUROCRACIA E O ESTADO + GESTÃO LOCAL, PODER LOCAL E… |
+
+Acima de 64 caracteres o título corta com reticências. A pessoa pode
+editar o campo à vontade.
+
 ### Campo de número sem setinhas
 
 O campo "Tempo limite" (que agora aceita digitação) tinha as setinhas do

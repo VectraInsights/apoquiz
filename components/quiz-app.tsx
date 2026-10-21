@@ -39,6 +39,28 @@ import { ResultsPanel } from "./results-panel";
 
 type Stage = "upload" | "processing" | "setup" | "quiz" | "results";
 
+/** Nome do arquivo limpo, sem extensao nem tracos. */
+function nomeDeArquivo(file: File): string {
+  return file.name
+    .replace(/\.pdf$/i, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Titulo quando vem mais de um PDF: os proprios arquivos sao os temas,
+ * entao eles viram o titulo ("A BUROCRACIA E O ESTADO + GESTAO LOCAL").
+ * Sem numeros de apostila nem de questao - o titulo fala do conteudo.
+ */
+function tituloPorTema(files: File[]): string {
+  const temas = files.map(nomeDeArquivo).filter(Boolean);
+  if (temas.length === 0) return "Revisão";
+
+  const junta = temas.join(" + ");
+  return junta.length > 64 ? `${junta.slice(0, 61).trimEnd()}…` : junta;
+}
+
 export function QuizApp() {
   const [stage, setStage] = useState<Stage>("upload");
   const [processStage, setProcessStage] = useState<ProcessStage>({
@@ -109,10 +131,10 @@ export function QuizApp() {
 
       if (files.length === 1) {
         setSourceFile(files[0].name);
-        setTitle(files[0].name.replace(/\.pdf$/i, "").replace(/[_-]+/g, " "));
+        setTitle(nomeDeArquivo(files[0]));
       } else {
         setSourceFile(`${files.length} apostilas`);
-        setTitle(`${files.length} apostilas — ${outcome.questions.length} questões`);
+        setTitle(tituloPorTema(files));
       }
       setStage("setup");
     } catch (caught) {
