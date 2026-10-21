@@ -89,24 +89,7 @@ export function diagnosePdf(
 
   const duplicatedPages = pages.filter((page) => page.duplicated).length;
 
-  const warnings: DiagnosticItem[] = [];
-
-  // Questoes do gabarito que nao chegaram a ser lidas: o quiz esta
-  // incompleto e a pessoa precisa saber.
-  if (missingQuestions.length > 0) {
-    warnings.push({
-      id: "nao-reconhecidas",
-      text: `${missingQuestions.length} questão(ões) não foram reconhecidas: ${formatList(missingQuestions)}. O PDF provavelmente tem texto sobreposto (cabeçalho ou rodapé colado nas alternativas).`,
-    });
-  }
-
-  // Questao sem resposta: a pessoa precisa escolher na revisao.
-  if (withoutAnswer.length > 0) {
-    warnings.push({
-      id: "sem-resposta",
-      text: `${withoutAnswer.length} questão(ões) ficaram sem resposta. Escolha a alternativa correta na revisão do gabarito.`,
-    });
-  }
+  const warnings = buildWarnings({ missingQuestions, withoutAnswer });
 
   return {
     pages: pages.length,
@@ -119,6 +102,36 @@ export function diagnosePdf(
     duplicatedPages,
     warnings,
   };
+}
+
+/**
+ * Monta os avisos do diagnostico. Usado tanto no PDF solteiro quanto
+ * quando varios PDFs sao processados juntos.
+ */
+export function buildWarnings(input: {
+  missingQuestions: number[];
+  withoutAnswer: number[];
+}): DiagnosticItem[] {
+  const warnings: DiagnosticItem[] = [];
+
+  // Questoes do gabarito que nao chegaram a ser lidas: o quiz esta
+  // incompleto e a pessoa precisa saber.
+  if (input.missingQuestions.length > 0) {
+    warnings.push({
+      id: "nao-reconhecidas",
+      text: `${input.missingQuestions.length} questão(ões) não foram reconhecidas: ${formatList(input.missingQuestions)}. O PDF provavelmente tem texto sobreposto (cabeçalho ou rodapé colado nas alternativas).`,
+    });
+  }
+
+  // Questao sem resposta: a pessoa precisa escolher na revisao.
+  if (input.withoutAnswer.length > 0) {
+    warnings.push({
+      id: "sem-resposta",
+      text: `${input.withoutAnswer.length} questão(ões) ficaram sem resposta. Escolha a alternativa correta na revisão do gabarito.`,
+    });
+  }
+
+  return warnings;
 }
 
 /**

@@ -11,7 +11,7 @@ import {
   Sparkles,
   Target,
 } from "lucide-react";
-import { processPdf, type Stage as ProcessStage } from "@/lib/client/pipeline";
+import { processPdfs, type Stage as ProcessStage } from "@/lib/client/pipeline";
 import { buildQuiz, createState } from "@/lib/quiz";
 import {
   deleteQuiz as removeQuizFrom,
@@ -83,13 +83,13 @@ export function QuizApp() {
   }, [refreshList]);
 
   /* ----------------------------- processar ---------------------------- */
-  const handleFile = useCallback(async (file: File) => {
+  const handleFiles = useCallback(async (files: File[]) => {
     setError(null);
     setStage("processing");
     setProcessStage({ label: "Preparando…", progress: 0.02 });
 
     try {
-      const outcome = await processPdf(file, setProcessStage);
+      const outcome = await processPdfs(files, setProcessStage);
 
       if (outcome.questions.length === 0) {
         setError(
@@ -106,8 +106,14 @@ export function QuizApp() {
       setAiMessage(outcome.aiMessage);
       setAiNotNeeded(outcome.aiNotNeeded);
       setDiagnostics(outcome.diagnostics);
-      setSourceFile(file.name);
-      setTitle(file.name.replace(/\.pdf$/i, "").replace(/[_-]+/g, " "));
+
+      if (files.length === 1) {
+        setSourceFile(files[0].name);
+        setTitle(files[0].name.replace(/\.pdf$/i, "").replace(/[_-]+/g, " "));
+      } else {
+        setSourceFile(`${files.length} apostilas`);
+        setTitle(`${files.length} apostilas — ${outcome.questions.length} questões`);
+      }
       setStage("setup");
     } catch (caught) {
       setError(
@@ -291,7 +297,7 @@ export function QuizApp() {
           recent={recent}
           savedStates={savedStates}
           auth={auth}
-          onFile={handleFile}
+          onFiles={handleFiles}
           onSample={handleSample}
           onResume={handleResume}
           onRestart={handleRestart}
@@ -315,7 +321,6 @@ export function QuizApp() {
           aiMessage={aiMessage}
           diagnostics={diagnostics}
           onStart={handleStart}
-          onBack={handleNewFile}
         />
       ) : null}
 
@@ -339,9 +344,6 @@ export function QuizApp() {
         />
       ) : null}
 
-      <footer className="mt-auto border-t border-line/60 py-8 text-center text-xs text-ink-faint">
-        ApoQuiz · PDF → quiz interativo com gabarito
-      </footer>
     </div>
   );
 }
@@ -354,7 +356,7 @@ function UploadScreen({
   savedStates,
   auth,
   topBar,
-  onFile,
+  onFiles,
   onSample,
   onResume,
   onRestart,
@@ -365,7 +367,7 @@ function UploadScreen({
   savedStates: Record<string, QuizState>;
   auth: ReturnType<typeof useAuth>;
   topBar: ReactNode;
-  onFile: (file: File) => void;
+  onFiles: (files: File[]) => void;
   onSample: () => void;
   onResume: (quiz: QuizSummary) => void;
   onRestart: (quiz: QuizSummary) => void;
@@ -508,7 +510,7 @@ function UploadScreen({
           </div>
         ) : null}
 
-        <UploadZone onFile={onFile} busy={false} onSample={onSample} />
+        <UploadZone onFiles={onFiles} busy={false} onSample={onSample} />
       </div>
 
       <section className="mx-auto mt-16 max-w-5xl">

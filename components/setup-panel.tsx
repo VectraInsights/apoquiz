@@ -4,7 +4,6 @@ import { useMemo, useState, type ReactNode } from "react";
 import {
   ArrowRight,
   Check,
-  ChevronLeft,
   CircleAlert,
   FileText,
   Sparkles,
@@ -25,7 +24,6 @@ type Props = {
   aiMessage: string | null;
   diagnostics: PdfDiagnostics | null;
   onStart: (settings: QuizSettings, questions: Question[]) => void;
-  onBack: () => void;
   /** Logo + acoes, renderizadas no fluxo da pagina (sem cabecalho fixo). */
   topBar?: ReactNode;
 };
@@ -41,7 +39,6 @@ export function SetupPanel({
   aiMessage,
   diagnostics,
   onStart,
-  onBack,
 }: Props) {
   const [settings, setSettings] = useState<QuizSettings>({
     shuffleQuestions: true,
@@ -101,29 +98,20 @@ export function SetupPanel({
   };
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 pb-20 pt-6 sm:px-6">
+    <div className="mx-auto w-full max-w-6xl px-4 pb-6 pt-2 sm:px-6">
       {/* A marca faz parte do conteudo, sem barra fixa */}
-      {topBar ? <div className="mb-6">{topBar}</div> : null}
-
-      <button
-        type="button"
-        onClick={onBack}
-        className="mb-4 inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-sm text-ink-muted transition hover:text-ink"
-      >
-        <ChevronLeft className="size-4" />
-        Enviar outro PDF
-      </button>
+      {topBar ? <div className="mb-3">{topBar}</div> : null}
 
       <div className="mx-auto w-full max-w-5xl">
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-3 lg:grid-cols-2">
           {/* 1. Quase la */}
-          <div className="panel p-5">
+          <div className="panel p-4">
             <h2 className="text-lg font-semibold">Quase lá</h2>
             <p className="mt-1 text-sm text-ink-muted">
               Confira o que foi extraído e escolha como quer responder.
             </p>
 
-            <label className="mt-5 block">
+            <label className="mt-3 block">
               <span className="mb-1.5 block text-xs uppercase tracking-wider text-ink-faint">
                 Título do quiz
               </span>
@@ -135,14 +123,14 @@ export function SetupPanel({
               />
             </label>
 
-            <div className="mt-4 flex items-center gap-2 text-xs text-ink-faint">
+            <div className="mt-3 flex items-center gap-2 text-xs text-ink-faint">
               <FileText className="size-3.5" />
               <span className="truncate">{sourceFile}</span>
             </div>
           </div>
 
           {/* 2. Quantidades */}
-          <div className="panel p-5">
+          <div className="panel p-4">
             <div className="grid grid-cols-3 gap-3">
               <Stat label="Questões" value={stats.total} />
               <Stat label="Do PDF" value={stats.fromGabarito} tone="brand" />
@@ -154,7 +142,7 @@ export function SetupPanel({
             </div>
 
             {diagnostics && diagnostics.warnings.length > 0 ? (
-              <div className="mt-4 rounded-xl border border-warn/30 bg-warn/10 p-3.5">
+              <div className="mt-3 rounded-xl border border-warn/30 bg-warn/10 p-3.5">
                 <p className="flex items-center gap-2 text-sm font-semibold text-warn">
                   <CircleAlert className="size-4" />
                   O PDF tem {diagnostics.warnings.length}{" "}
@@ -178,12 +166,12 @@ export function SetupPanel({
             ) : null}
 
             {aiMessage ? (
-              <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-warn/30 bg-warn/10 p-3.5 text-sm text-warn">
+              <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-warn/30 bg-warn/10 p-3.5 text-sm text-warn">
                 <CircleAlert className="mt-0.5 size-4 shrink-0" />
                 <span>{aiMessage}</span>
               </div>
             ) : aiNotNeeded ? (
-              <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-ok/30 bg-ok/10 p-3.5 text-sm text-ok">
+              <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-ok/30 bg-ok/10 p-3.5 text-sm text-ok">
                 <Check className="mt-0.5 size-4 shrink-0" />
                 <span>
                   O PDF já trazia a resolução comentada de cada questão — a IA
@@ -191,7 +179,7 @@ export function SetupPanel({
                 </span>
               </div>
             ) : aiApplied ? (
-              <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-brand/30 bg-brand/10 p-3.5 text-sm text-brand-soft">
+              <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-brand/30 bg-brand/10 p-3.5 text-sm text-brand-soft">
                 <Sparkles className="mt-0.5 size-4 shrink-0" />
                 <span>
                   A IA conferiu o gabarito do PDF, limpou os enunciados e
@@ -214,9 +202,9 @@ export function SetupPanel({
           </div>
 
           {/* 3. Modo de resposta */}
-          <div className="panel p-5">
+          <div className="panel p-4">
             <h3 className="text-sm font-semibold">Modo de resposta</h3>
-            <div className="mt-3 space-y-2">
+            <div className="mt-2.5 space-y-2">
               <Toggle
                 checked={settings.instantFeedback}
                 onChange={(value) =>
@@ -243,7 +231,7 @@ export function SetupPanel({
           </div>
 
           {/* 4. Tempo, assunto e nivel */}
-          <div className="panel p-5">
+          <div className="panel p-4">
             <label className="block">
               <span className="mb-1.5 block text-xs uppercase tracking-wider text-ink-faint">
                 Tempo limite
@@ -278,7 +266,7 @@ export function SetupPanel({
               </div>
             </label>
 
-            <div className="mt-2 flex flex-wrap gap-1.5">
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
               {[
                 { label: "Sem limite", value: null },
                 { label: "5", value: 5 },
@@ -305,7 +293,7 @@ export function SetupPanel({
             </div>
 
             {topics.length > 0 ? (
-              <label className="mt-4 block">
+              <label className="mt-3 block">
                 <span className="mb-1.5 block text-xs uppercase tracking-wider text-ink-faint">
                   Assunto
                 </span>
@@ -330,7 +318,7 @@ export function SetupPanel({
             ) : null}
 
             {levelCounts.length > 0 ? (
-              <div className="mt-4">
+              <div className="mt-3">
                 <span className="mb-1.5 block text-xs uppercase tracking-wider text-ink-faint">
                   Nível de dificuldade
                 </span>

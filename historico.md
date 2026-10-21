@@ -1459,7 +1459,50 @@ sem correção** — antes ele mandava a pessoa corrigir na revisão do
 gabarito, que não existe mais.
 ---
 
-## 32. Estado final
+## 32. Vários PDFs de uma vez e tela que cabe inteira
+
+### Vários PDFs no mesmo quiz
+
+A área de upload agora aceita **vários arquivos de uma vez** (arrastar ou
+escolher). As questões de todos os PDFs entram num **único quiz**, com a
+numeração em sequência.
+
+O detalhe que exige cuidado: o gabarito é indexado por
+`capitulo#numero` (`"1.2#45"`). Dois arquivos do mesmo capítulo teriam a
+**mesma chave** e as respostas se misturariam. Por isso, com mais de um
+arquivo, o capítulo ganha o prefixo do arquivo:
+
+| Arquivo | Questão | Capítulo | Chave do gabarito |
+| --- | --- | --- | --- |
+| A BUROCRACIA (0) | 1 | `0:1.2` | `0:1.2#1` → A |
+| A BUROCRACIA (0) | 2 | `0:1.2` | `0:1.2#2` → B |
+| GESTÃO LOCAL (1) | 3 | `1:1.2` | `1:1.2#3` → C |
+
+Com um arquivo só, nada muda: o capítulo e a numuração ficam como eram
+(`1.2`, `1`, `2`…).
+
+A junção ficou em `mesclarLeituras()` (`lib/client/pipeline.ts`), com teste
+em `scripts/check-merge.ts`.
+
+### Tela que cabe na tela
+
+A tela de configuração não cabia inteira: o botão "Iniciar quiz" ficava
+abaixo da dobra. O que mudou:
+
+- **"Enviar outro PDF" saiu** — o botão "Novo PDF" do cabeçalho faz esse
+  papel (e a tela de upload já aceita vários arquivos);
+- **o rodapé saiu** ("ApoQuiz · PDF → quiz interativo com gabarito");
+- painéis com `p-4` (antes `p-5`), margens internas e gaps menores;
+- os números (Stat) ficaram mais compactos.
+
+### Campo de número sem setinhas
+
+O campo "Tempo limite" (que agora aceita digitação) tinha as setinhas do
+navegador; foram escondidas por CSS.
+
+---
+
+## 33. Estado final
 
 ### Verificações
 

@@ -44,6 +44,18 @@ body {
   background: rgba(124, 108, 248, 0.35);
 }
 
+/* Campo de numero sem as setinhas do navegador (o valor e digitado). */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 /* Scrollbar discreta */
 * {
   scrollbar-width: thin;

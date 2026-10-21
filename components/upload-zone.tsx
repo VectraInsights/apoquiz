@@ -5,11 +5,11 @@ import { FileUp, Sparkles, Loader2 } from "lucide-react";
 import { isPdf } from "@/lib/client/pipeline";
 
 export function UploadZone({
-  onFile,
+  onFiles,
   busy,
   onSample,
 }: {
-  onFile: (file: File) => void;
+  onFiles: (files: File[]) => void;
   busy: boolean;
   onSample: () => void;
 }) {
@@ -21,19 +21,19 @@ export function UploadZone({
       event.preventDefault();
       setDragging(false);
       if (busy) return;
-      const file = event.dataTransfer.files?.[0];
-      if (file) onFile(file);
+      const files = Array.from(event.dataTransfer.files ?? []).filter(isPdf);
+      if (files.length > 0) onFiles(files);
     },
-    [busy, onFile],
+    [busy, onFiles],
   );
 
   const handlePick = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      if (file) onFile(file);
+      const files = Array.from(event.target.files ?? []).filter(isPdf);
+      if (files.length > 0) onFiles(files);
       event.target.value = "";
     },
-    [onFile],
+    [onFiles],
   );
 
   return (
@@ -54,7 +54,7 @@ export function UploadZone({
             inputRef.current?.click();
           }
         }}
-        aria-label="Enviar PDF da apostila"
+        aria-label="Enviar PDFs da apostila"
         className={`flex cursor-pointer flex-col items-center justify-center gap-4 rounded-[0.9rem] border-2 border-dashed px-6 py-12 text-center transition ${
           dragging
             ? "border-brand bg-brand/10"
@@ -77,17 +77,19 @@ export function UploadZone({
 
         <div className="space-y-1.5">
           <p className="text-base font-semibold">
-            {dragging ? "Solte o PDF aqui" : "Arraste o PDF da apostila"}
+            {dragging
+              ? "Solte os PDFs aqui"
+              : "Arraste os PDFs da apostila"}
           </p>
           <p className="text-sm text-ink-muted">
-            ou clique para escolher o arquivo — o processamento acontece no seu
-            navegador
+            ou clique para escolher os arquivos — pode mandar vários de uma vez, e
+            o processamento acontece no seu navegador
           </p>
         </div>
 
         <p className="text-xs text-ink-faint">
-          O arquivo é lido no seu navegador. Nada é enviado para servidores sem
-          necessidade.
+          Os arquivos são lidos no seu navegador. Nada é enviado para servidores
+          sem necessidade.
         </p>
 
         <button
@@ -107,6 +109,7 @@ export function UploadZone({
           ref={inputRef}
           type="file"
           accept="application/pdf,.pdf"
+          multiple
           className="hidden"
           onChange={handlePick}
         />
