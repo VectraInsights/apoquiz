@@ -324,7 +324,7 @@ export function removeDuplicatedLayout(items: RawItem[]): {
     if (item.x < bandaInicio || item.x > bandaFim) continue;
     if (SECTION_TITLE_ITEM.test(item.str.trim())) continue;
     // A copia tem fonte maior que o corpo do texto da pagina.
-    if (item.height <= alturaCorpo * 1.25) continue;
+    if (item.height <= alturaCorpo * 1.1) continue;
 
     const texto = normalize(item.str);
     if (!texto) continue;

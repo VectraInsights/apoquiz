@@ -1347,7 +1347,7 @@ E o aviso de "sem resposta" é recalculado **depois** que a IA passa
 (`adjustDiagnostics`): se a IA resolveu as questões que o PDF não trazia,
 o aviso simplesmente não existe mais.
 
-### 2. Números que não são números de questão
+### 4. Números que não são números de questão
 
 Três padrões de enunciado que o parser tomava como cabeçalho de questão:
 
@@ -1356,15 +1356,18 @@ Três padrões de enunciado que o parser tomava como cabeçalho de questão:
 | "52.A4B. Sabe-se que esse número..." | expressão matemática | criava a questão "52" |
 | "...as ações em 2000." (linha só com o número) | continuação da frase | criava a questão "2000" |
 | "1701) e o início efetivo..." | continuação da frase | criava a questão "1701" |
+| "50) +12 − x= + 5" (fração de equação) | parte de uma equação | criava a questão "50" |
 
 Regras novas no cabeçalho de questão:
 
 - o ponto só vale como separador quando vem com texto depois
   ("52. Sabe-se" é enunciado, "52.A4B" é matemática);
 - uma linha só com número e ponto é continuação de frase;
-- texto começando com letra minúscula depois do número é continuação.
+- texto começando com letra minúscula depois do número é continuação;
+- o guarda de "fórmula matemática" passou a reconhecer os símbolos
+  Unicode (− ÷ ± ² ³ √ ≠ ≤ ≥ π), que apareciam nas equações.
 
-### 3. A camada duplicada sem texto repetido
+### 5. A camada duplicada sem texto repetido
 
 O detector de renderização duplicada exigia que a página tivesse frases
 repetidas (para transformar a cópia em âncora). Em algumas apostilas a
@@ -1375,7 +1378,8 @@ Agora a detecção usa a geometria da página:
 
 - a renderização antiga é desenhada numa **coluna mais estreita** (itens
   bem à direita da margem da página);
-- e com **fonte maior** que o corpo do texto.
+- e com **fonte maior** que o corpo do texto (a escala varia de 1,15 a
+  1,40 conforme a apostila).
 
 Itens assim, com texto único na página, são descartados — exceto os
 títulos de seção, que o parser precisa para saber onde estão as questões
@@ -1387,14 +1391,22 @@ Varredura nos **154 PDFs** das pastas do material (ADMINISTRAÇÃO,
 AUDITORIA E CONTROLE INTERNO, CONHECIMENTOS GERAIS, DIREITO
 CONSTITUCIONAL, LEGISLAÇÃO, PORTUGUÊS, RACIOCÍNIO LÓGICO, TI):
 
-- antes: 13 arquivos com pendência (questões com número errado ou sem
-  resposta);
-- depois: **0** nas pastas de exercícios (as pastas TEORIA e RESUMO são
-  material de estudo, sem gabarito — a IA resolve).
+| Arquivo | Resultado |
+| --- | --- |
+| TI.pdf | **3030/3030** |
+| QUESTOES RACIOCÍNIO LÓGICO.pdf | **1009/1009** |
+| QUESTOES PORTUGUÊS.pdf | **809/809** |
+| QUESTOES CONHECIMENTOS GERAIS.pdf | **348/348** |
+| Pastas por assunto (19 + 19 + 9 + 2 + 16 + 18 + 23 + 27) | todas 100% |
+
+Antes: 13 arquivos com pendência (questão com número errado ou sem
+resposta). Depois: **0**.
 
 Sem regressão na apostila completa: **1.824/1.824 questões com gabarito
 do PDF**.
 
+As pastas **TEORIA** e **RESUMO** não entram na conta: são material de
+estudo (sem gabarito no PDF), e quem responde é a IA.
 ---
 
 ## 31. Estado final

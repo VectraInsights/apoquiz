@@ -205,7 +205,8 @@ const PAGE_NUMBER_LINE =
 const DECORATION_LINE = /^\s*[-–—_=~*•·.]+\s*$/;
 
 // Linhas que so podem ser matematica/simbolos (nao sao enunciados)
-const MATH_ONLY = /^[\d\s.,+\-*/^()=<>%°×xX:]+$/;
+const MATH_ONLY =
+  /^[\d\s.,+\-*/^()=<>%°×xX:−÷±²³√≠≤≥π∅]+$/;
 
 /* --------------------------- secoes do documento --------------------- */
 
