@@ -1409,7 +1409,43 @@ As pastas **TEORIA** e **RESUMO** não entram na conta: são material de
 estudo (sem gabarito no PDF), e quem responde é a IA.
 ---
 
-## 31. Estado final
+## 31. Tela de configuração enxuta
+
+A tela "Quase lá" (o passo entre subir o PDF e começar o quiz) estava
+pesada: três contadores grandes, o aviso do gabarito e a lista com **todas**
+as questões abertas de uma vez.
+
+### O que saiu
+
+| Antes | Agora |
+| --- | --- |
+| "Com gabarito: 38" | sumiu (o app já puxa o gabarito) |
+| "Do PDF: 38" | sumiu (é o dado do gabarito, e ele já está na revisão) |
+| "Resolvidas pela IA: 0" | aparece só quando a IA resolveu algo |
+
+O que ficou no lugar é uma **linha compacta**:
+
+```
+38 questões  ·  2 resolvidas pela IA
+```
+
+### A revisão do gabarito
+
+A lista de questões vinha **sempre aberta** — 38 cartões antes de a pessoa
+conseguir chegar no botão "Iniciar quiz". Agora ela só abre quando há
+algo para conferir:
+
+- se alguma questão ficou **sem resposta**, a revisão abre sozinha e o
+  título avisa: *"2 questões para conferir"*;
+- se o PDF traz tudo, ela fica **recolhida** (um clique abre).
+
+O aviso de "questões sem resposta" também passou a dizer "na revisão do
+gabarito" em vez de "abaixo" — que era enganoso quando a lista estava
+recolhida.
+
+---
+
+## 32. Estado final
 
 ### Verificações
 
