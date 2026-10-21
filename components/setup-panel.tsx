@@ -14,7 +14,7 @@ import type { Question, QuestionLevel, QuizSettings } from "@/lib/types";
 import { LEVEL_LABELS, QUESTION_LEVELS } from "@/lib/types";
 import { countLabel, verbFor } from "@/lib/plural";
 import type { PdfDiagnostics } from "@/lib/pdf/diagnostics";
-import { Badge, Stat, Toggle } from "./ui";
+import { Badge, Toggle } from "./ui";
 
 type Props = {
   title: string;
@@ -56,7 +56,10 @@ export function SetupPanel({
   });
   const [topic, setTopic] = useState<string>("todas");
   const [levels, setLevels] = useState<QuestionLevel[]>([]);
-  const [showReview, setShowReview] = useState(true);
+  // A revisao so vem aberta quando ha algo para a pessoa conferir.
+  const [showReview, setShowReview] = useState(
+    () => questions.some((question) => !question.correct),
+  );
 
   const topics = useMemo(() => {
     const set = new Set<string>();
@@ -297,14 +300,24 @@ export function SetupPanel({
         {/* Coluna de revisao */}
         <div className="lg:col-span-7">
           <div className="panel p-5">
-            <div className="grid grid-cols-3 gap-3">
-              <Stat label="Questões" value={stats.total} />
-              <Stat label="Do PDF" value={stats.fromGabarito} tone="brand" />
-              <Stat
-                label="Pela IA"
-                value={stats.fromAI}
-                tone={stats.fromAI > 0 ? "brand" : "default"}
-              />
+            {/* Resumo curto: quantas questoes e o que a IA teve de resolver.
+                O gabarito em si nao aparece aqui - ele esta logo abaixo,
+                na revisao. */}
+            <div className="panel-soft flex flex-wrap items-center gap-x-6 gap-y-1 px-4 py-3">
+              <p className="text-sm text-ink-muted">
+                <span className="text-xl font-semibold tabular-nums text-ink">
+                  {stats.total}
+                </span>{" "}
+                {countLabel(stats.total, "questão", "questões")}
+              </p>
+              {stats.fromAI > 0 ? (
+                <p className="text-sm text-ink-muted">
+                  <span className="text-xl font-semibold tabular-nums text-brand-soft">
+                    {stats.fromAI}
+                  </span>{" "}
+                  {countLabel(stats.fromAI, "resolvida pela IA", "resolvidas pela IA")}
+                </p>
+              ) : null}
             </div>
 
             {diagnostics && diagnostics.warnings.length > 0 ? (
@@ -360,7 +373,7 @@ export function SetupPanel({
                 <span>
                   {countLabel(stats.without, "questão", "questões")}{" "}
                   {verbFor(stats.without, "ficou", "ficaram")} sem resposta. Escolha
-                  a alternativa correta abaixo para completar o gabarito.
+                  a alternativa correta na revisão do gabarito.
                 </span>
               </div>
             ) : null}
@@ -373,7 +386,9 @@ export function SetupPanel({
               <span className="text-sm font-semibold">
                 Revisar gabarito
                 <span className="ml-2 text-xs font-normal text-ink-faint">
-                  clique na alternativa correta para corrigir
+                  {stats.without > 0
+                    ? `${countLabel(stats.without, "questão para conferir", "questões para conferir")}`
+                    : "clique na alternativa correta para corrigir"}
                 </span>
               </span>
               <ChevronDown
