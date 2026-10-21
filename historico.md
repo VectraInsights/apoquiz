@@ -905,6 +905,7 @@ vence**.
 | --- | --- | --- | --- |
 | 31 | 474 questões sem nível (de 1.824) | O regex do marcador aceitava só 1–3 dígitos, e as questões vão até 1.824 (`1008 ○ ○ ○ DIFÍCIL`) | Regex voltou para 1–4 dígitos |
 | 32 | Nenhuma questão com nível | O `matchDifficulty` era chamado **depois** do `isNoise`, que descartava a linha antes | A leitura do nível vem antes do filtro de ruído |
+| 33 | O ícone antigo ficava travado na tela de início do celular | O service worker servia as imagens (`.png`) **cache primeiro**, e o caminho do arquivo é o mesmo quando o ícone muda — quem já tinha o app instalado continuava vendo a versão antiga | Cache versão `v1` → `v2` (o `activate` apaga o cache antigo) e as imagens passaram a ser **rede primeiro**, com o cache só como reserva |
 
 ---
 

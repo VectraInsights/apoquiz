@@ -8,8 +8,14 @@
  *  - /api/*: nunca e cacheado (os dados precisam ser atuais)
  */
 
-const CACHE = "apoquiz-v1";
-const SHELL = ["/", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png"];
+const CACHE = "apoquiz-v2";
+const SHELL = [
+  "/",
+  "/manifest.webmanifest",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/apple-touch-icon.png",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -57,7 +63,8 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (url.pathname.startsWith("/_next/static/") || url.pathname.endsWith(".png")) {
+  // Estaticos com hash no nome: cache primeiro, o arquivo nunca muda.
+  if (url.pathname.startsWith("/_next/static/")) {
     event.respondWith(
       caches.match(request).then(
         (cached) =>
@@ -68,6 +75,24 @@ self.addEventListener("fetch", (event) => {
             return response;
           }),
       ),
+    );
+    return;
+  }
+
+  // Imagens (icones do app): rede primeiro, cache so como reserva. O
+  // caminho do arquivo e o mesmo quando o icone muda, entao servir do
+  // cache seguraria a versao antiga na tela de inicio.
+  if (url.pathname.endsWith(".png")) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE).then((cache) => cache.put(request, copy));
+          return response;
+        })
+        .catch(() =>
+          caches.match(request).then((cached) => cached ?? Response.error()),
+        ),
     );
   }
 });
