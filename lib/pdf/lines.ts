@@ -237,6 +237,13 @@ export function removeDuplicatedPass(items: RawItem[]): RawItem[] {
  * seção** são preservados: eles descrevem a estrutura do documento e o
  * parser precisa deles para saber onde estão as questões e o gabarito.
  */
+/**
+ * Titulo de secao de verdade: um caminho editorial ("1.4", "1.4.1",
+ * "2.11") seguido do titulo. Um numero solto ("25. Com base...") e
+ * enunciado, nao estrutura.
+ */
+const SECTION_TITLE_ITEM = /^\d+(?:\.\d+){1,2}\s+\S/;
+
 export function removeDuplicatedLayout(items: RawItem[]): {
   items: RawItem[];
   removed: boolean;
@@ -257,52 +264,9 @@ export function removeDuplicatedLayout(items: RawItem[]): {
     else todos.set(key, [item]);
   }
 
-  const repetidos = [...todos.values()].filter(
-    (list) => list.length > 1 && normalize(list[0].str).length >= 8,
-  );
-  if (repetidos.length < 3) return { items, removed: false };
-
-  // --- 2) pares de ancora: a copia e a versao desenhada MAIOR ---
-  const pares: { copia: RawItem; real: RawItem }[] = [];
-  for (const list of repetidos) {
-    const ordenados = [...list].sort((a, b) => a.height - b.height);
-    const pequeno = ordenados[0];
-    const grande = ordenados[ordenados.length - 1];
-    if (grande.height <= pequeno.height * 1.15) continue;
-    pares.push({ copia: grande, real: pequeno });
-  }
-  if (pares.length < 3) return { items, removed: false };
-
-  // --- 3) transformada y' = s*y + d (da copia para a pagina real) ---
-  let somaX = 0;
-  let somaY = 0;
-  let somaXY = 0;
-  let somaXX = 0;
-  const n = pares.length;
-  for (const par of pares) {
-    somaX += par.copia.y;
-    somaY += par.real.y;
-    somaXY += par.copia.y * par.real.y;
-    somaXX += par.copia.y * par.copia.y;
-  }
-  const denominador = n * somaXX - somaX * somaX;
-  if (Math.abs(denominador) < 1e-6) return { items, removed: false };
-
-  const s = (n * somaXY - somaX * somaY) / denominador;
-  const d = (somaY - s * somaX) / n;
-  if (!Number.isFinite(s) || !Number.isFinite(d)) return { items, removed: false };
-  if (s > 0.95 && s < 1.05) return { items, removed: false };
-
-  // A transformada precisa servir bem: residuo pequeno em todos os pares.
-  for (const par of pares) {
-    if (Math.abs(s * par.copia.y + d - par.real.y) > 3) {
-      return { items, removed: false };
-    }
-  }
-
   const remover = new Set<RawItem>();
 
-  // --- 4a) mesma frase: a versao maior e a copia ---
+  // --- 2a) mesma frase: a versao maior e a copia ---
   for (const list of todos.values()) {
     if (list.length < 2) continue;
     const menorAltura = Math.min(...list.map((item) => item.height));
@@ -311,11 +275,13 @@ export function removeDuplicatedLayout(items: RawItem[]): {
     }
   }
 
-  // --- 4b) frase parecida com outra quebra de linha ---
+  // --- 2b) frase parecida com outra quebra de linha ---
   // "De acordo com ... assinale a" / "De acordo com ... assinale a alterna-"
   for (let i = 0; i < items.length; i += 1) {
     const a = items[i];
     if (remover.has(a)) continue;
+    // Titulo de secao nunca e copia: e ele que descreve o documento.
+    if (SECTION_TITLE_ITEM.test(a.str.trim())) continue;
     const ka = normalize(a.str);
     if (ka.length < 12) continue;
 
@@ -323,12 +289,13 @@ export function removeDuplicatedLayout(items: RawItem[]): {
       if (i === j) continue;
       const b = items[j];
       if (remover.has(b)) continue;
+      if (SECTION_TITLE_ITEM.test(b.str.trim())) continue;
       const kb = normalize(b.str);
       if (kb.length < 12 || kb === ka) continue;
 
       const menor = Math.min(ka.length, kb.length);
       const maior = Math.max(ka.length, kb.length);
-      if (menor / maior < 0.5) continue;
+      if (menor / maior < 0.4) continue;
       if (!ka.includes(kb) && !kb.includes(ka)) continue;
 
       // A copia tem fonte maior.
@@ -337,28 +304,34 @@ export function removeDuplicatedLayout(items: RawItem[]): {
     }
   }
 
-  // --- 4c) o que sobrou da copia, achado pela posicao ---
-  // Transformada, a posicao cai em cima de um item da pagina real, que e
-  // menor (fonte menor) e esta em outra coluna. Só vale para itens com
-  // texto unico na pagina: os demais ja foram resolvidos em 4a.
+  // --- 2c) o que sobrou da copia ---
+  // A renderizacao antiga e desenhada dentro de uma coluna mais estreita,
+  // com fonte maior: os itens dela ficam bem a direita da margem da
+  // pagina. Os titulos de secao sao excecao (eles descrevem o documento
+  // e o parser precisa deles) e o texto repetido (topico, navegacao) ja
+  // foi tratado em 2a.
+  const alturas = items.map((item) => item.height).sort((a, b) => a - b);
+  const alturaCorpo = alturas[Math.floor(alturas.length / 2)] ?? 0;
+
+  const margens = items.map((item) => item.x);
+  const margem = Math.min(...margens);
+  const direita = Math.max(...margens);
+  const bandaInicio = margem + 45;
+  const bandaFim = direita * 0.6;
+
   for (const item of items) {
     if (remover.has(item)) continue;
+    if (item.x < bandaInicio || item.x > bandaFim) continue;
+    if (SECTION_TITLE_ITEM.test(item.str.trim())) continue;
+    // A copia tem fonte maior que o corpo do texto da pagina.
+    if (item.height <= alturaCorpo * 1.25) continue;
+
     const texto = normalize(item.str);
     if (!texto) continue;
-    const iguais = todos.get(texto) ?? [];
-    if (iguais.length > 1) continue;
+    // Item com o mesmo texto na pagina ja foi resolvido em 2a.
+    if ((todos.get(texto) ?? []).length > 1) continue;
 
-    const alvo = s * item.y + d;
-
-    const parceiro = items.find(
-      (outro) =>
-        outro !== item &&
-        !remover.has(outro) &&
-        outro.height < item.height * 0.95 &&
-        Math.abs(outro.x - item.x) > 10 &&
-        Math.abs(outro.y - alvo) <= 1.5,
-    );
-    if (parceiro) remover.add(item);
+    remover.add(item);
   }
 
   if (remover.size === 0) return { items, removed: false };

@@ -318,9 +318,9 @@ export function SetupPanel({
                 </p>
                 <ul className="mt-2 space-y-1.5 text-sm text-warn/90">
                   {diagnostics.warnings.map((warning) => (
-                    <li key={warning} className="flex gap-2">
+                    <li key={warning.id} className="flex gap-2">
                       <span aria-hidden>•</span>
-                      <span>{warning}</span>
+                      <span>{warning.text}</span>
                     </li>
                   ))}
                 </ul>

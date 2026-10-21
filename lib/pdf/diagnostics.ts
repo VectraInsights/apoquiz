@@ -27,8 +27,17 @@ export type PdfDiagnostics = {
   overlappingLines: number;
   /** paginas com conteudo duplicado */
   duplicatedPages: number;
-  /** avisos prontos para exibir */
-  warnings: string[];
+  /** problemas que exigem atencao */
+  warnings: DiagnosticItem[];
+};
+
+/**
+ * Um aviso do diagnostico. O `id` permite remover o aviso depois que a
+ * IA resolve o que faltava.
+ */
+export type DiagnosticItem = {
+  id: string;
+  text: string;
 };
 
 export function diagnosePdf(
@@ -80,30 +89,23 @@ export function diagnosePdf(
 
   const duplicatedPages = pages.filter((page) => page.duplicated).length;
 
-  const warnings: string[] = [];
+  const warnings: DiagnosticItem[] = [];
 
+  // Questoes do gabarito que nao chegaram a ser lidas: o quiz esta
+  // incompleto e a pessoa precisa saber.
   if (missingQuestions.length > 0) {
-    warnings.push(
-      `${missingQuestions.length} questão(ões) não foram reconhecidas: ${formatList(missingQuestions)}. O PDF provavelmente tem texto sobreposto (cabeçalho ou rodapé colado nas alternativas).`,
-    );
+    warnings.push({
+      id: "nao-reconhecidas",
+      text: `${missingQuestions.length} questão(ões) não foram reconhecidas: ${formatList(missingQuestions)}. O PDF provavelmente tem texto sobreposto (cabeçalho ou rodapé colado nas alternativas).`,
+    });
   }
 
-  if (overlappingLines > 0) {
-    warnings.push(
-      `${overlappingLines} linha(s) do PDF têm textos sobrepostos — é comum em arquivos gerados por ferramentas de separação.`,
-    );
-  }
-
-  if (duplicatedPages > 0) {
-    warnings.push(
-      `${duplicatedPages} página(s) têm o conteúdo desenhado duas vezes (camada duplicada). O app descartou a cópia.`,
-    );
-  }
-
+  // Questao sem resposta: a pessoa precisa escolher na revisao.
   if (withoutAnswer.length > 0) {
-    warnings.push(
-      `${withoutAnswer.length} questão(ões) ficaram sem resposta. Escolha a alternativa correta na revisão do gabarito.`,
-    );
+    warnings.push({
+      id: "sem-resposta",
+      text: `${withoutAnswer.length} questão(ões) ficaram sem resposta. Escolha a alternativa correta na revisão do gabarito.`,
+    });
   }
 
   return {
@@ -116,6 +118,39 @@ export function diagnosePdf(
     overlappingLines,
     duplicatedPages,
     warnings,
+  };
+}
+
+/**
+ * A IA resolve as questoes que o PDF nao trazia resposta. Depois que ela
+ * passa, o aviso de "sem resposta" so continua valendo para as questoes
+ * que ficaram de fora.
+ */
+export function adjustDiagnostics(
+  diagnostics: PdfDiagnostics | null,
+  questions: { correct: string | null }[],
+): PdfDiagnostics | null {
+  if (!diagnostics) return null;
+
+  const semResposta = questions.filter((question) => !question.correct).length;
+
+  if (semResposta === 0) {
+    return {
+      ...diagnostics,
+      warnings: diagnostics.warnings.filter((item) => item.id !== "sem-resposta"),
+    };
+  }
+
+  return {
+    ...diagnostics,
+    warnings: diagnostics.warnings.map((item) =>
+      item.id === "sem-resposta"
+        ? {
+            ...item,
+            text: `${semResposta} questão(ões) ficaram sem resposta. Escolha a alternativa correta na revisão do gabarito.`,
+          }
+        : item,
+    ),
   };
 }
 

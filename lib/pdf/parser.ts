@@ -82,10 +82,13 @@ type FlatLine = {
 const QUESTION_WORD =
   /^\s*(?:quest[aã]o|q)\s*[-–—]?\s*(\d{1,4})\s*(?:[.:\)\-–—]\s*)?(.*)$/i;
 
-// "12)", "12.", "12 -", "12:" seguido do enunciado.
-// O ponto so e aceito quando NAO seguido de digito (evita "1.234").
+// "12)", "12 -", "12:" seguido do enunciado.
+// O ponto so e aceito quando NAO seguido de digito (evita "1.234") e
+// quando vem com texto depois ("52. A4B" e expressao de matematica,
+// "52. Sabe-se" e enunciado). So o ponto: tambem e continuacao de frase
+// ("...as acoes em 2000.").
 const QUESTION_NUMBER =
-  /^\s*(\d{1,4})\s*(?:[)\-–—:]|\.(?!\d))\s*(.*)$/;
+  /^\s*(\d{1,4})\s*(?:[)\-–—:]|\.(?!\d)\s+)\s*(.*)$/;
 
 // "1" sozinho numa linha (enunciado vem na linha seguinte)
 const QUESTION_BARE_NUMBER = /^\s*(\d{1,4})\s*$/;
@@ -503,6 +506,9 @@ function matchQuestionHeader(text: string): Header | null {
     if (!MATH_ONLY.test(rest) && !/^[;,]/.test(rest)) {
       // "2009), o alfabeto..." e continuacao de frase (o numero de um ano
       // seguido de parentese no inicio da linha), nao um novo enunciado.
+      // O mesmo vale para um numero seguido de texto em minuscula: e
+      // continuacao da linha anterior, nao cabecalho de questao.
+      if (/^[a-zà-ÿ]/.test(rest)) return null;
       if (Number.isFinite(number) && number > 0) {
         return { number, rest, kind: "number" };
       }

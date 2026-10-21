@@ -2,7 +2,7 @@
 
 import { extractPdfText } from "@/lib/pdf/extract";
 import { applyGabarito, detectGabarito, parseQuestions } from "@/lib/pdf/parser";
-import { diagnosePdf, type PdfDiagnostics } from "@/lib/pdf/diagnostics";
+import { adjustDiagnostics, diagnosePdf, type PdfDiagnostics } from "@/lib/pdf/diagnostics";
 import { MAX_AI_QUESTIONS, type ExtractRequest, type ExtractResponse, type Question } from "@/lib/types";
 
 export type Stage = {
@@ -123,7 +123,7 @@ export async function processPdf(
       aiApplied: true,
       aiMessage: null,
       aiNotNeeded: false,
-      diagnostics,
+      diagnostics: adjustDiagnostics(diagnostics, response.data.questions),
       pageCount: doc.pageCount,
       usedAIExtraction: true,
     };
@@ -180,7 +180,7 @@ export async function processPdf(
     aiApplied: Boolean(response.data),
     aiMessage: response.data ? null : response.error,
     aiNotNeeded: false,
-    diagnostics,
+    diagnostics: adjustDiagnostics(diagnostics, questions),
     pageCount: doc.pageCount,
     usedAIExtraction: false,
   };

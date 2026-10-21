@@ -1319,7 +1319,85 @@ Sem regressão na apostila completa: **1.824/1.824 questões com resposta**
 
 ---
 
-## 30. Estado final
+## 30. Só avisa o que é problema de verdade
+
+O painel de configuração da tela "Quase lá" mostrava um bloco amarelo
+**"O PDF tem 1 problema"** mesmo com o quiz perfeito:
+
+```
+52 questões · 52 com gabarito · 52 do PDF · 0 pela IA
+O PDF tem 1 problema
+• 105 linha(s) do PDF têm textos sobrepostos — é comum em arquivos
+  gerados por ferramentas de separação.
+```
+
+O gabarito estava **100% lido do PDF** e mesmo assim a tela acusava um
+problema. Três correções:
+
+### 1. O diagnóstico separa problema de informação
+
+| Antes (vira "problema") | Agora |
+| --- | --- |
+| "N linhas têm textos sobrepostos" | sumiu — o app ajusta a leitura sozinho |
+| "N páginas têm o conteúdo desenhado duas vezes" | sumiu — o app descarta a cópia |
+| "N questões não foram reconhecidas" | continua sendo aviso |
+| "N questões ficaram sem resposta" | continua sendo aviso |
+
+E o aviso de "sem resposta" é recalculado **depois** que a IA passa
+(`adjustDiagnostics`): se a IA resolveu as questões que o PDF não trazia,
+o aviso simplesmente não existe mais.
+
+### 2. Números que não são números de questão
+
+Três padrões de enunciado que o parser tomava como cabeçalho de questão:
+
+| No PDF | O que é | O que o app fazia |
+| --- | --- | --- |
+| "52.A4B. Sabe-se que esse número..." | expressão matemática | criava a questão "52" |
+| "...as ações em 2000." (linha só com o número) | continuação da frase | criava a questão "2000" |
+| "1701) e o início efetivo..." | continuação da frase | criava a questão "1701" |
+
+Regras novas no cabeçalho de questão:
+
+- o ponto só vale como separador quando vem com texto depois
+  ("52. Sabe-se" é enunciado, "52.A4B" é matemática);
+- uma linha só com número e ponto é continuação de frase;
+- texto começando com letra minúscula depois do número é continuação.
+
+### 3. A camada duplicada sem texto repetido
+
+O detector de renderização duplicada exigia que a página tivesse frases
+repetidas (para transformar a cópia em âncora). Em algumas apostilas a
+cópia é a página do **documento de origem** — ou seja, outra pergunta
+inteiramente, sem nenhum texto em comum.
+
+Agora a detecção usa a geometria da página:
+
+- a renderização antiga é desenhada numa **coluna mais estreita** (itens
+  bem à direita da margem da página);
+- e com **fonte maior** que o corpo do texto.
+
+Itens assim, com texto único na página, são descartados — exceto os
+títulos de seção, que o parser precisa para saber onde estão as questões
+e o gabarito.
+
+### Resultado
+
+Varredura nos **154 PDFs** das pastas do material (ADMINISTRAÇÃO,
+AUDITORIA E CONTROLE INTERNO, CONHECIMENTOS GERAIS, DIREITO
+CONSTITUCIONAL, LEGISLAÇÃO, PORTUGUÊS, RACIOCÍNIO LÓGICO, TI):
+
+- antes: 13 arquivos com pendência (questões com número errado ou sem
+  resposta);
+- depois: **0** nas pastas de exercícios (as pastas TEORIA e RESUMO são
+  material de estudo, sem gabarito — a IA resolve).
+
+Sem regressão na apostila completa: **1.824/1.824 questões com gabarito
+do PDF**.
+
+---
+
+## 31. Estado final
 
 ### Verificações
 
