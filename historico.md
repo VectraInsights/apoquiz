@@ -1509,6 +1509,19 @@ são os temas, então eles viram o título.
 Acima de 64 caracteres o título corta com reticências. A pessoa pode
 editar o campo à vontade.
 
+### Logo clicável e ordem por nível
+
+- **clicar na logo leva para a home** (o mesmo que o botão "Novo PDF"): o
+  progresso em andamento é salvo antes de trocar de tela;
+- **"Ordem das questões"**: *como veio no PDF* (padrão), *do mais fácil ao
+  mais difícil* ou *do mais difícil ao mais fácil*. As questões sem nível
+  ficam no fim, qualquer que seja a ordem.
+
+A ordenação é aplicada **depois** do embaralhamento: o nível agrupa as
+questões e, dentro de cada nível, a ordem continua embaralhada. O campo
+`order` entrou no `QuizSettings` (e no default do Supabase, para os
+quizzes já salvos).
+
 ### Campo de número sem setinhas
 
 O campo "Tempo limite" (que agora aceita digitação) tinha as setinhas do
