@@ -248,24 +248,61 @@ export function SetupPanel({
               <span className="mb-1.5 block text-xs uppercase tracking-wider text-ink-faint">
                 Tempo limite
               </span>
-              <select
-                value={settings.timerMinutes ?? ""}
-                onChange={(event) =>
-                  setSettings((current) => ({
-                    ...current,
-                    timerMinutes: event.target.value ? Number(event.target.value) : null,
-                  }))
-                }
-                className="w-full rounded-xl border border-line bg-canvas-soft px-3.5 py-2.5 text-sm outline-none transition focus:border-brand"
-              >
-                <option value="">Sem limite</option>
-                <option value="5">5 minutos</option>
-                <option value="10">10 minutos</option>
-                <option value="20">20 minutos</option>
-                <option value="30">30 minutos</option>
-                <option value="60">60 minutos</option>
-              </select>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  max={600}
+                  inputMode="numeric"
+                  value={settings.timerMinutes ?? ""}
+                  placeholder="Sem limite"
+                  onChange={(event) => {
+                    const raw = event.target.value.trim();
+                    if (raw === "") {
+                      setSettings((current) => ({
+                        ...current,
+                        timerMinutes: null,
+                      }));
+                      return;
+                    }
+                    const value = Number(raw);
+                    setSettings((current) => ({
+                      ...current,
+                      timerMinutes:
+                        Number.isFinite(value) && value > 0 ? Math.round(value) : null,
+                    }));
+                  }}
+                  className="w-full rounded-xl border border-line bg-canvas-soft px-3.5 py-2.5 text-sm outline-none transition placeholder:text-ink-faint focus:border-brand"
+                />
+                <span className="shrink-0 text-xs text-ink-faint">min</span>
+              </div>
             </label>
+
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {[
+                { label: "Sem limite", value: null },
+                { label: "5", value: 5 },
+                { label: "10", value: 10 },
+                { label: "20", value: 20 },
+                { label: "30", value: 30 },
+                { label: "60", value: 60 },
+              ].map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() =>
+                    setSettings((current) => ({
+                      ...current,
+                      timerMinutes: preset.value,
+                    }))
+                  }
+                  className={`chip ${settings.timerMinutes === preset.value ? "" : "opacity-60"}`}
+                  data-active={settings.timerMinutes === preset.value}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
 
             {topics.length > 0 ? (
               <label className="mt-4 block">

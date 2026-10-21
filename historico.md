@@ -1444,6 +1444,13 @@ A tela virou **uma grade de duas colunas** (1024 px, centralizada):
 No celular (abaixo de `lg`) as quatro caixas ficam empilhadas na mesma
 ordem e o botão continua no fim, com a largura toda.
 
+### Tempo limite digitável
+
+O "Tempo limite" era um `select` fechado (5/10/20/30/60 minutos). Agora é
+um **campo onde a pessoa digita o tempo que quiser**, em minutos, com os
+atalhos antigos logo abaixo (Sem limite, 5, 10, 20, 30, 60) para quem não
+quer digitar. Campo vazio = sem limite.
+
 ### Detalhe do aviso
 
 Quando alguma questão fica sem resposta (o PDF não trazia o gabarito e a
