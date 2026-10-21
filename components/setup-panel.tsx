@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   ArrowRight,
   Check,
@@ -29,9 +29,12 @@ type Props = {
   diagnostics: PdfDiagnostics | null;
   onStart: (settings: QuizSettings, questions: Question[]) => void;
   onBack: () => void;
+  /** Logo + acoes, renderizadas no fluxo da pagina (sem cabecalho fixo). */
+  topBar?: ReactNode;
 };
 
 export function SetupPanel({
+  topBar,
   title,
   onTitleChange,
   questions,
@@ -120,6 +123,9 @@ export function SetupPanel({
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 pb-20 pt-6 sm:px-6">
+      {/* A marca faz parte do conteudo, sem barra fixa */}
+      {topBar ? <div className="mb-6">{topBar}</div> : null}
+
       <button
         type="button"
         onClick={onBack}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Check,
   ChevronLeft,
@@ -29,9 +29,17 @@ type Props = {
   state: QuizState;
   onStateChange: (state: QuizState) => void;
   onFinish: () => void;
+  /** Logo + acoes, renderizadas no fluxo da pagina (sem cabecalho fixo). */
+  topBar?: ReactNode;
 };
 
-export function QuizPlayer({ quiz, state, onStateChange, onFinish }: Props) {
+export function QuizPlayer({
+  quiz,
+  state,
+  onStateChange,
+  onFinish,
+  topBar,
+}: Props) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const total = quiz.questions.length;
   const question = quiz.questions[state.currentIndex];
@@ -199,6 +207,9 @@ export function QuizPlayer({ quiz, state, onStateChange, onFinish }: Props) {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 pb-16 pt-5 sm:px-6">
+      {/* A marca faz parte do conteudo, sem barra fixa */}
+      {topBar ? <div className="mb-6">{topBar}</div> : null}
+
       {/* Topo */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">

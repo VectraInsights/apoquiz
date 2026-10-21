@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import {
   Check,
   Download,
@@ -20,9 +20,17 @@ type Props = {
   state: QuizState;
   onRetry: () => void;
   onNewFile: () => void;
+  /** Logo + acoes, renderizadas no fluxo da pagina (sem cabecalho fixo). */
+  topBar?: ReactNode;
 };
 
-export function ResultsPanel({ quiz, state, onRetry, onNewFile }: Props) {
+export function ResultsPanel({
+  quiz,
+  state,
+  onRetry,
+  onNewFile,
+  topBar,
+}: Props) {
   const score = useMemo(() => scoreQuiz(quiz, state), [quiz, state]);
   const errors = score.errors;
 
@@ -87,7 +95,10 @@ export function ResultsPanel({ quiz, state, onRetry, onNewFile }: Props) {
   };
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 pb-20 pt-8 sm:px-6">
+    <div className="mx-auto w-full max-w-4xl px-4 pb-20 pt-6 sm:px-6">
+      {/* A marca faz parte do conteudo, sem barra fixa */}
+      {topBar ? <div className="mb-6">{topBar}</div> : null}
+
       {/* Resultado */}
       <div className="panel print-plain p-6 text-center sm:p-8">
         <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand to-brand-deep text-white shadow-lg shadow-brand/25">

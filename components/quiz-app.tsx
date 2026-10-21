@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   CircleAlert,
   FileText,
@@ -29,8 +29,9 @@ import { countLabel } from "@/lib/plural";
 import type { PdfDiagnostics } from "@/lib/pdf/diagnostics";
 import type { Question, Quiz, QuizSettings, QuizState, QuizSummary } from "@/lib/types";
 import { AuthButton } from "./auth-button";
+import { BrandBar } from "./brand-bar";
 import { InstallPrompt } from "./install-prompt";
-import { Logo, ProgressBar } from "./ui";
+import { ProgressBar } from "./ui";
 import { UploadZone } from "./upload-zone";
 import { SetupPanel } from "./setup-panel";
 import { QuizPlayer } from "./quiz-player";
@@ -59,15 +60,6 @@ export function QuizApp() {
   const [quizState, setQuizState] = useState<QuizState>(() => createState());
   const [recent, setRecent] = useState<QuizSummary[]>([]);
   const [savedStates, setSavedStates] = useState<Record<string, QuizState>>({});
-  // O cabecalho so ganha fundo quando a pagina rola (ver o bloco do header).
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   const auth = useAuth();
   // Logado = tudo vai para a nuvem e aparece em qualquer aparelho.
@@ -263,18 +255,12 @@ export function QuizApp() {
     return () => window.clearTimeout(timeout);
   }, [quiz, target, stateSignature]);
 
-  const header = (
-    <header
-      className={[
-        "sticky top-0 z-40 transition-colors duration-300",
-        scrolled
-          ? "border-b border-line/60 bg-canvas/80 backdrop-blur-xl"
-          : "border-b border-transparent bg-transparent",
-      ].join(" ")}
-    >
-      <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
-        <Logo />
-        <div className="flex shrink-0 items-center gap-1.5">
+  // A marca (logo + acoes) nao e um cabecalho fixo: ela e renderizada
+  // dentro do conteudo de cada tela, como parte da pagina.
+  const topBar = (
+    <BrandBar
+      actions={
+        <>
           {stage !== "upload" && stage !== "processing" ? (
             <button
               type="button"
@@ -286,18 +272,21 @@ export function QuizApp() {
             </button>
           ) : null}
           <InstallPrompt />
-          <AuthButton auth={auth} compact />
-        </div>
-      </div>
-    </header>
+          <AuthButton
+            auth={auth}
+            compact
+            onMyQuizzes={() => setStage("upload")}
+          />
+        </>
+      }
+    />
   );
 
   return (
     <div className="flex min-h-full flex-col">
-      {header}
-
       {stage === "upload" ? (
         <UploadScreen
+          topBar={topBar}
           error={error}
           recent={recent}
           savedStates={savedStates}
@@ -316,6 +305,7 @@ export function QuizApp() {
 
       {stage === "setup" ? (
         <SetupPanel
+          topBar={topBar}
           title={title}
           onTitleChange={setTitle}
           questions={questions}
@@ -333,6 +323,7 @@ export function QuizApp() {
 
       {stage === "quiz" && quiz ? (
         <QuizPlayer
+          topBar={topBar}
           quiz={quiz}
           state={quizState}
           onStateChange={setQuizState}
@@ -342,6 +333,7 @@ export function QuizApp() {
 
       {stage === "results" && quiz ? (
         <ResultsPanel
+          topBar={topBar}
           quiz={quiz}
           state={quizState}
           onRetry={handleRetry}
@@ -363,6 +355,7 @@ function UploadScreen({
   recent,
   savedStates,
   auth,
+  topBar,
   onFile,
   onSample,
   onResume,
@@ -373,6 +366,7 @@ function UploadScreen({
   recent: QuizSummary[];
   savedStates: Record<string, QuizState>;
   auth: ReturnType<typeof useAuth>;
+  topBar: ReactNode;
   onFile: (file: File) => void;
   onSample: () => void;
   onResume: (quiz: QuizSummary) => void;
@@ -383,7 +377,10 @@ function UploadScreen({
   const visible = showAll ? recent : recent.slice(0, 3);
 
   return (
-    <main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-16 pt-8 sm:px-6 sm:pt-10">
+    <main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
+      {/* A marca faz parte do conteudo da pagina, sem barra fixa */}
+      <div className="mb-8">{topBar}</div>
+
       {/* Os 3 quizzes mais recentes ficam no topo, para continuar de onde parou */}
       {recent.length > 0 ? (
         <section className="mb-12">
