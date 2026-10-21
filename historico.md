@@ -1409,7 +1409,7 @@ As pastas **TEORIA** e **RESUMO** não entram na conta: são material de
 estudo (sem gabarito no PDF), e quem responde é a IA.
 ---
 
-## 31. Tela de configuração enxuta
+## 31. Tela de configuração em duas colunas
 
 A tela "Quase lá" (o passo entre subir o PDF e começar o quiz) tinha duas
 colunas: à esquerda a configuração, à direita os contadores e a **revisão
@@ -1426,17 +1426,23 @@ do gabarito** — uma lista com todas as questões abertas de uma vez.
 
 ### O que ficou
 
-A tela virou **uma coluna** (768 px, centralizada) na ordem:
+A tela virou **uma grade de duas colunas** (1024 px, centralizada):
 
 ```
-1. Quase lá           título do quiz + arquivo
-2. Números            QUESTÕES · DO PDF · PELA IA
-3. Opções             modo de resposta, tempo limite, assunto, nível
-4. Iniciar quiz
+┌──────────────────────┬──────────────────────┐
+│ 1. Quase lá          │ 2. Quantidades       │
+│    título + arquivo  │    Questões/Do PDF/IA│
+├──────────────────────┼──────────────────────┤
+│ 3. Modo de resposta  │ 4. Tempo, assunto,  │
+│    correção,         │    nível             │
+│    embaralhar x2     │                      │
+├──────────────────────┴──────────────────────┤
+│ 5. Iniciar quiz (atravessa as duas colunas)  │
+└─────────────────────────────────────────────┘
 ```
 
-Os três contadores voltaram (quantas questões, quantas têm resolução do
-PDF, quantas a IA resolveu) e as opções desceram para logo abaixo deles.
+No celular (abaixo de `lg`) as quatro caixas ficam empilhadas na mesma
+ordem e o botão continua no fim, com a largura toda.
 
 ### Detalhe do aviso
 
