@@ -221,7 +221,7 @@ const TOC_LEADER = /(?:\s\.\s){3,}/;
 const TITLE_IS_SENTENCE = /[a-zà-ÿ]\.\s/;
 
 const TITLE_QUESTIONS = /quest[õo]es|quest[ãa]o\b|exerc[íi]cios|atividades/i;
-const TITLE_ANSWERS = /gabarito|resposta|coment[áa]rio|solu[çc][ãa]o/i;
+const TITLE_ANSWERS = /\b(gabarito|resposta|coment[áa]rio|solu[çc][ãa]o)\b/i;
 
 const ROMAN_TO_LETTER: Record<string, string> = {
   I: "A",
@@ -340,6 +340,41 @@ function temMaisPalavras(um: string, outro: string): boolean {
 }
 
 /**
+ * Procura, entre as secoes do documento, o titulo que explica o topico.
+ *
+ * O topico as vezes cai na secao do nivel ("Questoes Faceis") e nao na
+ * do assunto, entao a busca e por todo o documento: o titulo que tem o
+ * maior trecho em comum com o topico e o culpado.
+ */
+function tituloQueExplica(
+  topico: string,
+  sections: DocSection[],
+): string | null {
+  const semEspaco = (texto: string) => texto.replace(/\s+/g, "");
+  const colado = semEspaco(topico);
+  if (colado.length < 8) return null;
+
+  let melhor: { titulo: string; tamanho: number } | null = null;
+
+  for (const section of sections) {
+    const alvo = semEspaco(section.title);
+    if (alvo.length < 8) continue;
+
+    const tamanho = prefixoComum(colado, alvo);
+    if (tamanho < 12) continue;
+    // o topico tem que ser o titulo, pelo menos em parte
+    const menor = Math.min(colado.length, alvo.length);
+    if (tamanho < menor * 0.5) continue;
+
+    if (!melhor || tamanho > melhor.tamanho) {
+      melhor = { titulo: section.title, tamanho };
+    }
+  }
+
+  return melhor?.titulo ?? null;
+}
+
+/**
  * Alguns PDFs desenham o topico em capsulas menores e **perdem o espaco
  * entre as palavras** ("ETICAE GESTAOPUBLICA"), ou cortam o cabecalho
  * ("... COMPONENTES E"). O titulo da secao vem limpo: quando ele
@@ -360,22 +395,29 @@ function repararTopico(topico: string, tituloSecao: string | null): string {
   const colado = semEspaco(topico);
   if (alvo.length < 8 || colado.length < 8) return topico;
 
-  // 1) o topico termina com a versao colada do titulo: troca so o final
-  if (colado.endsWith(alvo)) {
-    const sobra = colado.length - alvo.length;
+  /** Refaz o topico trocando o final (a partir de n caracteres) pelo titulo. */
+  const montaComPrefixo = (n: number) => {
     let contados = 0;
     let posicao = 0;
-    while (posicao < topico.length && contados < sobra) {
+    while (posicao < topico.length && contados < n) {
       if (!/\s/.test(topico[posicao])) contados += 1;
       posicao += 1;
     }
     const prefixo = topico.slice(0, posicao).trimEnd();
     return prefixo ? `${prefixo} ${titulo}` : titulo;
+  };
+
+  // 1) o topico termina com a versao colada do titulo
+  if (colado.endsWith(alvo)) {
+    return montaComPrefixo(colado.length - alvo.length);
   }
 
-  // 2) o topico e o titulo cortado pelo PDF: usa o titulo inteiro
-  if (alvo.startsWith(colado) && colado.length / alvo.length >= 0.45) {
-    return titulo;
+  // 2) o resto do topico e o titulo cortado pelo PDF (o topico pode ter
+  //    um prefixo de area, como "LINGUAPORTUGUESA· ")
+  for (let i = 0; i < colado.length - 12; i += 1) {
+    const resto = colado.slice(i);
+    if (resto.length < 12) break;
+    if (alvo.startsWith(resto)) return montaComPrefixo(i);
   }
 
   // 3) o topico e a versao colada do titulo: o titulo vem limpo, entao
@@ -1219,10 +1261,13 @@ export function parseQuestions(pages: ExtractedPage[]): ParsedQuestion[] {
     // Topico em caixa alta (ex.: "ASPECTOS GEOGRÁFICOS, ... SOCI- ...")
     if (isTopicLine(line.text)) {
       if (current) {
-        const candidato = repararTopico(
-          cleanTopic(line.text),
-          section?.title ?? null,
-        );
+        const bruto = cleanTopic(line.text);
+        let candidato = repararTopico(bruto, section?.title ?? null);
+        if (candidato === bruto) {
+          // o titulo da secao atual nao explicou o topico: procura um
+          // titulo que explique em qualquer parte do documento
+          candidato = repararTopico(bruto, tituloQueExplica(bruto, sections));
+        }
         // O mesmo cabecalho pode aparecer em duas versoes: uma com os
         // espacos e outra colada. Vale a versao com mais palavras.
         if (!current.topic || temMaisPalavras(candidato, current.topic)) {
