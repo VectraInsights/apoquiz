@@ -39,6 +39,8 @@ export type ExtractedLine = {
 export type ExtractedPage = {
   page: number;
   lines: ExtractedLine[];
+  /** true quando a pagina tinha duas renderizacoes do mesmo conteudo */
+  duplicated?: boolean;
 };
 
 type Line = {
@@ -219,6 +221,155 @@ export function removeDuplicatedPass(items: RawItem[]): RawItem[] {
 }
 
 /**
+ * Alguns PDFs trazem **duas renderizações do mesmo conteúdo**: a do
+ * documento original e a do recorte (o capítulo), cada uma com o seu
+ * próprio layout. O texto extraído sai embaralhado — fragmentos da
+ * versão antiga aparecem no meio da nova ("Questão 54" colado na
+ * alternativa A, a enunciado repetido com outra quebra de linha).
+ *
+ * A assinatura: vários textos repetidos em dois blocos do stream, cada
+ * um em posições diferentes. Não é um deslocamento constante (esse caso
+ * é o da camada invisível, tratado em {@link removeDuplicatedPass}), é
+ * uma re-renderização com outro layout.
+ *
+ * A renderização principal é a que começa na margem esquerda (a coluna
+ * de texto da página). Da renderização descartada só os **títulos de
+ * seção** são preservados: eles descrevem a estrutura do documento e o
+ * parser precisa deles para saber onde estão as questões e o gabarito.
+ */
+export function removeDuplicatedLayout(items: RawItem[]): {
+  items: RawItem[];
+  removed: boolean;
+} {
+  const normalize = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/\s+/g, "")
+      .replace(/[.,;:!?()[\]·"'-]/g, "");
+
+  // --- 1) grupos por texto normalizado (mesma frase, posicoes diferentes)
+  const todos = new Map<string, RawItem[]>();
+  for (const item of items) {
+    const key = normalize(item.str);
+    if (!key) continue;
+    const list = todos.get(key);
+    if (list) list.push(item);
+    else todos.set(key, [item]);
+  }
+
+  const repetidos = [...todos.values()].filter(
+    (list) => list.length > 1 && normalize(list[0].str).length >= 8,
+  );
+  if (repetidos.length < 3) return { items, removed: false };
+
+  // --- 2) pares de ancora: a copia e a versao desenhada MAIOR ---
+  const pares: { copia: RawItem; real: RawItem }[] = [];
+  for (const list of repetidos) {
+    const ordenados = [...list].sort((a, b) => a.height - b.height);
+    const pequeno = ordenados[0];
+    const grande = ordenados[ordenados.length - 1];
+    if (grande.height <= pequeno.height * 1.15) continue;
+    pares.push({ copia: grande, real: pequeno });
+  }
+  if (pares.length < 3) return { items, removed: false };
+
+  // --- 3) transformada y' = s*y + d (da copia para a pagina real) ---
+  let somaX = 0;
+  let somaY = 0;
+  let somaXY = 0;
+  let somaXX = 0;
+  const n = pares.length;
+  for (const par of pares) {
+    somaX += par.copia.y;
+    somaY += par.real.y;
+    somaXY += par.copia.y * par.real.y;
+    somaXX += par.copia.y * par.copia.y;
+  }
+  const denominador = n * somaXX - somaX * somaX;
+  if (Math.abs(denominador) < 1e-6) return { items, removed: false };
+
+  const s = (n * somaXY - somaX * somaY) / denominador;
+  const d = (somaY - s * somaX) / n;
+  if (!Number.isFinite(s) || !Number.isFinite(d)) return { items, removed: false };
+  if (s > 0.95 && s < 1.05) return { items, removed: false };
+
+  // A transformada precisa servir bem: residuo pequeno em todos os pares.
+  for (const par of pares) {
+    if (Math.abs(s * par.copia.y + d - par.real.y) > 3) {
+      return { items, removed: false };
+    }
+  }
+
+  const remover = new Set<RawItem>();
+
+  // --- 4a) mesma frase: a versao maior e a copia ---
+  for (const list of todos.values()) {
+    if (list.length < 2) continue;
+    const menorAltura = Math.min(...list.map((item) => item.height));
+    for (const item of list) {
+      if (item.height > menorAltura * 1.15) remover.add(item);
+    }
+  }
+
+  // --- 4b) frase parecida com outra quebra de linha ---
+  // "De acordo com ... assinale a" / "De acordo com ... assinale a alterna-"
+  for (let i = 0; i < items.length; i += 1) {
+    const a = items[i];
+    if (remover.has(a)) continue;
+    const ka = normalize(a.str);
+    if (ka.length < 12) continue;
+
+    for (let j = 0; j < items.length; j += 1) {
+      if (i === j) continue;
+      const b = items[j];
+      if (remover.has(b)) continue;
+      const kb = normalize(b.str);
+      if (kb.length < 12 || kb === ka) continue;
+
+      const menor = Math.min(ka.length, kb.length);
+      const maior = Math.max(ka.length, kb.length);
+      if (menor / maior < 0.5) continue;
+      if (!ka.includes(kb) && !kb.includes(ka)) continue;
+
+      // A copia tem fonte maior.
+      if (a.height > b.height * 1.15) remover.add(a);
+      else if (b.height > a.height * 1.15) remover.add(b);
+    }
+  }
+
+  // --- 4c) o que sobrou da copia, achado pela posicao ---
+  // Transformada, a posicao cai em cima de um item da pagina real, que e
+  // menor (fonte menor) e esta em outra coluna. Só vale para itens com
+  // texto unico na pagina: os demais ja foram resolvidos em 4a.
+  for (const item of items) {
+    if (remover.has(item)) continue;
+    const texto = normalize(item.str);
+    if (!texto) continue;
+    const iguais = todos.get(texto) ?? [];
+    if (iguais.length > 1) continue;
+
+    const alvo = s * item.y + d;
+
+    const parceiro = items.find(
+      (outro) =>
+        outro !== item &&
+        !remover.has(outro) &&
+        outro.height < item.height * 0.95 &&
+        Math.abs(outro.x - item.x) > 10 &&
+        Math.abs(outro.y - alvo) <= 1.5,
+    );
+    if (parceiro) remover.add(item);
+  }
+
+  if (remover.size === 0) return { items, removed: false };
+
+  return {
+    items: items.filter((item) => !remover.has(item)),
+    removed: true,
+  };
+}
+
+/**
  * Cabecalho corrente das apostilas editoriais ("1. Lingua Portuguesa",
  * "1.2. Acentuacao Grafica"): repete em quase todas as paginas e, em PDF
  * com layout quebrado, gruda no meio do texto do corpo.
@@ -275,14 +426,21 @@ export function buildDocumentPages(rawPages: RawItem[][]): ExtractedPage[] {
   const deduped = rawPages.map(removeDuplicatedPass);
   const furniture = findFurnitureItems(deduped);
 
-  return deduped.map((items, index) => ({
-    page: index + 1,
-    lines: linesFromItems(
-      items.filter(
-        (item) =>
-          !furniture.has(item.str.trim()) &&
-          !PAGE_NUMBER_ITEM.test(item.str.trim()),
+  return deduped.map((items, index) => {
+    // Duas renderizacoes do mesmo conteudo na mesma pagina.
+    const layout = removeDuplicatedLayout(items);
+    const final = layout.items;
+
+    return {
+      page: index + 1,
+      duplicated: layout.removed || undefined,
+      lines: linesFromItems(
+        final.filter(
+          (item) =>
+            !furniture.has(item.str.trim()) &&
+            !PAGE_NUMBER_ITEM.test(item.str.trim()),
+        ),
       ),
-    ),
-  }));
+    };
+  });
 }

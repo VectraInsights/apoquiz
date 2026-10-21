@@ -78,7 +78,7 @@ export function diagnosePdf(
     0,
   );
 
-  const duplicatedPages = pages.filter((page) => hasDuplicatedLayer(page)).length;
+  const duplicatedPages = pages.filter((page) => page.duplicated).length;
 
   const warnings: string[] = [];
 
@@ -119,20 +119,11 @@ export function diagnosePdf(
   };
 }
 
-/** Heuristica: a mesma frase aparecendo muitas vezes na mesma pagina. */
-function hasDuplicatedLayer(page: ExtractedPage): boolean {
-  const counts = new Map<string, number>();
-  for (const line of page.lines) {
-    const key = line.text.trim();
-    if (key.length < 12) continue;
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-  for (const count of counts.values()) {
-    if (count >= 3) return true;
-  }
-  return false;
-}
-
+/**
+ * Heuristica antiga: a mesma frase aparecendo muitas vezes na mesma
+ * pagina. Substituida pelo sinal real (a pagina teve duas renderizacoes
+ * do mesmo conteudo, detectadas em `lines.ts`).
+ */
 function formatList(values: number[]): string {
   if (values.length <= 8) return values.join(", ");
   return `${values.slice(0, 8).join(", ")}…`;

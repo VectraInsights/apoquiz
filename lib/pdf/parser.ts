@@ -151,9 +151,10 @@ const RUNNING_HEADER = /^\d+(?:\.\d+)*\.?\s+.{8,}…\s*$/;
 // Marcador de dificuldade: "2 ○ ○ ○ FACIL", "12 FACIL", "43 ●●● DIFICIL".
 // Os simbolos variam entre PDFs (podem virar letras, perder o glifo ou
 // vir como texto), entao o que importa e o numero no inicio e o nivel
-// no fim.
+// no fim. O espaco entre o ultimo simbolo e o nivel pode faltar
+// ("1 ○ ○ ○FACIL"), por isso o separador e opcional.
 const DIFFICULTY_LINE =
-  /^\s*\d{1,4}(?:\.\d{1,2})?(?:\s+[^\s]{1,4}){0,3}\s+(F[ÁA]CIL|M[ÉE]DIO|DIF[ÍI]CIL|AVAN[ÇC]ADO)\s*$/i;
+  /^\s*\d{1,4}(?:\.\d{1,2})?(?:\s*[^\s]{1,4}){0,3}\s*(F[ÁA]CIL|M[ÉE]DIO|DIF[ÍI]CIL|AVAN[ÇC]ADO)\s*$/i;
 
 // "●○○ facil, ●●○ medio, ●●● dificil." - legenda do medidor de nivel
 const LEVEL_LEGEND_LINE =
@@ -663,23 +664,40 @@ function cleanExplanation(parts: string[]): string | null {
 /**
  * Le as resolucoes (explicacao + analise por alternativa) das secoes de
  * comentarios do PDF. A chave e "capitulo#numero", igual ao gabarito.
+ *
+ * Nem toda apostila tem uma secao de gabarito propriamente dita: muitas
+ * colocam as resolucoes logo depois das questoes, dentro da propria secao
+ * de exercicios. Por isso a leitura acontece em **todas** as secoes - os
+ * marcadores ("Resolucao da Questao 12", "12 Check-Circle GABARITO") sao
+ * especificos demais para confundirem com enunciado.
  */
 function detectResolutions(
   lines: FlatLine[],
   sections: DocSection[],
-): Map<string, Resolution> {
+): { resolutions: Map<string, Resolution>; lines: Set<number> } {
   const resolutions = new Map<string, Resolution>();
+  const usadas = new Set<number>();
   const sectionPaths = new Set(sections.map((section) => section.path));
 
-  for (const section of sections) {
-    if (section.kind !== "answers") continue;
+  /**
+   * Marca as linhas do intervalo [inicio, fim) como consumidas por uma
+   * resolucao (para nao virarem parte do enunciado de uma questao).
+   */
+  const marcar = (inicio: number, fim: number) => {
+    for (let i = inicio; i < fim && i < lines.length; i += 1) {
+      usadas.add(lines[i].index);
+    }
+  };
 
+  for (const section of sections) {
     let number: number | null = null;
     let correct: string | null = null;
     let explanation: string[] = [];
     let explanationX = 0;
     let notes: NoteDraft[] = [];
     let mode: "idle" | "explanation" | "options" = "idle";
+    /** primeira linha do bloco de resolucao em andamento */
+    let inicioBloco: number | null = null;
 
     const flush = () => {
       if (number !== null && !resolutions.has(`${section.chapter}#${number}`)) {
@@ -708,7 +726,9 @@ function detectResolutions(
       // "Resolucao da Questao 12" - comeca uma resolucao nova.
       const marker = text.match(ANSWER_QUESTION_MARKER);
       if (marker) {
+        if (inicioBloco !== null) marcar(inicioBloco, i);
         flush();
+        inicioBloco = i;
         number = Number(marker[1]);
         continue;
       }
@@ -716,6 +736,7 @@ function detectResolutions(
       // "12 Check-Circle GABARITO" - numero alternativo.
       const numbered = text.match(ANSWER_NUMBER_MARKER);
       if (numbered) {
+        if (inicioBloco === null) inicioBloco = i;
         if (number === null) number = Number(numbered[1]);
         continue;
       }
@@ -723,6 +744,7 @@ function detectResolutions(
       // "A alternativa correta e a C" - abre a explicacao.
       const letter = text.match(ANSWER_LETTER);
       if (letter) {
+        if (inicioBloco === null) inicioBloco = i;
         correct = letter[1].toUpperCase();
         mode = "explanation";
         explanationX = line.x;
@@ -781,10 +803,13 @@ function detectResolutions(
       }
     }
 
+    // Ultimo bloco da secao.
+    if (inicioBloco !== null) marcar(inicioBloco, section.end);
+
     flush();
   }
 
-  return resolutions;
+  return { resolutions, lines: usadas };
 }
 
 /* ------------------------------------------------------------------ */
@@ -796,14 +821,16 @@ type DocumentAnalysis = {
   sections: DocSection[];
   /** Resolucoes por "capitulo#numero" */
   resolutions: Map<string, Resolution>;
+  /** linhas que pertencem a uma resolucao (nao sao enunciado) */
+  resolutionLines: Set<number>;
 };
 
 /** Monta a visao estruturada do documento (usada pelo gabarito e pelas questoes). */
 function analyzeDocument(pages: ExtractedPage[]): DocumentAnalysis {
   const lines = flattenPages(pages);
   const sections = detectSections(lines);
-  const resolutions = detectResolutions(lines, sections);
-  return { lines, sections, resolutions };
+  const { resolutions, lines: resolutionLines } = detectResolutions(lines, sections);
+  return { lines, sections, resolutions, resolutionLines };
 }
 
 /* ------------------------------------------------------------------ */
@@ -985,7 +1012,7 @@ export function lookupGabarito(
  * Extrai as questoes (enunciado + alternativas) do texto.
  */
 export function parseQuestions(pages: ExtractedPage[]): ParsedQuestion[] {
-  const { lines, sections, resolutions } = analyzeDocument(pages);
+  const { lines, sections, resolutions, resolutionLines } = analyzeDocument(pages);
   const sectionMap = buildSectionMap(lines, sections);
   const sectionPaths = new Set(sections.map((section) => section.path));
 
@@ -1063,6 +1090,13 @@ export function parseQuestions(pages: ExtractedPage[]): ParsedQuestion[] {
     // Linhas do gabarito (secoes de comentarios ou bloco classico) nao
     // sao questoes.
     if (gabaritoLines.has(line.index)) {
+      pushCurrent();
+      continue;
+    }
+
+    // Resolucao escrita no PDF ("Resolucao da Questao 12"): o gabarito e
+    // a justificativa, nao enunciado.
+    if (resolutionLines.has(line.index)) {
       pushCurrent();
       continue;
     }

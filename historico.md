@@ -1228,7 +1228,98 @@ aparece na tela de início do celular agora é o novo.
 
 ---
 
-## 29. Estado final
+## 29. Apostila recortada: duas renderizações na mesma página
+
+A pasta `ContagemMG_-_Auditor_TI/EXERCICIOS` tem 19 apostilas recortadas de
+um documento maior. Ao subir a **ACENTUAÇÃO GRÁFICA**, o app reclamava:
+
+```
+15 página(s) têm o conteúdo desenhado duas vezes (camada duplicada)
+53 questão(ões) ficaram sem resposta
+```
+
+E o texto saía embaralhado — o enunciado repetido no meio das
+alternativas, um "Questão 54" colado na alternativa A.
+
+### O que era o PDF
+
+Cada página tinha **duas renderizações** do mesmo conteúdo:
+
+| | Renderização antiga | Renderização nova |
+| --- | --- | --- |
+| Onde | primeira da página (fundo) | segunda (o recorte) |
+| Fonte | grande | normal |
+| Numeração | "Questão 54" (do documento de origem) | "Questão 1" (do recorte) |
+| Cabeçalho | "1.2 ACENTUAÇÃO GRÁFICA", "87 / 2706" | "Questão 1", "○ ○ ○ FÁCIL" |
+
+As duas se sobrepunham: a linha da alternativa A recebia o "Questão 54" da
+renderização antiga, e as linhas do enunciado apareciam duas vezes (com
+quebras de linha diferentes, porque a fonte era outra).
+
+### Como foi resolvido
+
+**1) Reconhecer a renderização duplicada** (`lib/pdf/lines.ts`).
+
+A assinatura não é um deslocamento constante (esse caso já era tratado):
+a cópia é a mesma página **redesenhada com outra fonte e outra quebra de
+linha**. O detector:
+
+1. agrupa os itens da página por texto normalizado e acha as frases que
+   aparecem duas vezes;
+2. monta os pares de âncora (mesma frase, fontes diferentes) e ajusta uma
+   transformada `y' = s·y + d` que leva a cópia até a página real — o
+   ajuste tem que servir bem em todos os pares, senão a página é
+   considered normal;
+3. remove a cópia: mesma frase com fonte maior, frase parecida com outra
+   quebra de linha, e o que sobra achado pela posição (transformada, o
+   item cai em cima de um item da página real).
+
+**2) Ler o gabarito que estava no próprio PDF.**
+
+O gabarito não é uma tabela: cada questão vem com uma resolução escrita:
+
+```
+Resolução da Questão 12
+12 Check-Circle GABARITO
+A alternativa correta é a C
+```
+
+O parser só lia isso dentro de uma seção de gabarito reconhecida pelo
+título — e nestas apostilas **não existe** essa seção: as resoluções
+estão no fim do capítulo, dentro da própria seção de exercícios. Agora a
+leitura acontece em todas as seções (os marcadores são específicos demais
+para confundirem com enunciado), e as linhas da resolução são marcadas
+para não virarem parte da pergunta.
+
+**3) Detectar o nível com o símbolo colado.** O marcador vinha como
+`1 ○ ○ ○FÁCIL` (sem espaço) e o padrão exigia espaço: agora ele aceita.
+
+**4) Diagnóstico honesto.** A contagem de páginas duplicadas usava uma
+heurística (uma frase repetida 3+ vezes na página) que accuse 15 páginas
+onde havia **uma** duplicada — a linha de navegação "Tente resolver antes
+de conferir" é repetida em toda página. Agora usa o sinal real.
+
+### Resultado
+
+| Apostila | Antes | Depois |
+| --- | --- | --- |
+| ACENTUAÇÃO GRÁFICA | 53 questões, **0 com resposta** | 53 questões, **53 com resposta**, níveis 12/27/14 |
+| COERÊNCIA E COESÃO TEXTUAIS | 60 questões, 0 com resposta | 60/60 |
+| ORTOGRAFIA OFICIAL | 53 questões, 0 com resposta | 53/53 |
+| COMPREENSÃO E INTERPRETAÇÃO | 52 questões, 0 com resposta | 52/52 |
+| ESTRUTURA DA ORAÇÃO E DO PERÍODO | 60 questões, 0 com resposta | 60/60 (59 respondidas) |
+| VARIACIONAL LINGUÍSTICA | 38 questões, 0 com resposta | 38/38 |
+
+Nos 19 arquivos: **todos** agora leem o gabarito do próprio PDF (13 com
+100% e 6 com 1–2 questões de_exception).
+
+Sem regressão na apostila completa: **1.824/1.824 questões com resposta**
+(era 1.824/1.824 antes também), e nos demais arquivos grandes
+(lp 809/809, rl 1015/1015, ti 912/912).
+
+---
+
+## 30. Estado final
 
 ### Verificações
 
