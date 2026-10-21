@@ -1,4 +1,41 @@
-import type { Question, Quiz, QuizSettings, QuizState } from "@/lib/types";
+import type {
+  Question,
+  QuestionLevel,
+  Quiz,
+  QuizSettings,
+  QuizState,
+} from "@/lib/types";
+
+/** Ordem dos niveis de dificuldade (facil, medio, dificil). */
+const LEVEL_RANK: Record<QuestionLevel, number> = {
+  facil: 0,
+  medio: 1,
+  dificil: 2,
+};
+
+/**
+ * Ordena as questoes por nivel de dificuldade. As questoes sem nivel
+ * ficam no fim, em qualquer ordem.
+ */
+export function orderByLevel(
+  questions: Question[],
+  order: QuizSettings["order"],
+): Question[] {
+  if (order === "pdf") return questions;
+
+  const rank = (question: Question) =>
+    question.level ? LEVEL_RANK[question.level] : 0;
+
+  return [...questions].sort((a, b) => {
+    // As questoes sem nivel vao para o fim, qualquer que seja a ordem.
+    const semNivel =
+      (a.level ? 0 : 1) - (b.level ? 0 : 1);
+    if (semNivel !== 0) return semNivel;
+
+    const diff = rank(a) - rank(b);
+    return order === "facil-first" ? diff : -diff;
+  });
+}
 
 export function shuffle<T>(items: T[]): T[] {
   const result = [...items];
@@ -38,9 +75,14 @@ export function buildQuiz(
     ? questions.map(shuffleOptions)
     : questions;
 
-  const ordered = settings.shuffleQuestions
+  // O embaralhamento vem primeiro; a ordenacao por nivel vem depois
+  // (assim o nivel agrupa as questoes e, dentro de cada nivel, a ordem
+  // continua embaralhada).
+  const embaralhadas = settings.shuffleQuestions
     ? shuffle(prepared)
     : prepared;
+
+  const ordered = orderByLevel(embaralhadas, settings.order);
 
   const withAnswer = ordered.filter((question) => question.correct).length;
 

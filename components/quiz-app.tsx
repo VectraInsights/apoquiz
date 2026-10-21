@@ -287,6 +287,7 @@ export function QuizApp() {
   // dentro do conteudo de cada tela, como parte da pagina.
   const topBar = (
     <BrandBar
+      onLogoClick={handleNewFile}
       actions={
         <>
           {stage !== "upload" && stage !== "processing" ? (

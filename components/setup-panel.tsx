@@ -45,6 +45,7 @@ export function SetupPanel({
     shuffleOptions: false,
     instantFeedback: true,
     timerMinutes: null,
+    order: "pdf",
   });
   const [topic, setTopic] = useState<string>("todas");
   const [levels, setLevels] = useState<QuestionLevel[]>([]);
@@ -228,6 +229,29 @@ export function SetupPanel({
                 label="Embaralhar as alternativas"
               />
             </div>
+
+            <label className="mt-3 block">
+              <span className="mb-1.5 block text-xs uppercase tracking-wider text-ink-faint">
+                Ordem das questões
+              </span>
+              <select
+                value={settings.order}
+                onChange={(event) =>
+                  setSettings((current) => ({
+                    ...current,
+                    order: event.target.value as QuizSettings["order"],
+                  }))
+                }
+                className="w-full rounded-xl border border-line bg-canvas-soft px-3.5 py-2.5 text-sm outline-none transition focus:border-brand"
+              >
+                <option value="pdf">Como veio no PDF</option>
+                <option value="facil-first">Do mais fácil ao mais difícil</option>
+                <option value="dificil-first">Do mais difícil ao mais fácil</option>
+              </select>
+              <p className="mt-1.5 text-[11px] text-ink-faint">
+                As questões sem nível ficam no fim.
+              </p>
+            </label>
           </div>
 
           {/* 4. Tempo, assunto e nivel */}

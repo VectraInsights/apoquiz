@@ -113,6 +113,7 @@ export async function getQuiz(
         shuffleOptions: false,
         instantFeedback: true,
         timerMinutes: null,
+        order: "pdf",
       } satisfies Quiz["settings"]),
     detectedGabarito:
       (header.detected_gabarito as Record<string, string>) ?? {},

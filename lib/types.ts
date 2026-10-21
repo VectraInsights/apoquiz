@@ -94,11 +94,16 @@ export type Quiz = {
   };
 };
 
+/** Como as questoes sao ordenadas na hora de responder. */
+export type QuestionOrder = "pdf" | "facil-first" | "dificil-first";
+
 export type QuizSettings = {
   shuffleQuestions: boolean;
   shuffleOptions: boolean;
   instantFeedback: boolean;
   timerMinutes: number | null;
+  /** ordem das questoes: como no PDF, do mais facil ao mais dificil ou o contrario */
+  order: QuestionOrder;
 };
 
 export type QuizState = {

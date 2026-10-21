@@ -11,10 +11,29 @@ import { Logo } from "./ui";
  * topo. Cada tela renderiza essa linha dentro do proprio conteudo, como
  * se fosse parte da pagina.
  */
-export function BrandBar({ actions }: { actions?: ReactNode }) {
+export function BrandBar({
+  actions,
+  onLogoClick,
+}: {
+  actions?: ReactNode;
+  /** Clique na logo leva para a home. */
+  onLogoClick?: () => void;
+}) {
   return (
     <div className="flex w-full items-center justify-between gap-3">
-      <Logo />
+      {onLogoClick ? (
+        <button
+          type="button"
+          onClick={onLogoClick}
+          title="Ir para o início"
+          aria-label="Ir para o início"
+          className="rounded-xl transition hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
+        >
+          <Logo />
+        </button>
+      ) : (
+        <Logo />
+      )}
       <div className="flex shrink-0 items-center gap-1.5">{actions}</div>
     </div>
   );
