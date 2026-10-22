@@ -6,7 +6,6 @@ import {
   Check,
   CircleAlert,
   FileText,
-  Sparkles,
 } from "lucide-react";
 import type { Question, QuestionLevel, QuizSettings } from "@/lib/types";
 import { LEVEL_LABELS, QUESTION_LEVELS } from "@/lib/types";
@@ -19,7 +18,6 @@ type Props = {
   onTitleChange: (value: string) => void;
   questions: Question[];
   sourceFile: string;
-  aiApplied: boolean;
   aiNotNeeded: boolean;
   aiMessage: string | null;
   diagnostics: PdfDiagnostics | null;
@@ -34,7 +32,6 @@ export function SetupPanel({
   onTitleChange,
   questions,
   sourceFile,
-  aiApplied,
   aiNotNeeded,
   aiMessage,
   diagnostics,

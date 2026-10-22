@@ -169,7 +169,12 @@ export async function processPdfs(
 ): Promise<ProcessOutcome> {
   const leituras: Leitura[] = [];
   for (const [indice, file] of files.entries()) {
-    leituras.push(await lerPdf(file, onStage, indice, files.length));
+    try {
+      leituras.push(await lerPdf(file, onStage, indice, files.length));
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      throw new Error(`Erro no arquivo "${file.name}": ${message}`);
+    }
   }
 
   const { questions, gabarito } = mesclarLeituras(leituras);

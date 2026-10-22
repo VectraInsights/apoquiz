@@ -73,7 +73,6 @@ export function QuizApp() {
   const [title, setTitle] = useState("");
   const [sourceFile, setSourceFile] = useState("");
   const [detectedGabarito, setDetectedGabarito] = useState<Record<string, string>>({});
-  const [aiApplied, setAiApplied] = useState(false);
   const [aiMessage, setAiMessage] = useState<string | null>(null);
   const [aiNotNeeded, setAiNotNeeded] = useState(false);
   const [diagnostics, setDiagnostics] = useState<PdfDiagnostics | null>(null);
@@ -127,7 +126,6 @@ export function QuizApp() {
       setUploadedFiles(files);
       setQuestions(outcome.questions);
       setDetectedGabarito(outcome.detectedGabarito);
-      setAiApplied(outcome.aiApplied);
       setAiMessage(outcome.aiMessage);
       setAiNotNeeded(outcome.aiNotNeeded);
       setDiagnostics(outcome.diagnostics);
@@ -144,9 +142,10 @@ export function QuizApp() {
       const message = caught instanceof Error ? caught.message : "Não foi possível ler o PDF.";
       // Se houver vários arquivos, tenta identificar qual causou o erro
       if (files.length > 1) {
-        // Tenta extrair o nome do arquivo da mensagem de erro
-        const nomeArquivo = files.find((f) => message.includes(f.name))?.name ?? "um dos arquivos";
-        setError(`Erro no arquivo "${nomeArquivo}": ${message}`);
+        // O erro já vem com o nome do arquivo (formato: 'Erro no arquivo "nome.pdf": ...')
+        const match = message.match(/Erro no arquivo "([^"]+)"/);
+        const nomeArquivo = match ? match[1] : "um dos arquivos";
+        setError(`Erro no arquivo "${nomeArquivo}": ${message.replace(/^Erro no arquivo "[^"]+": /, "")}`);
       } else {
         setError(message);
       }
@@ -160,7 +159,6 @@ export function QuizApp() {
     setDetectedGabarito(
       Object.fromEntries(SAMPLE_QUESTIONS.map((q) => [String(q.number), q.correct ?? ""])),
     );
-    setAiApplied(false);
     setAiMessage(null);
     setAiNotNeeded(false);
     setSourceFile("quiz-de-exemplo.pdf");
@@ -349,7 +347,6 @@ export function QuizApp() {
           onTitleChange={setTitle}
           questions={questions}
           sourceFile={sourceFile}
-          aiApplied={aiApplied}
           aiNotNeeded={aiNotNeeded}
           aiMessage={aiMessage}
           diagnostics={diagnostics}
