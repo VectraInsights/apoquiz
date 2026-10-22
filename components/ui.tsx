@@ -88,9 +88,9 @@ export function Stat({
   };
 
   return (
-    <div className="panel-soft px-3 py-2.5">
-      <p className="text-[11px] uppercase tracking-wider text-ink-faint">{label}</p>
-      <p className={`mt-0.5 text-lg font-semibold tabular-nums ${tones[tone]}`}>
+    <div className="panel-soft px-3 py-2">
+      <p className="text-[10px] uppercase tracking-wider text-ink-faint">{label}</p>
+      <p className={`mt-0 text-base font-semibold tabular-nums ${tones[tone]}`}>
         {value}
       </p>
     </div>

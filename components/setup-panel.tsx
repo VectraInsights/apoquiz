@@ -100,40 +100,40 @@ export function SetupPanel({
   };
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 pb-6 pt-2 sm:px-6">
+    <div className="mx-auto w-full max-w-6xl px-4 pb-4 pt-1 sm:px-6">
       {/* A marca faz parte do conteudo, sem barra fixa */}
-      {topBar ? <div className="mb-3">{topBar}</div> : null}
+      {topBar ? <div className="mb-2">{topBar}</div> : null}
 
       <div className="mx-auto w-full max-w-5xl">
-        <div className="grid gap-3 lg:grid-cols-2">
+        <div className="grid gap-2 lg:grid-cols-2">
           {/* 1. Quase la */}
-          <div className="panel p-4">
-            <h2 className="text-lg font-semibold">Quase lá</h2>
-            <p className="mt-1 text-sm text-ink-muted">
+          <div className="panel p-3">
+            <h2 className="text-base font-semibold">Quase lá</h2>
+            <p className="mt-0.5 text-sm text-ink-muted">
               Confira o que foi extraído e escolha como quer responder.
             </p>
 
-            <label className="mt-3 block">
-              <span className="mb-1.5 block text-xs uppercase tracking-wider text-ink-faint">
+            <label className="mt-2 block">
+              <span className="mb-1 block text-xs uppercase tracking-wider text-ink-faint">
                 Título do quiz
               </span>
               <input
                 value={title}
                 onChange={(event) => onTitleChange(event.target.value)}
                 placeholder="Ex.: Direito Constitucional — Revisão"
-                className="w-full rounded-xl border border-line bg-canvas-soft px-3.5 py-2.5 text-sm outline-none transition placeholder:text-ink-faint focus:border-brand"
+                className="w-full rounded-xl border border-line bg-canvas-soft px-3 py-2 text-sm outline-none transition placeholder:text-ink-faint focus:border-brand"
               />
             </label>
 
-            <div className="mt-3 flex items-center gap-2 text-xs text-ink-faint">
+            <div className="mt-2 flex items-center gap-2 text-xs text-ink-faint">
               <FileText className="size-3.5" />
               <span className="truncate">{sourceFile}</span>
             </div>
           </div>
 
           {/* 2. Quantidades */}
-          <div className="panel p-4">
-            <div className="grid grid-cols-3 gap-3">
+          <div className="panel p-3">
+            <div className="grid grid-cols-3 gap-2">
               <Stat label="Questões" value={stats.total} />
               <Stat label="Do PDF" value={stats.fromGabarito} tone="brand" />
               <Stat
@@ -178,14 +178,6 @@ export function SetupPanel({
                 <span>
                   O PDF já trazia a resolução comentada de cada questão — a IA
                   não precisou ser chamada.
-                </span>
-              </div>
-            ) : aiApplied ? (
-              <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-brand/30 bg-brand/10 p-3.5 text-sm text-brand-soft">
-                <Sparkles className="mt-0.5 size-4 shrink-0" />
-                <span>
-                  A IA conferiu o gabarito do PDF, limpou os enunciados e
-                  escreveu as explicações.
                 </span>
               </div>
             ) : null}

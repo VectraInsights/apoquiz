@@ -144,7 +144,9 @@ export function QuizApp() {
       const message = caught instanceof Error ? caught.message : "Não foi possível ler o PDF.";
       // Se houver vários arquivos, tenta identificar qual causou o erro
       if (files.length > 1) {
-        setError(`Erro ao processar um dos arquivos: ${message}`);
+        // Tenta extrair o nome do arquivo da mensagem de erro
+        const nomeArquivo = files.find((f) => message.includes(f.name))?.name ?? "um dos arquivos";
+        setError(`Erro no arquivo "${nomeArquivo}": ${message}`);
       } else {
         setError(message);
       }
