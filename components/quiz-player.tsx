@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
-  Check,
+  ArrowRight,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -17,7 +17,6 @@ import { formatTime, scoreQuiz } from "@/lib/quiz";
 import { Badge, ProgressBar } from "./ui";
 import { OptionNotes } from "./option-notes";
 
-/** Cor de cada nivel de dificuldade. */
 const LEVEL_TONE: Record<QuestionLevel, "ok" | "warn" | "bad"> = {
   facil: "ok",
   medio: "warn",
@@ -29,7 +28,6 @@ type Props = {
   state: QuizState;
   onStateChange: (state: QuizState) => void;
   onFinish: () => void;
-  /** Logo + acoes, renderizadas no fluxo da pagina (sem cabecalho fixo). */
   topBar?: ReactNode;
 };
 
@@ -41,21 +39,22 @@ export function QuizPlayer({
   topBar,
 }: Props) {
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const total = quiz.questions.length;
-  const question = quiz.questions[state.currentIndex];
+
+  // Se ha secoes (abas por PDF), mostra apenas essa secao
+  const secoes = quiz.secoes?.length ?? 0;
+  const secaoAtual = secoes > 0 ? quiz.secoes[state.secaoAtual ?? 0] : null;
+  const questoes = secaoAtual ? secaoAtual.questoes : quiz.questions;
+  const total = questoes.length;
+  const question = questoes[state.currentIndex];
   const answer = question ? state.answers[question.id] : undefined;
   const instant = quiz.settings.instantFeedback;
   const locked = instant && Boolean(answer);
 
   const score = useMemo(() => scoreQuiz(quiz, state), [quiz, state]);
 
-  /* ------------------------------ timer ------------------------------ */
   useEffect(() => {
     const timer = window.setInterval(() => {
-      onStateChange({
-        ...state,
-        elapsedSeconds: state.elapsedSeconds + 1,
-      });
+      onStateChange({ ...state, elapsedSeconds: state.elapsedSeconds + 1 });
     }, 1000);
     return () => window.clearInterval(timer);
   }, [state, onStateChange]);
@@ -68,14 +67,10 @@ export function QuizPlayer({
     }
   }, [state.elapsedSeconds, quiz.settings.timerMinutes, onFinish]);
 
-  /* --------------------------- answering ---------------------------- */
   const choose = useCallback(
     (label: string) => {
       if (locked || !question) return;
-      onStateChange({
-        ...state,
-        answers: { ...state.answers, [question.id]: label },
-      });
+      onStateChange({ ...state, answers: { ...state.answers, [question.id]: label } });
     },
     [locked, question, state, onStateChange],
   );
@@ -96,322 +91,209 @@ export function QuizPlayer({
     onStateChange({ ...state, flagged });
   }, [question, state, onStateChange]);
 
-  /* --------------------------- shortcuts ---------------------------- */
-  useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (target && ["INPUT", "SELECT", "TEXTAREA"].includes(target.tagName)) return;
-
-      if (event.key === "ArrowRight") {
-        go(state.currentIndex + 1);
-        return;
-      }
-      if (event.key === "ArrowLeft") {
-        go(state.currentIndex - 1);
-        return;
-      }
-      if (!question) return;
-
-      const key = event.key.toUpperCase();
-      const byIndex = "12345".indexOf(event.key);
-      if (byIndex >= 0 && question.options[byIndex]) {
-        choose(question.options[byIndex].label);
-        return;
-      }
-      if (/^[A-E]$/.test(key) && question.options.some((o) => o.label === key)) {
-        choose(key);
-      }
-    };
-
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [choose, go, question, state.currentIndex]);
+  const trocarSecao = useCallback(
+    (idx: number) => {
+      if (idx < 0 || idx >= secoes) return;
+      onStateChange({ ...state, secaoAtual: idx, currentIndex: 0 });
+    },
+    [secoes, state, onStateChange],
+  );
 
   if (!question) return null;
 
   const answeredCount = Object.keys(state.answers).length;
-  const progress = total > 0 ? answeredCount / total : 0;
-
-  const palette = (
-    <div className="panel p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Questões</h3>
-        <button
-          type="button"
-          onClick={() => setPaletteOpen(false)}
-          className="text-ink-faint transition hover:text-ink lg:hidden"
-          aria-label="Fechar"
-        >
-          <X className="size-4" />
-        </button>
-      </div>
-      <div className="grid grid-cols-6 gap-1.5 lg:grid-cols-8">
-        {quiz.questions.map((item, index) => {
-          const chosen = state.answers[item.id];
-          const isCurrent = index === state.currentIndex;
-          const isCorrect = chosen && item.correct ? chosen === item.correct : false;
-          const showResult = instant && chosen;
-
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => {
-                go(index);
-                setPaletteOpen(false);
-              }}
-              title={`Questão ${item.number ?? index + 1}`}
-              className={`relative grid size-10 place-items-center rounded-lg border text-xs font-semibold transition ${
-                isCurrent
-                  ? "border-brand bg-brand text-white"
-                  : showResult
-                    ? isCorrect
-                      ? "border-ok/50 bg-ok/15 text-ok"
-                      : "border-bad/50 bg-bad/15 text-bad"
-                    : chosen
-                      ? "border-line bg-white/10 text-ink"
-                      : "border-line text-ink-faint hover:border-brand/50 hover:text-ink"
-              }`}
-            >
-              {item.number ?? index + 1}
-              {state.flagged.includes(item.id) ? (
-                <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-warn" />
-              ) : null}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="mt-4 space-y-1.5 text-xs text-ink-faint">
-        <p className="flex items-center gap-2">
-          <span className="size-2.5 rounded-sm bg-white/10" /> não respondida
-        </p>
-        <p className="flex items-center gap-2">
-          <span className="size-2.5 rounded-sm bg-ok/40" /> correta
-        </p>
-        <p className="flex items-center gap-2">
-          <span className="size-2.5 rounded-sm bg-bad/40" /> errada
-        </p>
-      </div>
-
-      <button
-        type="button"
-        onClick={onFinish}
-        className="btn btn-primary mt-5 w-full"
-        disabled={answeredCount === 0}
-      >
-        Finalizar quiz
-      </button>
-    </div>
-  );
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 pb-16 pt-5 sm:px-6">
-      {/* A marca faz parte do conteudo, sem barra fixa */}
-      {topBar ? <div className="mb-6">{topBar}</div> : null}
+    <div className="min-h-[calc(100vh-12rem)] flex flex-col">
+      {topBar ? <div className="mb-4">{topBar}</div> : null}
 
-      {/* Topo */}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="truncate text-base font-semibold">{quiz.title}</h1>
-          <p className="text-xs text-ink-faint">
-            Questão {question.number ?? state.currentIndex + 1} de {total}
-            {quiz.sourceFile ? ` · ${quiz.sourceFile}` : ""}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {quiz.settings.timerMinutes ? (
-            <span className="chip tabular-nums">
-              <Clock className="size-3.5" />
-              {formatTime(state.elapsedSeconds)}
-            </span>
-          ) : null}
-          <span className="chip tabular-nums">
-            <Check className="size-3.5" />
-            {score.gradeable > 0
-              ? `${score.correct}/${score.gradeable}`
-              : `${answeredCount}/${total}`}
-          </span>
-          <button
-            type="button"
-            onClick={() => setPaletteOpen((value) => !value)}
-            className="btn btn-ghost lg:hidden"
-          >
-            <LayoutGrid className="size-4" />
-            {answeredCount}/{total}
-          </button>
-        </div>
-      </div>
-
-      <ProgressBar value={progress} className="mb-5" />
-
-      <div className="grid gap-5 lg:grid-cols-12">
-        {/* Questão */}
-        <div className="lg:col-span-8">
-          <div className="panel p-5 sm:p-6">
-            <div className="flex items-start justify-between gap-3">
-              <span className="text-xs font-semibold uppercase tracking-wider text-brand-soft">
-                Questão {question.number ?? state.currentIndex + 1}
-              </span>
-              <div className="flex items-center gap-2">
-                {question.topic ? <Badge tone="brand">{question.topic}</Badge> : null}
-                {question.level ? (
-                  <Badge tone={LEVEL_TONE[question.level]}>
-                    {LEVEL_LABELS[question.level]}
-                  </Badge>
-                ) : null}
+      {/* Abas de secoes (quando ha mais de um PDF) */}
+      {secoes > 0 ? (
+        <div className="mb-3">
+          <div className="flex gap-1 overflow-x-auto pb-2 scrollbar-hide">
+            {quiz.secoes!.map((s, i) => {
+              const temRespondidas = s.questoes.filter((q) => state.answers[q.id]).length;
+              const selecionado = i === (state.secaoAtual ?? 0);
+              return (
                 <button
+                  key={s.topico}
                   type="button"
-                  onClick={toggleFlag}
-                  aria-label="Marcar para revisar"
-                  className={`grid size-10 place-items-center rounded-lg border transition ${
-                    state.flagged.includes(question.id)
-                      ? "border-warn/50 bg-warn/15 text-warn"
-                      : "border-line text-ink-faint hover:text-ink"
+                  onClick={() => trocarSecao(i)}
+                  className={`flex flex-col items-center gap-1.5 min-w-[90px] p-2 rounded-lg border text-sm font-medium transition ${
+                    selecionado
+                      ? "border-brand bg-brand text-white"
+                      : "bg-white/5 text-ink-muted hover:bg-white/10 hover:border-brand/50"
                   }`}
                 >
-                  <Flag className="size-4" />
+                  <span className="font-semibold">{s.topico}</span>
+                  <span className="text-[10px]">{temRespondidas}/{s.questoes.length}</span>
                 </button>
-              </div>
-            </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
 
-            <p className="mt-3 text-[15px] leading-relaxed text-ink sm:text-base">
-              {question.statement}
-            </p>
-
-            <div className="mt-5 space-y-2.5">
-              {question.options.map((option) => {
-                const chosen = answer === option.label;
-                const isCorrectOption = question.correct === option.label;
-
-                let state: "idle" | "selected" | "correct" | "wrong" = "idle";
-                if (locked) {
-                  if (isCorrectOption) state = "correct";
-                  else if (chosen) state = "wrong";
-                } else if (chosen) {
-                  state = "selected";
-                }
-
-                return (
-                  <button
-                    key={option.label}
-                    type="button"
-                    disabled={locked}
-                    onClick={() => choose(option.label)}
-                    data-state={state === "idle" ? undefined : state}
-                    className="option"
-                  >
-                    <span
-                      className={`bubble ${
-                        state === "correct"
-                          ? "border-ok bg-ok text-canvas"
-                          : state === "wrong"
-                            ? "border-bad bg-bad text-canvas"
-                            : state === "selected"
-                              ? "border-brand bg-brand text-white"
-                              : ""
-                      }`}
-                    >
-                      {state === "correct" ? (
-                        <Check className="size-4" />
-                      ) : state === "wrong" ? (
-                        <X className="size-4" />
-                      ) : (
-                        option.label
-                      )}
-                    </span>
-                    <span className="flex-1 pt-0.5 text-sm leading-relaxed">
-                      {option.text}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {locked ? (
-              <Feedback
-                question={question}
-                chosen={answer ?? ""}
-              />
-            ) : question.correct ? null : (
-              <p className="mt-4 rounded-xl border border-warn/30 bg-warn/10 p-3 text-xs text-warn">
-                Esta questão ainda não tem resposta cadastrada. Responda normalmente —
-                ela não contará para a pontuação.
+      <div className="flex-1 overflow-hidden flex flex-col">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+          <div className="flex justify-between items-baseline mb-6">
+            <div>
+              <h1 className="text-lg font-semibold">{quiz.title}</h1>
+              <p className="text-xs text-ink-faint">
+                Questão {state.currentIndex + 1} de {total}
               </p>
-            )}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold">{answeredCount}</span>{" "}
+              <span className="text-xs text-ink-faint">/{total} respondidas</span>
+            </div>
           </div>
 
-          {/* Navegação */}
-          <div className="mt-4 flex items-center justify-between gap-3">
+          <ProgressBar value={score.percentage / 100} />
+          <div className="mt-3 flex justify-between">
+            <span className="text-sm text-ink-muted">{score.correct} acerto{s}</span>
+            <span className="text-sm text-ink-faint">{score.errors} erro{s}</span>
+          </div>
+
+          <div className="mt-4 flex-1 overflow-y-auto">
+            {questoes.map((item, index) => {
+              const chosen = state.answers[item.id];
+              const isCurrent = index === state.currentIndex;
+              const isCorrect = chosen && item.correct ? chosen === item.correct : false;
+              const showResult = instant && chosen;
+
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    go(index);
+                    setPaletteOpen(false);
+                  }}
+                  title={`Questão ${item.number ?? index + 1}`}
+                  className={`relative grid size-10 place-items-center rounded-lg border text-xs font-semibold transition ${
+                    isCurrent
+                      ? "border-brand bg-brand text-white"
+                      : showResult
+                        ? isCorrect
+                          ? "border-ok/50 bg-ok/15 text-ok"
+                          : "border-bad/50 bg-bad/15 text-bad"
+                        : chosen
+                        ? "border-line bg-white/10 text-ink"
+                        : "border-line text-ink-faint hover:border-brand/50 hover:text-ink"
+                  }`}
+                >
+                  {item.number ?? index + 1}
+                  {state.flagged.includes(item.id) ? (
+                    <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-warn" />
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-4 flex justify-between">
             <button
               type="button"
               onClick={() => go(state.currentIndex - 1)}
               disabled={state.currentIndex === 0}
-              className="btn btn-ghost"
+              className="btn btn-ghost disabled:opacity-50"
             >
-              <ChevronLeft className="size-4" />
               Anterior
             </button>
-
-            {state.currentIndex === total - 1 ? (
-              <button type="button" onClick={onFinish} className="btn btn-primary">
-                Finalizar
-                <Check className="size-4" />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => go(state.currentIndex + 1)}
-                className="btn btn-primary"
-              >
-                Próxima
-                <ChevronRight className="size-4" />
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => go(state.currentIndex + 1)}
+              disabled={state.currentIndex >= total - 1}
+              className="btn btn-primary disabled:opacity-50"
+            >
+              Próxima
+            </button>
           </div>
-
-          <p className="mt-3 text-center text-[11px] text-ink-faint">
-            Atalho: use as teclas A–E ou 1–5 para responder, setas para navegar.
-          </p>
         </div>
 
-        {/* Paleta */}
-        <div className="hidden lg:col-span-4 lg:block">
-          <div className="lg:sticky lg:top-6">{palette}</div>
+        <div className="border-t border-line py-4">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPaletteOpen((v) => !v)}
+                className="text-xs text-ink-faint transition hover:text-ink"
+              >
+                {paletteOpen ? "Ocultar" : "Mostrar"} questões
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaletteOpen(false)}
+                className="text-xs text-ink-faint transition hover:text-ink"
+              >
+                Finalizar quiz
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={onFinish}
+              className="btn btn-primary"
+            >
+              Finalizar quiz
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Paleta no mobile */}
       {paletteOpen ? (
-        <div className="fixed inset-0 z-50 bg-black/70 p-4 backdrop-blur-sm lg:hidden">
-          <div className="mx-auto mt-16 max-w-md">{palette}</div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-2xl p-4 sm:p-6 rounded-2xl border border-line bg-panel shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold">Questões</h2>
+              <button
+                type="button"
+                onClick={() => setPaletteOpen(false)}
+                className="text-xs text-ink-faint transition hover:text-ink"
+                aria-label="Fechar"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+            <div className="grid gap-1.5">
+              {questoes.map((item, index) => {
+                const chosen = state.answers[item.id];
+                const isCurrent = index === state.currentIndex;
+                const isCorrect = chosen && item.correct ? chosen === item.correct : false;
+                const showResult = instant && chosen;
+
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      go(index);
+                      setPaletteOpen(false);
+                    }}
+                    title={`Questão ${item.number ?? index + 1}`}
+                    className={`grid size-10 place-items-center rounded-lg border text-xs font-semibold transition ${
+                      isCurrent
+                        ? "border-brand bg-brand text-white"
+                        : showResult
+                          ? isCorrect
+                            ? "border-ok/50 bg-ok/15 text-ok"
+                            : "border-bad/50 bg-bad/15 text-bad"
+                          : chosen
+                          ? "border-line bg-white/10 text-ink"
+                          : "border-line text-ink-faint hover:border-brand/50 hover:text-ink"
+                    }`}
+                  >
+                    {item.number ?? index + 1}
+                    {state.flagged.includes(item.id) ? (
+                      <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-warn" />
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function Feedback({ question, chosen }: { question: Question; chosen: string }) {
-  const correct = question.correct;
-  const isRight = chosen === correct;
-
-  return (
-    <div
-      className={`mt-5 rounded-xl border p-4 ${
-        isRight ? "border-ok/35 bg-ok/10" : "border-bad/35 bg-bad/10"
-      }`}
-    >
-      <p className={`text-sm font-semibold ${isRight ? "text-ok" : "text-bad"}`}>
-        {isRight ? "Boa! Você acertou." : `Resposta correta: ${correct}`}
-      </p>
-      {question.explanation ? (
-        <p className="mt-1.5 flex items-start gap-2 text-sm leading-relaxed text-ink-muted">
-          <Lightbulb className="mt-0.5 size-4 shrink-0 text-warn" />
-          {question.explanation}
-        </p>
-      ) : null}
-      <OptionNotes question={question} className="mt-3 border-t border-white/10 pt-3" />
     </div>
   );
 }

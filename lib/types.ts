@@ -78,12 +78,19 @@ export type QuizSummary = {
   };
 };
 
+export type QuizSection = {
+  topico: string;
+  questoes: Question[];
+};
+
 export type Quiz = {
   id: string;
   title: string;
   sourceFile: string;
   createdAt: string;
   questions: Question[];
+  /** Secoes (abas) quando agrupado por PDF; vazio caso contrario */
+  secoes: QuizSection[];
   /** Configuracoes usadas para montar este quiz */
   settings: QuizSettings;
   /** Gabarito cru detectado no PDF: { "1": "B", ... } */
@@ -115,6 +122,7 @@ export type QuizState = {
   answers: Record<string, string>;
   flagged: string[];
   currentIndex: number;
+  secaoAtual?: number;
   startedAt: string;
   finishedAt: string | null;
   elapsedSeconds: number;

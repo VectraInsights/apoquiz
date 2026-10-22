@@ -85,9 +85,10 @@ export function buildQuiz(
 
   const ordered = orderByLevel(embaralhadas, settings.order);
 
-  // Se o modo for "by-pdf", define o topico de cada questao como o nome
-  // do PDF de origem (extraido do prefixo da secao: "0:1.2" -> fileNames[0]).
-  const questoesAgrupadas = settings.groupMode === "by-pdf" && fileNames
+  // Se o modo for "by-pdf", separa por arquivo: cada PDF vira uma secao
+  // com seu proprio nome (topico). O parser ja coloca o prefixo
+  // "0:1.2", "1:1.1", etc. na secao da questao.
+  const questoesPorSecao = settings.groupMode === "by-pdf" && fileNames
     ? ordered.map((q) => {
         const prefixo = q.section?.split(":")[0];
         const idx = prefixo ? parseInt(prefixo, 10) : null;
@@ -97,6 +98,11 @@ export function buildQuiz(
         return { ...q, topic: nomePdf.replace(/\.pdf$/i, "").replace(/[_-]+/g, " ") };
       })
     : ordered;
+
+  // Agrupa questoes por topico (arquivo) quando o modo e "by-pdf".
+  const secoes = settings.groupMode === "by-pdf" && fileNames
+    ? agruparPorTopico(questoesAgrupadas)
+    : [];
 
   const withAnswer = questoesAgrupadas.filter((question) => question.correct).length;
 
@@ -110,17 +116,31 @@ export function buildQuiz(
     title: title.trim() || "Apostila sem título",
     sourceFile,
     createdAt: new Date().toISOString(),
-    questions: ordered,
+    questions: questoesAgrupadas,
+    secoes,
     settings,
     detectedGabarito,
     stats: {
-      total: ordered.length,
+      total: questoesAgrupadas.length,
       withAnswer,
-      fromGabarito: ordered.filter((q) => q.answerSource === "gabarito").length,
-      fromAI: ordered.filter((q) => q.answerSource === "ia").length,
-      withoutAnswer: ordered.filter((q) => !q.correct).length,
+      fromGabarito: questoesAgrupadas.filter((q) => q.answerSource === "gabarito").length,
+      fromAI: questoesAgrupadas.filter((q) => q.answerSource === "ia").length,
+      withoutAnswer: questoesAgrupadas.filter((q) => !q.correct).length,
     },
   };
+}
+
+function agruparPorTopico(questions: Question[]): { topico: string; questoes: Question[] }[] {
+  const mapa = new Map<string, Question[]>();
+  for (const q of questions) {
+    const topico = q.topic || "Sem tópico";
+    if (!mapa.has(topico)) mapa.set(topico, []);
+    mapa.get(topico)!.push(q);
+  }
+  return [...mapa.entries()].map(([topico, questoes]) => ({
+    topico,
+    questoes,
+  }));
 }
 
 export function createState(): QuizState {
