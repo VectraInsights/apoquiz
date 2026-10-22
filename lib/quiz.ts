@@ -70,6 +70,7 @@ export function buildQuiz(
   title: string,
   sourceFile: string,
   detectedGabarito: Record<string, string>,
+  fileNames?: string[],
 ): Quiz {
   const prepared = settings.shuffleOptions
     ? questions.map(shuffleOptions)
@@ -84,7 +85,20 @@ export function buildQuiz(
 
   const ordered = orderByLevel(embaralhadas, settings.order);
 
-  const withAnswer = ordered.filter((question) => question.correct).length;
+  // Se o modo for "by-pdf", define o topico de cada questao como o nome
+  // do PDF de origem (extraido do prefixo da secao: "0:1.2" -> fileNames[0]).
+  const questoesAgrupadas = settings.groupMode === "by-pdf" && fileNames
+    ? ordered.map((q) => {
+        const prefixo = q.section?.split(":")[0];
+        const idx = prefixo ? parseInt(prefixo, 10) : null;
+        const nomePdf = idx !== null && idx < fileNames.length
+          ? fileNames[idx]
+          : "PDF desconhecido";
+        return { ...q, topic: nomePdf.replace(/\.pdf$/i, "").replace(/[_-]+/g, " ") };
+      })
+    : ordered;
+
+  const withAnswer = questoesAgrupadas.filter((question) => question.correct).length;
 
   return {
     // UUID: o mesmo id vale para o localStorage e para as tabelas do

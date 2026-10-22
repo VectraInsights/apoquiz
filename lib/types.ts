@@ -18,6 +18,9 @@ export const LEVEL_LABELS: Record<QuestionLevel, string> = {
   dificil: "Difícil",
 };
 
+/** Ordem das questoes na montagem do quiz. */
+export type QuestionOrder = "pdf" | "facil-first" | "dificil-first";
+
 /**
  * Limite de questoes enviadas para a IA em um unico processamento.
  * Acima disso a apostila segue completa - apenas sem as explicacoes da IA
@@ -94,16 +97,18 @@ export type Quiz = {
   };
 };
 
-/** Como as questoes sao ordenadas na hora de responder. */
-export type QuestionOrder = "pdf" | "facil-first" | "dificil-first";
+/** Como as questoes sao agrupadas quando vem de varios PDFs. */
+export type QuizGroupMode = "mixed" | "by-pdf";
 
 export type QuizSettings = {
   shuffleQuestions: boolean;
   shuffleOptions: boolean;
   instantFeedback: boolean;
   timerMinutes: number | null;
-  /** ordem das questoes: como no PDF, do mais facil ao mais dificil ou o contrario */
+  /** ordem das questoes: do mais facil ao mais dificil ou o contrario */
   order: QuestionOrder;
+  /** agrupar questoes por PDF ou misturar tudo */
+  groupMode: QuizGroupMode;
 };
 
 export type QuizState = {

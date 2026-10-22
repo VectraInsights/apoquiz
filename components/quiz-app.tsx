@@ -78,6 +78,8 @@ export function QuizApp() {
   const [aiNotNeeded, setAiNotNeeded] = useState(false);
   const [diagnostics, setDiagnostics] = useState<PdfDiagnostics | null>(null);
 
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [quizState, setQuizState] = useState<QuizState>(() => createState());
   const [recent, setRecent] = useState<QuizSummary[]>([]);
@@ -122,6 +124,7 @@ export function QuizApp() {
         return;
       }
 
+      setUploadedFiles(files);
       setQuestions(outcome.questions);
       setDetectedGabarito(outcome.detectedGabarito);
       setAiApplied(outcome.aiApplied);
@@ -138,9 +141,13 @@ export function QuizApp() {
       }
       setStage("setup");
     } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : "Não foi possível ler o PDF.",
-      );
+      const message = caught instanceof Error ? caught.message : "Não foi possível ler o PDF.";
+      // Se houver vários arquivos, tenta identificar qual causou o erro
+      if (files.length > 1) {
+        setError(`Erro ao processar um dos arquivos: ${message}`);
+      } else {
+        setError(message);
+      }
       setStage("upload");
     }
   }, []);
@@ -168,6 +175,7 @@ export function QuizApp() {
         title,
         sourceFile,
         detectedGabarito,
+        uploadedFiles.map((f) => f.name),
       );
       const initial = { ...createState(), startedAt: new Date().toISOString() };
 
@@ -179,7 +187,7 @@ export function QuizApp() {
       setQuizState(initial);
       setStage("quiz");
     },
-    [title, sourceFile, detectedGabarito, target, refreshList],
+    [title, sourceFile, detectedGabarito, target, refreshList, uploadedFiles],
   );
 
   const handleFinish = useCallback(() => {
