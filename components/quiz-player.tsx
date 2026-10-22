@@ -40,7 +40,6 @@ export function QuizPlayer({
 }: Props) {
   const [paletteOpen, setPaletteOpen] = useState(false);
 
-  // Se ha secoes (abas por PDF), mostra apenas essa secao
   const secoes = quiz.secoes?.length ?? 0;
   const secaoAtual = secoes > 0 ? quiz.secoes[state.secaoAtual ?? 0] : null;
   const questoes = secaoAtual ? secaoAtual.questoes : quiz.questions;
@@ -102,12 +101,12 @@ export function QuizPlayer({
   if (!question) return null;
 
   const answeredCount = Object.keys(state.answers).length;
+  const progress = total > 0 ? answeredCount / total : 0;
 
   return (
     <div className="min-h-[calc(100vh-12rem)] flex flex-col">
       {topBar ? <div className="mb-4">{topBar}</div> : null}
 
-      {/* Abas de secoes (quando ha mais de um PDF) */}
       {secoes > 0 ? (
         <div className="mb-3">
           <div className="flex gap-1 overflow-x-auto pb-2 scrollbar-hide">
@@ -136,10 +135,10 @@ export function QuizPlayer({
 
       <div className="flex-1 overflow-hidden flex flex-col">
         <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-          <div className="flex justify-between items-baseline mb-6">
+          <div className="flex justify-between items-baseline mb-4">
             <div>
               <h1 className="text-lg font-semibold">{quiz.title}</h1>
-              <p className="text-xs text-ink-faint">
+              <p className="text-xs text-ink-muted">
                 Questão {state.currentIndex + 1} de {total}
               </p>
             </div>
@@ -151,8 +150,8 @@ export function QuizPlayer({
 
           <ProgressBar value={score.percentage / 100} />
           <div className="mt-3 flex justify-between">
-            <span className="text-sm text-ink-muted">{score.correct} acerto{s}</span>
-            <span className="text-sm text-ink-faint">{score.errors} erro{s}</span>
+            <span className="text-sm text-ink-muted">{score.correct} acerto{score.correct !== 1 ? "s" : ""}</span>
+            <span className="text-sm text-ink-faint">{score.errors} erro{score.errors !== 1 ? "s" : ""}</span>
           </div>
 
           <div className="mt-4 flex-1 overflow-y-auto">
@@ -230,11 +229,7 @@ export function QuizPlayer({
                 Finalizar quiz
               </button>
             </div>
-            <button
-              type="button"
-              onClick={onFinish}
-              className="btn btn-primary"
-            >
+            <button type="button" onClick={onFinish} className="btn btn-primary">
               Finalizar quiz
             </button>
           </div>
@@ -271,7 +266,7 @@ export function QuizPlayer({
                       setPaletteOpen(false);
                     }}
                     title={`Questão ${item.number ?? index + 1}`}
-                    className={`grid size-10 place-items-center rounded-lg border text-xs font-semibold transition ${
+                    className={`relative grid size-10 place-items-center rounded-lg border text-xs font-semibold transition ${
                       isCurrent
                         ? "border-brand bg-brand text-white"
                         : showResult
