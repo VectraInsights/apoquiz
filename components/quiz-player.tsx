@@ -148,7 +148,7 @@ export function QuizPlayer({
             </div>
           </div>
 
-          <ProgressBar value={score.percentage / 100} />
+          <ProgressBar value={(score.percentage ?? 0) / 100} />
           <div className="mt-3 flex justify-between">
             <span className="text-sm text-ink-muted">{score.correct} acerto{score.correct !== 1 ? "s" : ""}</span>
             <span className="text-sm text-ink-faint">{score.errors} erro{score.errors !== 1 ? "s" : ""}</span>

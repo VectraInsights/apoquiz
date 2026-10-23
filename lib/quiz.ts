@@ -101,10 +101,10 @@ export function buildQuiz(
 
   // Agrupa questoes por topico (arquivo) quando o modo e "by-pdf".
   const secoes = settings.groupMode === "by-pdf" && fileNames
-    ? agruparPorTopico(questoesAgrupadas)
+    ? agruparPorTopico(questoesPorSecao)
     : [];
 
-  const withAnswer = questoesAgrupadas.filter((question) => question.correct).length;
+  const withAnswer = questoesPorSecao.filter((question) => question.correct).length;
 
   return {
     // UUID: o mesmo id vale para o localStorage e para as tabelas do
@@ -116,16 +116,16 @@ export function buildQuiz(
     title: title.trim() || "Apostila sem título",
     sourceFile,
     createdAt: new Date().toISOString(),
-    questions: questoesAgrupadas,
+    questions: questoesPorSecao,
     secoes,
     settings,
     detectedGabarito,
     stats: {
-      total: questoesAgrupadas.length,
+      total: questoesPorSecao.length,
       withAnswer,
-      fromGabarito: questoesAgrupadas.filter((q) => q.answerSource === "gabarito").length,
-      fromAI: questoesAgrupadas.filter((q) => q.answerSource === "ia").length,
-      withoutAnswer: questoesAgrupadas.filter((q) => !q.correct).length,
+      fromGabarito: questoesPorSecao.filter((q) => q.answerSource === "gabarito").length,
+      fromAI: questoesPorSecao.filter((q) => q.answerSource === "ia").length,
+      withoutAnswer: questoesPorSecao.filter((q) => !q.correct).length,
     },
   };
 }

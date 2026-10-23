@@ -1614,3 +1614,39 @@ que tem **mais palavras** (a colada tem menos).
 | Persistência local ou nuvem | `lib/sync.ts` |
 | Tabelas e RLS | `lib/supabase/schema.sql` |
 | Botão de instalar / detecção de Brave | `components/install-prompt.tsx` |
+
+---
+
+## 35. Build do TypeScript: `questoesAgrupadas` inexistente, `secoes` faltando e `percentage` null
+
+### O problema
+
+O `next build` na Vercel falhava na checagem de tipos (`tsc`) com 11 erros:
+
+| Arquivo | Erro |
+| --- | --- |
+| `lib/quiz.ts` | `questoesAgrupadas` não existe — nome errado da variável (7 ocorrências) |
+| `lib/sync.ts` | `Property 'secoes' is missing` no objeto retornado por `getQuiz` |
+| `components/quiz-player.tsx` | `'score.percentage' is possibly 'null'` no `ProgressBar` |
+
+### Causa e correção
+
+**`lib/quiz.ts` — `questoesAgrupadas` → `questoesPorSecao`**
+
+A função `buildQuiz` criava `questoesPorSecao` (linhas 91–100) mas usava `questoesAgrupadas` — um nome que nunca foi declarado — para montar as seções, a lista de questões e as estatísticas (`total`, `withAnswer`, `fromGabarito`, `fromAI`, `withoutAnswer`). Todas as 7 ocorrências foram trocadas por `questoesPorSecao`.
+
+**`lib/sync.ts` — `secoes: []` em `getQuiz`**
+
+O tipo `Quiz` exige `secoes: QuizSection[]`, mas `getQuiz` (caminho da nuvem/Supabase) não devolvia esse campo. Adicionado `secoes: []` ao objeto retornado (o quiz carregado da nuvem não traz agrupamento por seção).
+
+**`components/quiz-player.tsx` — `percentage ?? 0`**
+
+`score.percentage` é `null` quando não há questões com gabarito (`gradeable === 0`). O `ProgressBar` exige um número, então passou a usar `(score.percentage ?? 0) / 100`.
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `npm run typecheck` | ✅ sem erros |
+| `npm run lint` | ✅ sem erros |
+| `npm run build` | ✅ build de produção concluído |

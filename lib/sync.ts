@@ -118,6 +118,7 @@ export async function getQuiz(
       } satisfies Quiz["settings"]),
     detectedGabarito:
       (header.detected_gabarito as Record<string, string>) ?? {},
+    secoes: [],
     stats:
       (header.stats as Quiz["stats"]) ?? {
         total: questions.length,
