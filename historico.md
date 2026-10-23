@@ -1617,6 +1617,61 @@ que tem **mais palavras** (a colada tem menos).
 
 ---
 
+## 36. Quiz na tela: enunciado, alternativas e abas consertados
+
+### O problema
+
+O componente `QuizPlayer` (`components/quiz-player.tsx`) não estava exibindo o
+conteúdo da questão na tela do quiz. O usuário via apenas o título do quiz, o
+placar, a barra de progresso e a paleta de botões numerados — mas **nenhum
+enunciado e nenhuma alternativa** apareciam. Além disso, as abas de seção
+(tópicos) ficavam sobrepostas e ilegíveis quando os títulos eram longos.
+
+### O que mudou em `components/quiz-player.tsx`
+
+**1. Enunciado da questão**
+
+Adicionado `question.statement` logo abaixo do cabeçalho "Questão X de Y",
+renderizado como parágrafo em destaque.
+
+**2. Alternativas com feedback visual**
+
+Cada alternativa (`question.options`) agora é renderizada como um botão
+clicável com:
+- Letra da alternativa (A, B, C, D, E)
+- Texto da alternativa
+- Estado visual de selecionada (azul/marca)
+- Quando a correção instantânea está ativa e a resposta já foi dada:
+  - alternativa correta → verde com ícone ✓
+  - alternativa selecionada e errada → vermelho com ícone ✗
+
+**3. Explicação da questão**
+
+Quando `question.explanation` existe e o resultado está sendo mostrado
+(correção instantânea), a explicação é exibida abaixo das alternativas.
+
+**4. Abas de seção não sobrepostas**
+
+- `min-w-[90px]` → `min-w-[80px] max-w-[140px]` para não esmagar
+- Título da aba com `break-words text-[11px] leading-tight text-center`
+  para quebrar em duas linhas quando longo
+- Contagem de perguntas reduzida para `text-[9px]`
+
+**5. Variável `showResult` no escopo correto**
+
+Definida uma vez no escopo do componente (não dentro do `.map()` das
+alternativas) e reutilizada tanto nas alternativas quanto na explicação.
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `npm run typecheck` | ✅ sem erros |
+| `npm run lint` | ✅ 0 errors |
+| `npm run build` | ✅ build de produção concluído |
+
+---
+
 ## 35. Build do TypeScript: `questoesAgrupadas` inexistente, `secoes` faltando e `percentage` null
 
 ### O problema

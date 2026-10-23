@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ArrowRight,
+  Check,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -48,6 +49,7 @@ export function QuizPlayer({
   const answer = question ? state.answers[question.id] : undefined;
   const instant = quiz.settings.instantFeedback;
   const locked = instant && Boolean(answer);
+  const showResult = instant && Boolean(answer);
 
   const score = useMemo(() => scoreQuiz(quiz, state), [quiz, state]);
 
@@ -118,14 +120,10 @@ export function QuizPlayer({
                   key={s.topico}
                   type="button"
                   onClick={() => trocarSecao(i)}
-                  className={`flex flex-col items-center gap-1.5 min-w-[90px] p-2 rounded-lg border text-sm font-medium transition ${
-                    selecionado
-                      ? "border-brand bg-brand text-white"
-                      : "bg-white/5 text-ink-muted hover:bg-white/10 hover:border-brand/50"
-                  }`}
+                  className={`flex flex-col items-center gap-1 min-w-[80px] max-w-[140px] p-2 rounded-lg border text-xs font-medium transition ${selecionado ? "border-brand bg-brand text-white" : "bg-white/5 text-ink-muted hover:bg-white/10 hover:border-brand/50"}`}
                 >
-                  <span className="font-semibold">{s.topico}</span>
-                  <span className="text-[10px]">{temRespondidas}/{s.questoes.length}</span>
+                  <span className="font-semibold text-[11px] leading-tight break-words text-center">{s.topico}</span>
+                  <span className="text-[9px]">{temRespondidas}/{s.questoes.length}</span>
                 </button>
               );
             })}
@@ -147,6 +145,56 @@ export function QuizPlayer({
               <span className="text-xs text-ink-faint">/{total} respondidas</span>
             </div>
           </div>
+
+          {question && (
+            <>
+              <div className="mb-6">
+                <p className="text-ink leading-relaxed text-lg">
+                  {question.statement}
+                </p>
+              </div>
+
+              <div className="space-y-3 mb-6">
+                {question.options.map((option) => {
+                  const isSelected = answer === option.label;
+                  const isCorrect = option.label === question.correct;
+
+                  let tone = "";
+                  if (showResult) {
+                    if (isCorrect) tone = "bg-ok/10 border-ok/50 text-ok";
+                    else if (isSelected) tone = "bg-bad/10 border-bad/50 text-bad";
+                  } else if (isSelected) {
+                    tone = "bg-brand/10 border-brand/50 text-brand";
+                  }
+
+                  return (
+                    <button
+                      key={option.label}
+                      type="button"
+                      onClick={() => choose(option.label)}
+                      disabled={locked}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-lg border text-left transition ${tone}`}
+                    >
+                      <span className="shrink-0 font-semibold">{option.label}</span>
+                      <span className="flex-1 min-w-0 text-ink">{option.text}</span>
+                      {showResult && isCorrect && (
+                        <Check className="size-4 shrink-0 text-ok" />
+                      )}
+                      {showResult && isSelected && !isCorrect && (
+                        <X className="size-4 shrink-0 text-bad" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {question.explanation && showResult && (
+                <div className="mt-2 p-3 rounded-lg bg-ok/5 border border-ok/20 text-sm text-ink-muted">
+                  {question.explanation}
+                </div>
+              )}
+            </>
+          )}
 
           <ProgressBar value={(score.percentage ?? 0) / 100} />
           <div className="mt-3 flex justify-between">
