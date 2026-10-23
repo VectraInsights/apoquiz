@@ -89,23 +89,13 @@ export function QuizPlayer({
 
   const answeredCount = Object.keys(state.answers).length;
 
-  const ROWS = 5;
-
   return (
     <div className="min-h-[calc(100vh-12rem)] flex flex-col bg-[#0b0f19] text-[#e8eaf6]">
       {topBar ? <div className="mb-4">{topBar}</div> : null}
 
-      {/* Barra superior: titulo + navegacao + contador */}
+      {/* Barra superior: navegacao + contador */}
       <div className="px-4 sm:px-6 pb-2">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-          <div>
-            <h1 className="text-lg font-semibold">{quiz.title}</h1>
-            <p className="text-xs text-white/50">
-              Questão {state.currentIndex + 1} de {total}
-            </p>
-          </div>
-
-          {/* Navegacao com setas ao lado do contador */}
+        <div className="flex items-center justify-between gap-3 mb-3">
           <div className="flex items-center gap-2">
             <button
               type="button"
