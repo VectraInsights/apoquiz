@@ -33,7 +33,6 @@ export function QuizPlayer({
   const answer = question ? state.answers[question.id] : undefined;
   const instant = quiz.settings.instantFeedback;
   const locked = instant && Boolean(answer);
-  const showResult = instant && Boolean(answer);
 
   const score = useMemo(() => scoreQuiz(quiz, state), [quiz, state]);
 
@@ -92,7 +91,7 @@ export function QuizPlayer({
     <div className="min-h-[calc(100vh-12rem)] flex flex-col bg-[#0b0f19] text-[#e8eaf6]">
       {topBar ? <div className="mb-4">{topBar}</div> : null}
 
-      {/* Barra superior: titulo + progresso */}
+      {/* Barra superior: titulo + progresso + secoes */}
       <div className="px-4 sm:px-6 pb-2">
         {secoes > 0 ? (
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide mb-3">
@@ -130,6 +129,33 @@ export function QuizPlayer({
             </span>
           </div>
         </div>
+
+        {/* Navegacao no TOPO, acima da pergunta */}
+        <div className="flex justify-between items-center mb-4 px-2 sm:px-0">
+          <button
+            type="button"
+            onClick={() => go(state.currentIndex - 1)}
+            disabled={state.currentIndex === 0}
+            className="flex items-center gap-2 rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm text-white/50 disabled:opacity-30 disabled:pointer-events-none transition hover:bg-white/10"
+          >
+            <ChevronLeft className="size-4" />
+            Anterior
+          </button>
+
+          <div className="flex items-center gap-2 text-xs text-white/40">
+            {state.currentIndex + 1} / {total}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => go(state.currentIndex + 1)}
+            disabled={state.currentIndex >= total - 1}
+            className="flex items-center gap-2 rounded-lg border border-white/20 bg-indigo/10 px-4 py-2 text-sm text-indigo disabled:opacity-30 disabled:pointer-events-none transition hover:bg-indigo/20"
+          >
+            Próxima
+            <ChevronRight className="size-4" />
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-hidden flex flex-col">
@@ -149,12 +175,34 @@ export function QuizPlayer({
                     const isSelected = answer === option.label;
                     const isCorrect = option.label === question.correct;
 
+                    // Feedback visual: verde se correta, vermelha se incorreta (quando respondida)
                     let base = "bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20";
-                    if (showResult) {
-                      if (isCorrect) base = "bg-green/10 border-green/50 text-green";
-                      else if (isSelected) base = "bg-red/10 border-red/50 text-red";
-                    } else if (isSelected) {
-                      base = "bg-indigo/10 border-indigo/50 text-indigo";
+                    let circleBg = "text-white";
+                    let checkIcon = null;
+
+                    if (isSelected) {
+                      if (isCorrect) {
+                        // alternativa selecionada e correta -> verde
+                        base = "bg-green/15 border-green/50 text-green";
+                        circleBg = "bg-green text-white";
+                        checkIcon = (
+                          <svg className="size-4 shrink-0 text-green" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                          </svg>
+                        );
+                      } else {
+                        // alternativa selecionada e incorreta -> vermelha
+                        base = "bg-red/15 border-red/50 text-red";
+                        circleBg = "bg-red text-white";
+                        checkIcon = (
+                          <svg className="size-4 shrink-0 text-red" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        );
+                      }
+                    } else if (isCorrect) {
+                      // nao selecionada mas e a correta -> verde suave (mostra o gabarito)
+                        base = "bg-green/5 border-green/30 text-green/90";
                     }
 
                     return (
@@ -165,36 +213,18 @@ export function QuizPlayer({
                         disabled={locked}
                         className={`flex items-center gap-3 w-full rounded-xl border px-4 py-3.5 text-left transition ${base}`}
                       >
-                        <span
-                          className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs ${
-                            showResult && isCorrect
-                              ? "bg-green text-white"
-                              : showResult && isSelected && !isCorrect
-                              ? "bg-red text-white"
-                              : isSelected
-                              ? "bg-indigo text-white"
-                              : "text-white"
-                          }`}
-                        >
+                        <span className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${circleBg}`}>
                           {option.label}
                         </span>
                         <span className="flex-1 min-w-0">{option.text}</span>
-                        {showResult && isCorrect && (
-                          <svg className="size-4 shrink-0 text-green" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                          </svg>
-                        )}
-                        {showResult && isSelected && !isCorrect && (
-                          <svg className="size-4 shrink-0 text-red" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        )}
+                        {checkIcon}
                       </button>
                     );
                   })}
                 </div>
 
-                {question.explanation && showResult && (
+                {/* Justificativa/explicacao para TODAS as respostas, independente de correta ou nao */}
+                {question.explanation && (
                   <div className="mt-4 p-4 rounded-xl bg-green/5 border border-green/20 text-sm text-green/90">
                     {question.explanation}
                   </div>
@@ -214,35 +244,6 @@ export function QuizPlayer({
             <span className="text-white/40">
               {score.errors} erro{score.errors !== 1 ? "s" : ""}
             </span>
-          </div>
-        </div>
-
-        {/* Navegacao inferior: Anterior / Proxima */}
-        <div className="border-t border-white/10 bg-[#0b0f19] px-4 sm:px-6 py-4">
-          <div className="flex justify-between items-center">
-            <button
-              type="button"
-              onClick={() => go(state.currentIndex - 1)}
-              disabled={state.currentIndex === 0}
-              className="flex items-center gap-2 rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm text-white/50 disabled:opacity-30 disabled:pointer-events-none transition hover:bg-white/10"
-            >
-              <ChevronLeft className="size-4" />
-              Anterior
-            </button>
-
-            <div className="flex items-center gap-2 text-xs text-white/40">
-              {state.currentIndex + 1} / {total}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => go(state.currentIndex + 1)}
-              disabled={state.currentIndex >= total - 1}
-              className="flex items-center gap-2 rounded-lg border border-white/20 bg-indigo/10 px-4 py-2 text-sm text-indigo disabled:opacity-30 disabled:pointer-events-none transition hover:bg-indigo/20"
-            >
-              Próxima
-              <ChevronRight className="size-4" />
-            </button>
           </div>
         </div>
 
@@ -281,7 +282,7 @@ export function QuizPlayer({
         </div>
       </div>
 
-      {/* Aba de navegacao do questionario (fixa na direita em desktop, sobreposta em mobile) */}
+      {/* Aba de navegacao do questionario (fixa na direita em desktop) */}
       <div className="fixed inset-y-0 right-0 z-20 w-full sm:w-80 bg-[#0b0f19] border-l border-white/10 flex flex-col transform transition-transform duration-300 sm:translate-x-0">
         <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-[#0b0f19]/80 backdrop-blur-md">
           <h2 className="text-xs font-semibold text-white/70 uppercase tracking-wider">Navegação do questionário</h2>
@@ -300,16 +301,15 @@ export function QuizPlayer({
               const chosen = state.answers[item.id];
               const isCurrent = index === state.currentIndex;
               const isCorrect = chosen && item.correct ? chosen === item.correct : false;
-              const showResult = instant && chosen;
 
               let bg = "bg-white/5";
               let border = "border-white/10";
               let text = "text-white/60";
-              if (showResult && isCorrect) {
+              if (chosen && isCorrect) {
                 bg = "bg-green/20";
                 border = "border-green/50";
                 text = "text-green";
-              } else if (showResult && chosen && !isCorrect) {
+              } else if (chosen && !isCorrect) {
                 bg = "bg-red/20";
                 border = "border-red/50";
                 text = "text-red";

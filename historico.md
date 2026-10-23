@@ -1676,47 +1676,46 @@ alternativas) e reutilizada tanto nas alternativas quanto na explicação.
 
 ### O problema
 
-O layout do `QuizPlayer` não agradava: as questões ficavam empilhadas numa
-paleta lateral esquerda, sem abas de navegação visíveis, e a barra de navegação
-inferior ("Anterior / Próxima") competia com o placar. O usuário pediu um
-estilo próximo ao questionário da faculdade (imagens de referência: UniFatecie),
-com **abas de navegação em grade** e enunciado destacado.
+O layout do `QuizPlayer` não atendia ao esperado: os botões "Anterior /
+Próxima" ficavam embaixo (esquecíveis), a resposta selecionada não mostrava se
+estava certa (verde) ou errada (vermelha), e a justificativa só aparecia quando
+a correção instantânea estava ativa — o usuário queria a justificativa para
+**todas** as respostas, independente de correta ou não.
 
 ### O que mudou em `components/quiz-player.tsx`
 
-**1. Abas de navegação em grade (barra lateral direita)**
+**1. Navegação no TOPO, acima da pergunta**
+
+- Botões "Anterior" / contador "X / Y" / "Próxima" ficam no cabeçalho,
+  logo abaixo do título do quiz e acima do enunciado — fáceis de alcançar
+
+**2. Feedback visual nas alternativas (verde/vermelho)**
+
+- Quando o usuário seleciona uma alternativa:
+  - se for a correta → fica **verde** (fundo e letra)
+  - se for incorreta → fica **vermelha** (fundo e letra)
+- Se a alternativa não foi selecionada mas é a correta → fica verde suave
+  (mostra o gabarito)
+- Letra da alternativa dentro de um círculo à esquerda do texto
+
+**3. Justificativa para TODAS as respostas**
+
+- A explicação (`question.explanation`) é exibida abaixo das alternativas
+  **sempre que existir**, independente de a resposta estar certa ou errada
+  (não depende mais da correção instantânea)
+
+**4. Abas de navegação em grade (barra lateral direita)**
 
 - Barra fixa à direita (`sm:w-80`) com o título "Navegação do questionário"
-- Todas as questões renderizadas como botões quadrados em grade de 5 colunas
-- Estado visual por questão:
-  - respondida correta → verde
-  - respondida errada → vermelho
-  - respondida (sem saber se acertou) → índigo
-  - questão atual → roxo/borda destacada
-  - não respondida → branco escuro
+- Todas as questões como botões quadrados em grade de 5 colunas
+- Estado visual por questão: verde (correta), vermelho (errada), índigo
+  (respondida), roxo (atual), branco (não respondida)
 - Ícone de bandeira em questões marcadas para revisão
-- Botão "Finalizar tentativa" no cabeçalho da barra
-
-**2. Enunciado destacado**
-
-- O `question.statement` fica em destaque no topo da área central, em texto
-  grande e legível
-
-**3. Alternativas organizadas**
-
-- Cada alternativa em botão largura total com a letra num círculo à esquerda
-- Feedback de seleção (azul) e de correção (verde/vermelho com ícone)
-- Explicação da questão exibida abaixo quando a correção instantânea está ativa
-
-**4. Barra inferior de navegação**
-
-- Botões "Anterior" / "Próxima" claramente separados
-- Contador "X / Y" no centro
-- Botão "Finalizar quiz" à direita
 
 **5. Placar integrado**
 
-- Barra de progresso + contagem de acertos/erros logo abaixo da área da questão
+- Barra de progresso + contagem de acertos/erros logo abaixo da área da
+  questão
 
 ### Verificação
 
