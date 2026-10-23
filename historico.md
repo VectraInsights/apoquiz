@@ -1761,3 +1761,90 @@ O tipo `Quiz` exige `secoes: QuizSection[]`, mas `getQuiz` (caminho da nuvem/Sup
 | `npm run typecheck` | ✅ sem erros |
 | `npm run lint` | ✅ sem erros |
 | `npm run build` | ✅ build de produção concluído |
+
+---
+
+## 38. Restauração do QuizPlayer: layout UniFatecie e feedback visual
+
+### O problema
+
+O `components/quiz-player.tsx` foi acidentalmente truncado para uma única linha
+(o JSX da linha 186 substituiu todo o conteúdo do arquivo), quebrando o build
+com erro de sintaxe `Expected ';', got ':'` em `) : null}`. Além disso, o
+layout do quiz não atendia ao esperado: as abas de seção ficavam sobrepostas,
+os botões Anterior/Próxima ficavam embaixo (esquecíveis), a resposta selecionada
+não indicava se estava certa (verde) ou errada (vermelha), e a justificativa
+apenas aparecia com correção instantânea ativa.
+
+### O que mudou em `components/quiz-player.tsx`
+
+**1. Restauração completa do arquivo**
+
+Toda a estrutura do componente foi reescrita, mantendo o contrato de props
+(`topBar`, `quiz`, `state`, `onStateChange`, `onFinish`) e a integração com
+`quiz-app.tsx`, `ui.tsx` (`ProgressBar`, `Stat`), `option-notes.tsx`
+(`OptionNotes`) e `brand-bar.tsx` (`BrandBar`, versão `v1.3`).
+
+**2. Abas de seção à esquerda (§36 item 4)**
+
+- Abas (tópicos) ficam à esquerda, abaixo da logo, em um painel colapsável
+  (`secoesVisiveis`).
+- Cada aba mostra o nome da seção e a quantidade de questões, quebrando em
+  duas linhas quando longo (`break-words text-[11px] leading-tight`).
+- Clique em uma aba navega diretamente para a primeira questão dela.
+
+**3. Navegação no TOPO, acima da pergunta (§37 item 1)**
+
+- Botões "Anterior" (◀) / contador "X / Y" / "Próxima" (▶) ficam centralizados
+  no cabeçalho, logo abaixo do título do quiz e acima do enunciado.
+- Labels "Anterior"/"Próxima" removidos: só setas simples.
+
+**4. Enunciado da questão (§36 item 1)**
+
+- `question.statement` renderizado como parágrafo em destaque, logo abaixo da
+  navegação.
+
+**5. Feedback visual verde/vermelho nas alternativas (§36 item 2, §37 item 2)**
+
+- Cada alternativa é um botão clicável com letra (círculo) e texto.
+- Quando respondida:
+  - alternativa correta → verde com ícone ✓
+  - alternativa selecionada e errada → vermelho com ícone ✗
+  - alternativa não selecionada mas correta → verde suave (mostra o gabarito)
+- Usa as classes CSS `.option` com `data-state` já definidas em
+  `app/globals.css` (`selected`, `correct`, `wrong`).
+
+**6. Explicação para TODAS as respostas (§37 item 3)**
+
+- `question.explanation` exibida abaixo das alternativas **sempre que existir**,
+  independente de a resposta estar certa ou errada.
+- Não depende mais da correção instantânea (`showResult` definido no escopo
+  do componente, reutilizado por alternativas e explicação).
+
+**7. Painel direito: grade de numeração (§37 item 4)**
+
+- Barra fixa à direita (`lg:hidden` em telas pequenas) com "Navegação do
+  questionário".
+- Todas as questões como botões quadrados em grade de 5 colunas.
+- Estado visual por questão: verde (correta), vermelho (errada), índigo
+  (respondida), roxo (atual), branco (não respondida).
+- Ícone de bandeira em questões marcadas para revisão.
+
+**8. Placar integrado**
+
+- Barra de progresso + contagem de acertos/erros logo abaixo da área da
+  questão.
+
+**9. Suporte a scroll horizontal**
+
+- Conteúdo principal e painel lateral com `min-w-0` para permitir scroll
+  horizontal em telas estreitas sem quebrar o layout.
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `npm run typecheck` | ✅ sem erros |
+| `npm run lint` | ✅ 0 errors |
+| `npm run build` | ✅ build de produção concluído |
+| Quiz com gabarito | ✅ enunciado, alternativas, feedback e explicação exibidos |
