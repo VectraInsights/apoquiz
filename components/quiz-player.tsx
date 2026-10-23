@@ -95,26 +95,68 @@ export function QuizPlayer({
 
       <div className="flex-1 overflow-hidden flex">
         {/* Barra lateral ESQUERDA: secoes (tópicos) logo abaixo do logo */}
-        {secoes > 0 && secoesVisiveis ? (
-          <div className="w-full sm:w-80 bg-[#0b0f19] border-r border-white/10 flex flex-col">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-[#0b0f19]/80 backdrop-blur-md">
-              <h2 className="text-xs font-semibold text-white/70 uppercase tracking-wider">Seções</h2>
-              <div className="flex items-center gap-2">
+        {secoes > 0 ? (
+          secoesVisiveis ? (
+            <div className="w-full sm:w-80 bg-[#0b0f19] border-r border-white/10 flex flex-col">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-[#0b0f19]/80 backdrop-blur-md">
+                <h2 className="text-xs font-semibold text-white/70 uppercase tracking-wider">Seções</h2>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSecoesVisiveis(false)}
+                    className="text-xs text-white/50 hover:text-white transition"
+                  >
+                    Ocultar seções
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onFinish}
+                    className="text-xs text-white/50 hover:text-white transition"
+                  >
+                    Finalizar tentativa
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-3">
+                {quiz.secoes!.map((s, i) => {
+                  const temRespondidas = s.questoes.filter((q) => state.answers[q.id]).length;
+                  const selecionado = i === (state.secaoAtual ?? 0);
+                  return (
+                    <button
+                      key={s.topico}
+                      type="button"
+                      onClick={() => trocarSecao(i)}
+                      className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition ${selecionado ? "border-brand bg-brand/20 text-white" : "border-white/10 text-white/60 hover:border-brand/50 hover:bg-white/5"}`}
+                    >
+                      <span className="flex-1 truncate">{s.topico}</span>
+                      <span className="text-[10px]">{temRespondidas}/{s.questoes.length}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="p-3 border-t border-white/10">
+                <p className="text-[10px] text-white/40 text-center">
+                  {answeredCount}/{total} respondidas
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="w-80 bg-[#0b0f19] border-r border-white/10 flex flex-col">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-[#0b0f19]/80 backdrop-blur-md">
+                <h2 className="text-xs font-semibold text-white/70 uppercase tracking-wider">Seções</h2>
                 <button
                   type="button"
-                  onClick={() => setSecoesVisiveis(false)}
+                  onClick={() => setSecoesVisiveis(true)}
                   className="text-xs text-white/50 hover:text-white transition"
                 >
-                  Ocultar seções
-                </button>
-                <button
-                  type="button"
-                  onClick={onFinish}
-                  className="text-xs text-white/50 hover:text-white transition"
-                >
-                  Finalizar tentativa
+                  Mostrar seções
                 </button>
               </div>
+            </div>
+          )
+        ) : null}
             </div>
 
             <div className="flex-1 overflow-y-auto p-3">
