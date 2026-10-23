@@ -138,7 +138,7 @@ export function QuizPlayer({
 
       <div className="flex-1 overflow-hidden flex flex-col">
         {/* Area principal: enunciado + alternativas */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-8">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-8 pl-[260px] sm:pl-[320px]">
           <div className="max-w-2xl mx-auto">
             {question && (
               <>
@@ -160,7 +160,6 @@ export function QuizPlayer({
 
                     if (isSelected) {
                       if (isCorrect) {
-                        // alternativa selecionada e correta -> verde
                         base = "bg-green/15 border-green/50 text-green";
                         circleBg = "bg-green text-white";
                         checkIcon = (
@@ -169,7 +168,6 @@ export function QuizPlayer({
                           </svg>
                         );
                       } else {
-                        // alternativa selecionada e incorreta -> vermelha
                         base = "bg-red/15 border-red/50 text-red";
                         circleBg = "bg-red text-white";
                         checkIcon = (
@@ -179,7 +177,6 @@ export function QuizPlayer({
                         );
                       }
                     } else if (showResult && isCorrect) {
-                      // ja marcou algo: mostra o gabarito (correta) em verde suave
                       base = "bg-green/5 border-green/30 text-green/90";
                     }
 
@@ -201,7 +198,6 @@ export function QuizPlayer({
                   })}
                 </div>
 
-                {/* Justificativa/explicacao para TODAS as respostas, independente de correta ou nao */}
                 {question.explanation && (
                   <div className="mt-4 p-4 rounded-xl bg-green/5 border border-green/20 text-sm text-green/90">
                     {question.explanation}
@@ -213,7 +209,7 @@ export function QuizPlayer({
         </div>
 
         {/* Placar */}
-        <div className="border-t border-white/10 bg-[#0b0f19] px-4 sm:px-6 py-3">
+        <div className="border-t border-white/10 bg-[#0b0f19] px-4 sm:px-6 py-3 pl-[260px] sm:pl-[320px]">
           <ProgressBar value={(score.percentage ?? 0) / 100} className="mb-3" />
           <div className="flex justify-between text-sm">
             <span className="text-white/60">
@@ -226,7 +222,7 @@ export function QuizPlayer({
         </div>
 
         {/* Acoes finais */}
-        <div className="border-t border-white/10 bg-[#0b0f19] px-4 sm:px-6 py-3">
+        <div className="border-t border-white/10 bg-[#0b0f19] px-4 sm:px-6 py-3 pl-[260px] sm:pl-[320px]">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
               <button
@@ -260,9 +256,9 @@ export function QuizPlayer({
         </div>
       </div>
 
-      {/* Abas laterais DIREITA: secoes (tópicos) */}
+      {/* Abas laterais ESQUERDA: secoes (tópicos) - tipo UniFatecie (imagem 2) */}
       {secoes > 0 ? (
-        <div className="fixed inset-y-0 right-0 z-20 w-full sm:w-80 bg-[#0b0f19] border-l border-white/10 flex flex-col transform transition-transform duration-300 sm:translate-x-0">
+        <div className="fixed inset-y-0 left-0 z-20 w-full sm:w-80 bg-[#0b0f19] border-r border-white/10 flex flex-col transform transition-transform duration-300 sm:translate-x-0">
           <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-[#0b0f19]/80 backdrop-blur-md">
             <h2 className="text-xs font-semibold text-white/70 uppercase tracking-wider">Seções</h2>
             <button
