@@ -93,7 +93,7 @@ export function QuizPlayer({
     <div className="min-h-[calc(100vh-12rem)] flex flex-col bg-[#0b0f19] text-[#e8eaf6]">
       {topBar ? <div className="mb-4">{topBar}</div> : null}
 
-      {/* Barra superior: navegacao + contador (abaixo do logo na pagina) */}
+      {/* Barra superior: navegacao + contador */}
       <div className="px-4 sm:px-6 pb-2">
         <div className="flex items-center justify-between gap-3 mb-3">
           <div className="flex items-center gap-2">
@@ -170,7 +170,7 @@ export function QuizPlayer({
           </div>
         ) : null}
 
-        {/* Area principal: enunciado + alternativas */}
+        {/* Area principal: enunciado + alternativas (MEIO) */}
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-8 pl-[260px] sm:pl-[320px]">
           <div className="max-w-2xl mx-auto">
             {question && (
@@ -193,7 +193,6 @@ export function QuizPlayer({
 
                     if (isSelected) {
                       if (isCorrect) {
-                        // alternativa selecionada e correta -> verde
                         base = "bg-green/15 border-green/50 text-green";
                         circleBg = "bg-green text-white";
                         checkIcon = (
@@ -202,7 +201,6 @@ export function QuizPlayer({
                           </svg>
                         );
                       } else {
-                        // alternativa selecionada e incorreta -> vermelha
                         base = "bg-red/15 border-red/50 text-red";
                         circleBg = "bg-red text-white";
                         checkIcon = (
