@@ -92,28 +92,8 @@ export function QuizPlayer({
     <div className="min-h-[calc(100vh-12rem)] flex flex-col bg-[#0b0f19] text-[#e8eaf6]">
       {topBar ? <div className="mb-4">{topBar}</div> : null}
 
-      {/* Barra superior: titulo + progresso + secoes */}
+      {/* Barra superior: titulo + navegacao + contador com setas */}
       <div className="px-4 sm:px-6 pb-2">
-        {secoes > 0 ? (
-          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide mb-3">
-            {quiz.secoes!.map((s, i) => {
-              const temRespondidas = s.questoes.filter((q) => state.answers[q.id]).length;
-              const selecionado = i === (state.secaoAtual ?? 0);
-              return (
-                <button
-                  key={s.topico}
-                  type="button"
-                  onClick={() => trocarSecao(i)}
-                  className={`flex items-center gap-2 min-w-[110px] max-w-[200px] shrink-0 rounded-lg border px-3 py-2 text-xs font-medium transition whitespace-nowrap ${selecionado ? "border-brand bg-brand/20 text-white" : "border-white/10 text-white/60 hover:border-brand/50 hover:bg-white/5"}`}
-                >
-                  <span className="truncate">{s.topico}</span>
-                  <span className="text-[10px]">{temRespondidas}/{s.questoes.length}</span>
-                </button>
-              );
-            })}
-          </div>
-        ) : null}
-
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
           <div>
             <h1 className="text-lg font-semibold">{quiz.title}</h1>
@@ -121,39 +101,38 @@ export function QuizPlayer({
               Questão {state.currentIndex + 1} de {total}
             </p>
           </div>
-          <div className="flex items-center gap-3 text-sm">
+
+          {/* Navegacao com setas ao lado do contador */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => go(state.currentIndex - 1)}
+              disabled={state.currentIndex === 0}
+              className="rounded-lg border border-white/20 bg-white/5 p-2 text-white/50 disabled:opacity-30 disabled:pointer-events-none transition hover:bg-white/10"
+            >
+              <ChevronLeft className="size-5" />
+            </button>
+            <span className="text-xs text-white/40">
+              {state.currentIndex + 1} / {total}
+            </span>
+            <button
+              type="button"
+              onClick={() => go(state.currentIndex + 1)}
+              disabled={state.currentIndex >= total - 1}
+              className="rounded-lg border border-white/20 bg-indigo/10 p-2 text-indigo disabled:opacity-30 disabled:pointer-events-none transition hover:bg-indigo/20"
+            >
+              <ChevronRight className="size-5" />
+            </button>
+          </div>
+
+          <div className="flex items-center gap-3 text-xs text-white/40">
             <span className="text-white/50">{answeredCount}</span>{" "}
             <span className="text-white/40">/{total} respondidas</span>
-            <span className="ml-2 flex items-center gap-1 text-xs text-white/40">
+            <span className="ml-2 flex items-center gap-1">
               <Clock className="size-3.5" />
               {formatTime(state.elapsedSeconds)}
             </span>
           </div>
-        </div>
-
-        {/* Navegacao no TOPO, acima da pergunta */}
-        <div className="flex justify-between items-center mb-4 px-2 sm:px-0">
-          <button
-            type="button"
-            onClick={() => go(state.currentIndex - 1)}
-            disabled={state.currentIndex === 0}
-            className="rounded-lg border border-white/20 bg-white/5 p-2 text-white/50 disabled:opacity-30 disabled:pointer-events-none transition hover:bg-white/10"
-          >
-            <ChevronLeft className="size-5" />
-          </button>
-
-          <div className="flex items-center gap-2 text-xs text-white/40">
-            {state.currentIndex + 1} / {total}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => go(state.currentIndex + 1)}
-            disabled={state.currentIndex >= total - 1}
-            className="rounded-lg border border-white/20 bg-indigo/10 p-2 text-indigo disabled:opacity-30 disabled:pointer-events-none transition hover:bg-indigo/20"
-          >
-            <ChevronRight className="size-5" />
-          </button>
         </div>
       </div>
 
@@ -174,7 +153,7 @@ export function QuizPlayer({
                     const isSelected = answer === option.label;
                     const isCorrect = option.label === question.correct;
 
-                    // Feedback visual: verde se correta, vermelha se incorreta (quando respondida)
+                    // Feedback visual: verde se correta, vermelha se incorreta
                     let base = "bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20";
                     let circleBg = "text-white";
                     let checkIcon = null;
@@ -281,70 +260,45 @@ export function QuizPlayer({
         </div>
       </div>
 
-      {/* Aba de navegacao do questionario (fixa na direita em desktop) */}
-      <div className="fixed inset-y-0 right-0 z-20 w-full sm:w-80 bg-[#0b0f19] border-l border-white/10 flex flex-col transform transition-transform duration-300 sm:translate-x-0">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-[#0b0f19]/80 backdrop-blur-md">
-          <h2 className="text-xs font-semibold text-white/70 uppercase tracking-wider">Navegação do questionário</h2>
-          <button
-            type="button"
-            onClick={onFinish}
-            className="text-xs text-white/50 hover:text-white transition"
-          >
-            Finalizar tentativa
-          </button>
-        </div>
+      {/* Abas laterais DIREITA: secoes (tópicos) */}
+      {secoes > 0 ? (
+        <div className="fixed inset-y-0 right-0 z-20 w-full sm:w-80 bg-[#0b0f19] border-l border-white/10 flex flex-col transform transition-transform duration-300 sm:translate-x-0">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-[#0b0f19]/80 backdrop-blur-md">
+            <h2 className="text-xs font-semibold text-white/70 uppercase tracking-wider">Seções</h2>
+            <button
+              type="button"
+              onClick={onFinish}
+              className="text-xs text-white/50 hover:text-white transition"
+            >
+              Finalizar tentativa
+            </button>
+          </div>
 
-        <div className="flex-1 overflow-y-auto p-3">
-          <div className="grid grid-cols-5 gap-2">
-            {questoes.map((item, index) => {
-              const chosen = state.answers[item.id];
-              const isCurrent = index === state.currentIndex;
-              const isCorrect = chosen && item.correct ? chosen === item.correct : false;
-
-              let bg = "bg-white/5";
-              let border = "border-white/10";
-              let text = "text-white/60";
-              if (chosen && isCorrect) {
-                bg = "bg-green/20";
-                border = "border-green/50";
-                text = "text-green";
-              } else if (chosen && !isCorrect) {
-                bg = "bg-red/20";
-                border = "border-red/50";
-                text = "text-red";
-              } else if (chosen) {
-                bg = "bg-indigo/20";
-                border = "border-indigo/50";
-                text = "text-indigo";
-              } else if (isCurrent) {
-                bg = "bg-white/20";
-                border = "border-brand";
-                text = "text-white";
-              }
-
+          <div className="flex-1 overflow-y-auto p-3">
+            {quiz.secoes!.map((s, i) => {
+              const temRespondidas = s.questoes.filter((q) => state.answers[q.id]).length;
+              const selecionado = i === (state.secaoAtual ?? 0);
               return (
                 <button
-                  key={item.id}
+                  key={s.topico}
                   type="button"
-                  onClick={() => go(index)}
-                  className={`aspect-square rounded-lg border flex items-center justify-center text-xs font-semibold transition ${bg} ${border} ${text} disabled:opacity-50`}
+                  onClick={() => trocarSecao(i)}
+                  className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition ${selecionado ? "border-brand bg-brand/20 text-white" : "border-white/10 text-white/60 hover:border-brand/50 hover:bg-white/5"}`}
                 >
-                  {item.number ?? index + 1}
-                  {state.flagged.includes(item.id) && (
-                    <span className="absolute -right-1 -top-1 size-2.5 rounded-full bg-yellow-500" />
-                  )}
+                  <span className="flex-1 truncate">{s.topico}</span>
+                  <span className="text-[10px]">{temRespondidas}/{s.questoes.length}</span>
                 </button>
               );
             })}
           </div>
-        </div>
 
-        <div className="p-3 border-t border-white/10">
-          <p className="text-[10px] text-white/40 text-center">
-            {answeredCount}/{total} respondidas
-          </p>
+          <div className="p-3 border-t border-white/10">
+            <p className="text-[10px] text-white/40 text-center">
+              {answeredCount}/{total} respondidas
+            </p>
+          </div>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }
