@@ -1,411 +1,357 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
-  ChevronLeft,
-  ChevronRight,
-  Clock,
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Flag,
+  X,
 } from "lucide-react";
 import type { Quiz, QuizState } from "@/lib/types";
 import { formatTime, scoreQuiz } from "@/lib/quiz";
-import { ProgressBar } from "./ui";
+import { ProgressBar, Stat } from "./ui";
+import { OptionNotes } from "./option-notes";
 
 type Props = {
+  topBar: ReactNode;
   quiz: Quiz;
   state: QuizState;
   onStateChange: (state: QuizState) => void;
   onFinish: () => void;
-  topBar?: ReactNode;
 };
 
+/**
+ * QuizPlayer — tela de resolução do quiz.
+ *
+ * Layout (estilo UniFatecie / questionário de faculdade):
+ * - Marca (logo + versão) no topo, dentro do fluxo da página.
+ * - Abas de seção (tópicos) à esquerda, abaixo da logo, alternável.
+ * - Navegação (seta anterior / contador X de Y / seta seguinte) ACIMA do enunciado.
+ * - Enunciado destacado.
+ * - Alternativas com feedback verde (correta) / vermelho (errada).
+ * - Explicação abaixo das alternativas, sempre que existir (todas as respostas).
+ * - Painel direito fixo com a grade de numeração das questões (bubble por questão).
+ * - Barra de progresso + placar abaixo da área da questão.
+ */
 export function QuizPlayer({
+  topBar,
   quiz,
   state,
   onStateChange,
   onFinish,
-  topBar,
 }: Props) {
-  const secoes = quiz.secoes?.length ?? 0;
-  const secaoAtual = secoes > 0 ? quiz.secoes[state.secaoAtual ?? 0] : null;
-  const [secoesVisiveis, setSecoesVisiveis] = useState(secoes > 0);
-  const questoes = secaoAtual ? secaoAtual.questoes : quiz.questions;
-  const total = questoes.length;
-  const question = questoes[state.currentIndex];
-  const answer = question ? state.answers[question.id] : undefined;
-  const instant = quiz.settings.instantFeedback;
-  const locked = instant && Boolean(answer);
-  const showResult = Boolean(answer);
-
   const score = useMemo(() => scoreQuiz(quiz, state), [quiz, state]);
+  const question = quiz.questions[state.currentIndex];
+  const total = quiz.questions.length;
+  const current = state.currentIndex + 1;
 
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      onStateChange({ ...state, elapsedSeconds: state.elapsedSeconds + 1 });
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, [state, onStateChange]);
+  const currentSectionIndex = state.secaoAtual ?? 0;
+  const [secoesVisiveis, setSecoesVisiveis] = useState(false);
 
-  useEffect(() => {
-    const limit = quiz.settings.timerMinutes;
-    if (!limit) return;
-    if (state.elapsedSeconds >= limit * 60) {
+  // A correção visual aparece quando há resposta para a questão atual
+  // (correção instantânea ou já respondida). A explicação aparece sempre
+  // que existir, independente de correta ou errada (§37 item 3).
+  const answered = Boolean(state.answers[question.id]);
+  const chosen = state.answers[question.id] ?? null;
+
+  const hasPrev = state.currentIndex > 0;
+  const hasNext = state.currentIndex < total - 1;
+
+  const previousQuestion = () => {
+    if (!hasPrev) return;
+    onStateChange({ ...state, currentIndex: state.currentIndex - 1 });
+  };
+
+  const nextQuestion = () => {
+    if (!hasNext) {
       onFinish();
+      return;
     }
-  }, [state.elapsedSeconds, quiz.settings.timerMinutes, onFinish]);
+    onStateChange({ ...state, currentIndex: state.currentIndex + 1 });
+  };
 
-  const choose = useCallback(
-    (label: string) => {
-      if (locked || !question) return;
-      onStateChange({ ...state, answers: { ...state.answers, [question.id]: label } });
-    },
-    [locked, question, state, onStateChange],
-  );
+  const selectOption = (label: string) => {
+    if (answered) return;
+    const nextAnswers = { ...state.answers, [question.id]: label };
+    const nextState = { ...state, answers: nextAnswers };
+    onStateChange(nextState);
+    // Com correção instantânea, avança automaticamente depois de um curto delay.
+    if (quiz.settings.instantFeedback) {
+      setTimeout(() => {
+        if (hasNext) {
+          onStateChange({ ...nextState, currentIndex: state.currentIndex + 1 });
+        } else {
+          onFinish();
+        }
+      }, 900);
+    }
+  };
 
-  const go = useCallback(
-    (index: number) => {
-      if (index < 0 || index >= total) return;
-      onStateChange({ ...state, currentIndex: index });
-    },
-    [state, total, onStateChange],
-  );
-
-  const toggleFlag = useCallback(() => {
-    if (!question) return;
-    const flagged = state.flagged.includes(question.id)
+  const toggleFlag = () => {
+    const isFlagged = state.flagged.includes(question.id);
+    const next = isFlagged
       ? state.flagged.filter((id) => id !== question.id)
       : [...state.flagged, question.id];
-    onStateChange({ ...state, flagged });
-  }, [question, state, onStateChange]);
+    onStateChange({ ...state, flagged: next });
+  };
 
-  const trocarSecao = useCallback(
-    (idx: number) => {
-      if (idx < 0 || idx >= secoes) return;
-      onStateChange({ ...state, secaoAtual: idx, currentIndex: 0 });
-    },
-    [secoes, state, onStateChange],
-  );
+  const toggleSection = (index: number) => {
+    onStateChange({ ...state, secaoAtual: index });
+    setSecoesVisiveis(false);
+  };
 
-  if (!question) return null;
+  const sections = quiz.secoes ?? [];
 
-  const answeredCount = Object.keys(state.answers).length;
+  // Opção do estado visual da alternativa (.option usa data-state no CSS)
+  const optionState = (option: { label: string }): "selected" | "correct" | "wrong" | null => {
+    if (!answered) return null;
+    if (option.label === question.correct) return "correct";
+    if (option.label === chosen) return "wrong";
+    return null;
+  };
 
   return (
-    <div className="min-h-[calc(100vh-12rem)] flex flex-col bg-[#0b0f19] text-[#e8eaf6]">
-      {topBar ? <div className="mb-4">{topBar}</div> : null}
+    <div className="flex min-h-full flex-col">
+      {/* Marca: parte do conteúdo da página, sem cabeçalho fixo */}
+      <div className="mx-auto w-full max-w-5xl px-4 sm:px-6">
+        <div className="mb-6">{topBar}</div>
+      </div>
 
-      <div className="flex-1 overflow-hidden flex">
-        {/* Barra lateral ESQUERDA: secoes (tópicos) logo abaixo do logo */}
-        {secoes > 0 ? (
-          secoesVisiveis ? (
-            <div className="w-full sm:w-80 bg-[#0b0f19] border-r border-white/10 flex flex-col">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-[#0b0f19]/80 backdrop-blur-md">
-                <h2 className="text-xs font-semibold text-white/70 uppercase tracking-wider">Seções</h2>
-                <div className="flex items-center gap-2">
+      <main className="flex-1 min-w-0">
+        <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 pb-20">
+          {/* Cabeçalho do quiz: título, placar e progresso */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <div>
+              <h2 className="text-sm font-semibold text-ink-muted uppercase tracking-wider">
+                Quiz
+              </h2>
+              <h1 className="text-xl font-bold text-ink sm:text-2xl">{quiz.title}</h1>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 text-xs sm:text-sm">
+              <Stat label="Acertos" value={score.correct} tone="ok" />
+              <Stat label="Erros" value={score.errors} tone="bad" />
+              <Stat label="Tempo" value={formatTime(state.elapsedSeconds)} />
+            </div>
+          </div>
+
+          <ProgressBar value={score.percentage ?? 0} className="mb-6" />
+
+          {/* Corpo: abas à esquerda + conteúdo principal à direita */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-w-0">
+            {/* Barra lateral esquerda: abas de seção (tópicos) */}
+            <aside
+              className="lg:col-span-2 hidden lg:block flex flex-col gap-1 min-w-[160px] max-w-[220px]"
+            >
+              <p className="text-[10px] uppercase tracking-wider text-ink-faint mb-2">
+                Seções
+              </p>
+              <button
+                type="button"
+                onClick={() => setSecoesVisiveis((v) => !v)}
+                className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg border border-line bg-white/[0.02] text-[11px] text-ink-muted transition hover:bg-white/[0.04]"
+              >
+                {secoesVisiveis ? "▲" : "▼"}
+                <span className="flex-1 truncate">{sections.length} seção{sections.length !== 1 ? "ões" : ""}</span>
+                <span className="text-ink-faint">{currentSectionIndex + 1} / {sections.length}</span>
+              </button>
+              {secoesVisiveis && (
+                <div className="flex-1 overflow-y-auto space-y-1 pr-1">
+                  {sections.map((secao, index) => (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => toggleSection(index)}
+                      className={`w-full flex items-start gap-2 rounded-lg px-3 py-1.5 text-[11px] leading-tight text-left transition ${
+                        index === currentSectionIndex
+                          ? "bg-brand/20 border-brand text-ink font-medium"
+                          : "text-ink-muted hover:bg-white/[0.02] hover:border-line"
+                      }`}
+                    >
+                      <span className="flex-1 break-words">{secao.topico}</span>
+                      <span className="shrink-0 text-[9px] text-ink-faint">
+                        {secao.questoes.length}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </aside>
+
+            {/* Conteúdo principal: navegação no topo, enunciado, alternativas, explicação */}
+            <section className="lg:col-span-10 min-w-0">
+              {/* Navegação centralizada acima da pergunta (§37 item 1) */}
+              <div className="flex flex-col items-center gap-4 mb-6">
+                <div className="flex items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => setSecoesVisiveis(false)}
-                    className="text-xs text-white/50 hover:text-white transition"
+                    onClick={previousQuestion}
+                    disabled={!hasPrev}
+                    className="btn btn-ghost size-9 disabled:opacity-30"
                   >
-                    Ocultar seções
+                    <ArrowLeft className="size-4" />
                   </button>
+                  <span className="font-mono font-bold text-ink">
+                    {current} / {total}
+                  </span>
                   <button
                     type="button"
-                    onClick={onFinish}
-                    className="text-xs text-white/50 hover:text-white transition"
+                    onClick={nextQuestion}
+                    disabled={!hasNext}
+                    className="btn btn-ghost size-9 disabled:opacity-30"
                   >
-                    Finalizar tentativa
+                    <ArrowRight className="size-4" />
                   </button>
                 </div>
-              </div>
 
-              <div className="flex-1 overflow-y-auto p-3">
-                {quiz.secoes!.map((s, i) => {
-                  const temRespondidas = s.questoes.filter((q) => state.answers[q.id]).length;
-                  const selecionado = i === (state.secaoAtual ?? 0);
-                  return (
-                    <button
-                      key={s.topico}
-                      type="button"
-                      onClick={() => trocarSecao(i)}
-                      className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition ${selecionado ? "border-brand bg-brand/20 text-white" : "border-white/10 text-white/60 hover:border-brand/50 hover:bg-white/5"}`}
-                    >
-                      <span className="flex-1 truncate">{s.topico}</span>
-                      <span className="text-[10px]">{temRespondidas}/{s.questoes.length}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="p-3 border-t border-white/10">
-                <p className="text-[10px] text-white/40 text-center">
-                  {answeredCount}/{total} respondidas
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="w-80 bg-[#0b0f19] border-r border-white/10 flex flex-col">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-[#0b0f19]/80 backdrop-blur-md">
-                <h2 className="text-xs font-semibold text-white/70 uppercase tracking-wider">Seções</h2>
-                <button
-                  type="button"
-                  onClick={() => setSecoesVisiveis(true)}
-                  className="text-xs text-white/50 hover:text-white transition"
-                >
-                  Mostrar seções
-                </button>
-              </div>
-            </div>
-          )
-        ) : null}
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-3">
-              {quiz.secoes!.map((s, i) => {
-                const temRespondidas = s.questoes.filter((q) => state.answers[q.id]).length;
-                const selecionado = i === (state.secaoAtual ?? 0);
-                return (
-                  <button
-                    key={s.topico}
-                    type="button"
-                    onClick={() => trocarSecao(i)}
-                    className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition ${selecionado ? "border-brand bg-brand/20 text-white" : "border-white/10 text-white/60 hover:border-brand/50 hover:bg-white/5"}`}
-                  >
-                    <span className="flex-1 truncate">{s.topico}</span>
-                    <span className="text-[10px]">{temRespondidas}/{s.questoes.length}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="p-3 border-t border-white/10">
-              <p className="text-[10px] text-white/40 text-center">
-                {answeredCount}/{total} respondidas
-              </p>
-            </div>
-          </div>
-        ) : null}
-
-        {/* Coluna principal: navegacao + enunciado + alternativas */}
-        <div className="flex-1 flex flex-col">
-          {/* Barra superior: navegacao + contador */}
-          <div className="px-4 sm:px-6 pb-2">
-            <div className="flex items-center justify-center gap-3 mb-3">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => go(state.currentIndex - 1)}
-                  disabled={state.currentIndex === 0}
-                  className="rounded-lg border border-white/20 bg-white/5 p-2 text-white/50 disabled:opacity-30 disabled:pointer-events-none transition hover:bg-white/10"
-                >
-                  <ChevronLeft className="size-5" />
-                </button>
-                <span className="text-xs text-white/40">
-                  {state.currentIndex + 1} / {total}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => go(state.currentIndex + 1)}
-                  disabled={state.currentIndex >= total - 1}
-                  className="rounded-lg border border-white/20 bg-indigo/10 p-2 text-indigo disabled:opacity-30 disabled:pointer-events-none transition hover:bg-indigo/20"
-                >
-                  <ChevronRight className="size-5" />
-                </button>
-              </div>
-
-              <div className="flex items-center gap-3 text-xs text-white/40">
-                <span className="text-white/50">{answeredCount}</span>{" "}
-                <span className="text-white/40">/{total} respondidas</span>
-                <span className="ml-2 flex items-center gap-1">
-                  <Clock className="size-3.5" />
-                  {formatTime(state.elapsedSeconds)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Area principal: enunciado + alternativas */}
-          <div className="flex-1 overflow-y-auto overflow-x-auto px-4 sm:px-6 pb-8">
-            <div className="mx-auto max-w-2xl">
-              {question && (
-                <>
-                  <div className="mb-6">
-                    <p className="text-white leading-relaxed text-lg font-medium">
+                {/* Enunciado da questão (§36 item 1) */}
+                {question ? (
+                  <div className="max-w-2xl text-center">
+                    <p className="text-base font-medium text-ink leading-relaxed sm:text-lg">
                       {question.statement}
                     </p>
                   </div>
+                ) : null}
+              </div>
 
-                  <div className="space-y-3 mb-8">
+              {question ? (
+                <div className="mt-6 space-y-4">
+                  {/* Alternativas com feedback visual (§36 item 2, §37 item 2) */}
+                  <div className="space-y-2">
                     {question.options.map((option) => {
-                      const isSelected = answer === option.label;
-                      const isCorrect = option.label === question.correct;
-
-                      // Feedback visual so aparece DEPOIS de marcar algo
-                      let base = "bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20";
-                      let circleBg = "text-white";
-                      let checkIcon = null;
-
-                      if (isSelected) {
-                        if (isCorrect) {
-                          base = "bg-green/15 border-green/50 text-green";
-                          circleBg = "bg-green text-white";
-                          checkIcon = (
-                            <svg className="size-4 shrink-0 text-green" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                            </svg>
-                          );
-                        } else {
-                          base = "bg-red/15 border-red/50 text-red";
-                          circleBg = "bg-red text-white";
-                          checkIcon = (
-                            <svg className="size-4 shrink-0 text-red" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          );
-                        }
-                      }
-
+                      const state_ = optionState(option);
+                      const isChosen = option.label === chosen;
+                      const isCorrectOption = option.label === question.correct;
                       return (
                         <button
                           key={option.label}
                           type="button"
-                          onClick={() => choose(option.label)}
-                          disabled={locked}
-                          className={`flex items-center gap-3 w-full rounded-xl border px-4 py-3.5 text-left transition ${base}`}
+                          onClick={() => selectOption(option.label)}
+                          disabled={answered}
+                          className={`option w-full ${
+                            state_
+                              ? `data-state=${JSON.stringify(state_)}`
+                              : isChosen
+                                ? "data-state=selected"
+                                : ""
+                          }`}
                         >
-                          <span className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${circleBg}`}>
+                          <span className="shrink-0 font-mono font-bold text-ink">
                             {option.label}
                           </span>
-                          <span className="flex-1 min-w-0">{option.text}</span>
-                          {checkIcon}
+                          <span className="flex-1 text-left text-sm leading-relaxed">
+                            {option.text}
+                          </span>
+                          {answered && isCorrectOption ? (
+                            <Check className="size-4 shrink-0 text-ok" />
+                          ) : answered && isChosen && !isCorrectOption ? (
+                            <X className="size-4 shrink-0 text-bad" />
+                          ) : null}
                         </button>
                       );
                     })}
                   </div>
 
-                  {/* Justificativa/explicacao so aparece depois de marcar */}
-                  {showResult && question.explanation && (
-                    <div className="mt-4 p-4 rounded-xl bg-green/5 border border-green/20 text-sm text-green/90">
+                  {/* Explicação para TODAS as respostas (§37 item 3) */}
+                  {question.explanation && (
+                    <div
+                      className="rounded-lg border border-line bg-white/[0.02] p-4 text-sm leading-relaxed text-ink-muted"
+                    >
+                      <p className="text-[10px] uppercase tracking-wider text-ink-faint mb-1.5">
+                        Explicação
+                      </p>
                       {question.explanation}
                     </div>
                   )}
-                </>
-              )}
-            </div>
-          </div>
 
-          {/* Placar */}
-          <div className="border-t border-white/10 bg-[#0b0f19] px-4 sm:px-6 py-3">
-            <ProgressBar value={(score.percentage ?? 0) / 100} className="mb-3" />
-            <div className="flex justify-between text-sm">
-              <span className="text-white/60">
-                {score.correct} acerto{score.correct !== 1 ? "s" : ""}
-              </span>
-              <span className="text-white/40">
-                {score.errors} erro{score.errors !== 1 ? "s" : ""}
-              </span>
-            </div>
-          </div>
+                  {/* Análise por alternativa (notas do PDF / IA) */}
+                  <OptionNotes question={question} className="mt-2" />
 
-          {/* Acoes finais */}
-          <div className="border-t border-white/10 bg-[#0b0f19] px-4 sm:px-6 py-3">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className="text-xs text-white/40 transition hover:text-white"
-                  onClick={onFinish}
-                >
-                  Finalizar quiz
-                </button>
-                <button
-                  type="button"
-                  onClick={() => toggleFlag()}
-                  className={`text-xs p-1.5 rounded hover:bg-white/10 transition ${
-                    state.flagged.includes(question.id) ? "text-yellow-400" : "text-white/40"
-                  }`}
-                  title="Marcar para revisar"
-                >
-                  <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17l5-5-5-5M15 17l-5 5m5-5l-5 5" />
-                  </svg>
-                </button>
-              </div>
-              <button
-                type="button"
-                onClick={onFinish}
-                className="flex items-center gap-2 rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm text-white/50 transition hover:bg-white/10"
-              >
-                Finalizar quiz
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Barra lateral DIREITA: navegacao do questionario com numeros */}
-      <div className="fixed inset-y-0 right-0 z-20 w-full sm:w-80 bg-[#0b0f19] border-l border-white/10 flex flex-col transform transition-transform duration-300 sm:translate-x-0">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-[#0b0f19]/80 backdrop-blur-md">
-          <h2 className="text-xs font-semibold text-white/70 uppercase tracking-wider">Navegação do questionário</h2>
-          <button
-            type="button"
-            onClick={onFinish}
-            className="text-xs text-white/50 hover:text-white transition"
-          >
-            Finalizar tentativa
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-3">
-          <div className="grid grid-cols-5 gap-2">
-            {questoes.map((item, index) => {
-              const chosen = state.answers[item.id];
-              const isCurrent = index === state.currentIndex;
-              const isCorrect = chosen && item.correct ? chosen === item.correct : false;
-
-              let bg = "bg-white/5";
-              let border = "border-white/10";
-              let text = "text-white/60";
-              if (chosen && isCorrect) {
-                bg = "bg-green/20";
-                border = "border-green/50";
-                text = "text-green";
-              } else if (chosen && !isCorrect) {
-                bg = "bg-red/20";
-                border = "border-red/50";
-                text = "text-red";
-              } else if (chosen) {
-                bg = "bg-indigo/20";
-                border = "border-indigo/50";
-                text = "text-indigo";
-              } else if (isCurrent) {
-                bg = "bg-white/20";
-                border = "border-brand";
-                text = "text-white";
-              }
-
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => go(index)}
-                  className={`aspect-square rounded-lg border flex items-center justify-center text-xs font-semibold transition ${bg} ${border} ${text} disabled:opacity-50`}
-                >
-                  {item.number ?? index + 1}
-                  {state.flagged.includes(item.id) && (
-                    <span className="absolute -right-1 -top-1 size-2.5 rounded-full bg-yellow-500" />
+                  {/* Botão pular (sem resposta) quando não há correção instantânea */}
+                  {!answered && !quiz.settings.instantFeedback && question.correct !== null && (
+                    <button
+                      type="button"
+                      onClick={nextQuestion}
+                      className="btn btn-ghost mt-3 text-xs text-ink-muted"
+                    >
+                    Pular →
+                    </button>
                   )}
+                </div>
+              ) : null}
+
+              {/* Painel de controle inferior: marcador e finalizar */}
+              <div className="mt-8 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-line pt-4">
+                <button
+                  type="button"
+                  onClick={toggleFlag}
+                  className="flex items-center gap-2 btn btn-ghost text-xs"
+                >
+                  <Flag className="size-3.5" />
+                  {state.flagged.includes(question.id) ? "Desmarcar revisão" : "Marcar para revisão"}
                 </button>
-              );
-            })}
+                <div className="flex items-center gap-2 text-xs text-ink-faint">
+                  <span>{formatTime(state.elapsedSeconds)}</span>
+                  {score.gradeable > 0 ? (
+                    <span className="font-mono tabular-nums">
+                      {score.correct} / {score.gradeable}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            </section>
+
+            {/* Barra lateral direita: grade de numeração das questões (§37 item 4) */}
+            <aside className="lg:col-span-2 hidden lg:block flex flex-col gap-3 min-w-[200px]">
+              <div className="sticky top-4">
+                <p className="text-[10px] uppercase tracking-wider text-ink-faint mb-2">
+                  Navegação do questionário
+                </p>
+                <div className="grid grid-cols-5 gap-1.5">
+                  {quiz.questions.map((q, index) => {
+                    const answeredHere = Boolean(state.answers[q.id]);
+                    const isCurrent = index === state.currentIndex;
+                    const isFlagged = state.flagged.includes(q.id);
+                    let tone: "correct" | "wrong" | "answered" | "current" | "pending" =
+                      "pending";
+                    if (isCurrent) tone = "current";
+                    else if (answeredHere) {
+                      tone =
+                        state.answers[q.id] === q.correct ? "correct" : "wrong";
+                    } else if (isFlagged) {
+                      tone = "answered";
+                    }
+                    return (
+                      <button
+                        key={q.id}
+                        type="button"
+                        onClick={() =>
+                          onStateChange({ ...state, currentIndex: index })
+                        }
+                        disabled={isCurrent}
+                        className={`bubble shrink-0 ${
+                          tone === "correct"
+                            ? "border-ok bg-ok/20 text-ok"
+                            : tone === "wrong"
+                              ? "border-bad bg-bad/20 text-bad"
+                              : tone === "answered"
+                                ? "border-brand bg-brand/20 text-brand"
+                                : tone === "current"
+                                  ? "border-brand bg-brand text-ink"
+                                  : ""
+                        } ${isFlagged ? "ring-2 ring-brand" : ""}`}
+                        title={`Questão ${index + 1}`}
+                      >
+                        {index + 1}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </aside>
           </div>
         </div>
-
-        <div className="p-3 border-t border-white/10">
-          <p className="text-[10px] text-white/40 text-center">
-            {answeredCount}/{total} respondidas
-          </p>
-        </div>
-      </div>
+      </main>
     </div>
   );
 }
