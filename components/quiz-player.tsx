@@ -33,6 +33,7 @@ export function QuizPlayer({
   const answer = question ? state.answers[question.id] : undefined;
   const instant = quiz.settings.instantFeedback;
   const locked = instant && Boolean(answer);
+  const showResult = Boolean(answer);
 
   const score = useMemo(() => scoreQuiz(quiz, state), [quiz, state]);
 
@@ -136,10 +137,9 @@ export function QuizPlayer({
             type="button"
             onClick={() => go(state.currentIndex - 1)}
             disabled={state.currentIndex === 0}
-            className="flex items-center gap-2 rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm text-white/50 disabled:opacity-30 disabled:pointer-events-none transition hover:bg-white/10"
+            className="rounded-lg border border-white/20 bg-white/5 p-2 text-white/50 disabled:opacity-30 disabled:pointer-events-none transition hover:bg-white/10"
           >
-            <ChevronLeft className="size-4" />
-            Anterior
+            <ChevronLeft className="size-5" />
           </button>
 
           <div className="flex items-center gap-2 text-xs text-white/40">
@@ -150,10 +150,9 @@ export function QuizPlayer({
             type="button"
             onClick={() => go(state.currentIndex + 1)}
             disabled={state.currentIndex >= total - 1}
-            className="flex items-center gap-2 rounded-lg border border-white/20 bg-indigo/10 px-4 py-2 text-sm text-indigo disabled:opacity-30 disabled:pointer-events-none transition hover:bg-indigo/20"
+            className="rounded-lg border border-white/20 bg-indigo/10 p-2 text-indigo disabled:opacity-30 disabled:pointer-events-none transition hover:bg-indigo/20"
           >
-            Próxima
-            <ChevronRight className="size-4" />
+            <ChevronRight className="size-5" />
           </button>
         </div>
       </div>
@@ -200,9 +199,9 @@ export function QuizPlayer({
                           </svg>
                         );
                       }
-                    } else if (isCorrect) {
-                      // nao selecionada mas e a correta -> verde suave (mostra o gabarito)
-                        base = "bg-green/5 border-green/30 text-green/90";
+                    } else if (showResult && isCorrect) {
+                      // ja marcou algo: mostra o gabarito (correta) em verde suave
+                      base = "bg-green/5 border-green/30 text-green/90";
                     }
 
                     return (

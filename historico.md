@@ -1688,6 +1688,7 @@ a correção instantânea estava ativa — o usuário queria a justificativa par
 
 - Botões "Anterior" / contador "X / Y" / "Próxima" ficam no cabeçalho,
   logo abaixo do título do quiz e acima do enunciado — fáceis de alcançar
+- Labels "Anterior"/"Próxima" removidos: só setas simples (◀ / ▶)
 
 **2. Feedback visual nas alternativas (verde/vermelho)**
 
