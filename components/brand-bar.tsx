@@ -4,6 +4,9 @@ import type { ReactNode } from "react";
 
 import { Logo } from "./ui";
 
+/** Versao atual do aplicativo. Incrementar a cada modificacao visivel. */
+export const APP_VERSION = "1.3";
+
 /**
  * Logo + acoes no fluxo da pagina.
  *
@@ -30,9 +33,13 @@ export function BrandBar({
           className="rounded-xl transition hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
         >
           <Logo />
+          <span className="ml-2 text-xs font-mono text-brand-soft/60">v{APP_VERSION}</span>
         </button>
       ) : (
-        <Logo />
+        <>
+          <Logo />
+          <span className="ml-2 text-xs font-mono text-brand-soft/60">v{APP_VERSION}</span>
+        </>
       )}
       <div className="flex shrink-0 items-center gap-1.5">{actions}</div>
     </div>

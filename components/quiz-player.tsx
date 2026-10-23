@@ -33,7 +33,7 @@ export function QuizPlayer({
   const answer = question ? state.answers[question.id] : undefined;
   const instant = quiz.settings.instantFeedback;
   const locked = instant && Boolean(answer);
-  // Mostra feedback so DEPOIS que o usuario marcar algo
+  // Mostra feedback SO DEPOIS que o usuario marcar algo
   const showResult = Boolean(answer);
 
   const score = useMemo(() => scoreQuiz(quiz, state), [quiz, state]);
@@ -93,7 +93,7 @@ export function QuizPlayer({
     <div className="min-h-[calc(100vh-12rem)] flex flex-col bg-[#0b0f19] text-[#e8eaf6]">
       {topBar ? <div className="mb-4">{topBar}</div> : null}
 
-      {/* Barra superior: navegacao + contador (logo fica aqui em cima) */}
+      {/* Barra superior: navegacao + contador (abaixo do logo na pagina) */}
       <div className="px-4 sm:px-6 pb-2">
         <div className="flex items-center justify-between gap-3 mb-3">
           <div className="flex items-center gap-2">
@@ -186,7 +186,7 @@ export function QuizPlayer({
                     const isSelected = answer === option.label;
                     const isCorrect = option.label === question.correct;
 
-                    // Feedback visual so aparece DEPOIS que o usuario marcar algo
+                    // Feedback visual so aparece DEPOIS de marcar algo
                     let base = "bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20";
                     let circleBg = "text-white";
                     let checkIcon = null;
