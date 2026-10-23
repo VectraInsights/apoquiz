@@ -1672,6 +1672,62 @@ alternativas) e reutilizada tanto nas alternativas quanto na explicação.
 
 ---
 
+## 37. Layout do quiz: estilo questionário de faculdade (abas em grade)
+
+### O problema
+
+O layout do `QuizPlayer` não agradava: as questões ficavam empilhadas numa
+paleta lateral esquerda, sem abas de navegação visíveis, e a barra de navegação
+inferior ("Anterior / Próxima") competia com o placar. O usuário pediu um
+estilo próximo ao questionário da faculdade (imagens de referência: UniFatecie),
+com **abas de navegação em grade** e enunciado destacado.
+
+### O que mudou em `components/quiz-player.tsx`
+
+**1. Abas de navegação em grade (barra lateral direita)**
+
+- Barra fixa à direita (`sm:w-80`) com o título "Navegação do questionário"
+- Todas as questões renderizadas como botões quadrados em grade de 5 colunas
+- Estado visual por questão:
+  - respondida correta → verde
+  - respondida errada → vermelho
+  - respondida (sem saber se acertou) → índigo
+  - questão atual → roxo/borda destacada
+  - não respondida → branco escuro
+- Ícone de bandeira em questões marcadas para revisão
+- Botão "Finalizar tentativa" no cabeçalho da barra
+
+**2. Enunciado destacado**
+
+- O `question.statement` fica em destaque no topo da área central, em texto
+  grande e legível
+
+**3. Alternativas organizadas**
+
+- Cada alternativa em botão largura total com a letra num círculo à esquerda
+- Feedback de seleção (azul) e de correção (verde/vermelho com ícone)
+- Explicação da questão exibida abaixo quando a correção instantânea está ativa
+
+**4. Barra inferior de navegação**
+
+- Botões "Anterior" / "Próxima" claramente separados
+- Contador "X / Y" no centro
+- Botão "Finalizar quiz" à direita
+
+**5. Placar integrado**
+
+- Barra de progresso + contagem de acertos/erros logo abaixo da área da questão
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `npm run typecheck` | ✅ sem erros |
+| `npm run lint` | ✅ 0 errors |
+| `npm run build` | ✅ build de produção concluído |
+
+---
+
 ## 35. Build do TypeScript: `questoesAgrupadas` inexistente, `secoes` faltando e `percentage` null
 
 ### O problema
