@@ -93,7 +93,7 @@ export function QuizPlayer({
     <div className="min-h-[calc(100vh-12rem)] flex flex-col bg-[#0b0f19] text-[#e8eaf6]">
       {topBar ? <div className="mb-4">{topBar}</div> : null}
 
-      {/* Barra superior: navegacao + contador */}
+      {/* Barra superior: navegacao + contador (logo fica aqui em cima) */}
       <div className="px-4 sm:px-6 pb-2">
         <div className="flex items-center justify-between gap-3 mb-3">
           <div className="flex items-center gap-2">
@@ -130,7 +130,7 @@ export function QuizPlayer({
       </div>
 
       <div className="flex-1 overflow-hidden flex">
-        {/* Barra lateral ESQUERDA: secoes (tópicos) - tipo UniFatecie */}
+        {/* Barra lateral ESQUERDA: secoes (tópicos) logo abaixo do logo */}
         {secoes > 0 ? (
           <div className="w-full sm:w-80 bg-[#0b0f19] border-r border-white/10 flex flex-col">
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-[#0b0f19]/80 backdrop-blur-md">
@@ -171,7 +171,7 @@ export function QuizPlayer({
         ) : null}
 
         {/* Area principal: enunciado + alternativas */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-8">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-8 pl-[260px] sm:pl-[320px]">
           <div className="max-w-2xl mx-auto">
             {question && (
               <>
@@ -186,7 +186,7 @@ export function QuizPlayer({
                     const isSelected = answer === option.label;
                     const isCorrect = option.label === question.correct;
 
-                    // Feedback visual so aparece DEPOIS de marcar
+                    // Feedback visual so aparece DEPOIS que o usuario marcar algo
                     let base = "bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20";
                     let circleBg = "text-white";
                     let checkIcon = null;
@@ -243,7 +243,7 @@ export function QuizPlayer({
         </div>
 
         {/* Placar */}
-        <div className="border-t border-white/10 bg-[#0b0f19] px-4 sm:px-6 py-3">
+        <div className="border-t border-white/10 bg-[#0b0f19] px-4 sm:px-6 py-3 pl-[260px] sm:pl-[320px]">
           <ProgressBar value={(score.percentage ?? 0) / 100} className="mb-3" />
           <div className="flex justify-between text-sm">
             <span className="text-white/60">
@@ -256,7 +256,7 @@ export function QuizPlayer({
         </div>
 
         {/* Acoes finais */}
-        <div className="border-t border-white/10 bg-[#0b0f19] px-4 sm:px-6 py-3">
+        <div className="border-t border-white/10 bg-[#0b0f19] px-4 sm:px-6 py-3 pl-[260px] sm:pl-[320px]">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
               <button
