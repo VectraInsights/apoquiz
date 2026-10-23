@@ -33,7 +33,6 @@ export function QuizPlayer({
   const answer = question ? state.answers[question.id] : undefined;
   const instant = quiz.settings.instantFeedback;
   const locked = instant && Boolean(answer);
-  // Mostra feedback SO DEPOIS que o usuario marcar algo
   const showResult = Boolean(answer);
 
   const score = useMemo(() => scoreQuiz(quiz, state), [quiz, state]);
@@ -170,9 +169,9 @@ export function QuizPlayer({
           </div>
         ) : null}
 
-        {/* Area principal: enunciado + alternativas (MEIO) */}
+        {/* Area principal: enunciado + alternativas */}
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-8 pl-[260px] sm:pl-[320px]">
-          <div className="max-w-2xl mx-auto">
+          <div className="mx-auto">
             {question && (
               <>
                 <div className="mb-6">
@@ -288,7 +287,7 @@ export function QuizPlayer({
         </div>
       </div>
 
-      {/* Barra lateral DIREITA: navegacao do questionario com numeros (tipo UniFatecie imagem 2) */}
+      {/* Barra lateral DIREITA: navegacao do questionario com numeros */}
       <div className="fixed inset-y-0 right-0 z-20 w-full sm:w-80 bg-[#0b0f19] border-l border-white/10 flex flex-col transform transition-transform duration-300 sm:translate-x-0">
         <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-[#0b0f19]/80 backdrop-blur-md">
           <h2 className="text-xs font-semibold text-white/70 uppercase tracking-wider">Navegação do questionário</h2>
