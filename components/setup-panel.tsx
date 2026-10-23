@@ -140,7 +140,7 @@ export function SetupPanel({
               />
             </div>
 
-            {diagnostics && diagnostics.warnings.length > 0 ? (
+            {diagnostics && diagnostics.warnings.length > 0 && questions.length === 0 ? (
               <div className="mt-3 rounded-xl border border-warn/30 bg-warn/10 p-3.5">
                 <p className="flex items-center gap-2 text-sm font-semibold text-warn">
                   <CircleAlert className="size-4" />
