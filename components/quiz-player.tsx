@@ -170,8 +170,8 @@ export function QuizPlayer({
         ) : null}
 
         {/* Area principal: enunciado + alternativas */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-8 pl-[260px] sm:pl-[320px]">
-          <div className="mx-auto">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-8">
+          <div className="mx-auto max-w-2xl">
             {question && (
               <>
                 <div className="mb-6">
@@ -240,7 +240,7 @@ export function QuizPlayer({
         </div>
 
         {/* Placar */}
-        <div className="border-t border-white/10 bg-[#0b0f19] px-4 sm:px-6 py-3 pl-[260px] sm:pl-[320px]">
+        <div className="border-t border-white/10 bg-[#0b0f19] px-4 sm:px-6 py-3">
           <ProgressBar value={(score.percentage ?? 0) / 100} className="mb-3" />
           <div className="flex justify-between text-sm">
             <span className="text-white/60">
@@ -253,7 +253,7 @@ export function QuizPlayer({
         </div>
 
         {/* Acoes finais */}
-        <div className="border-t border-white/10 bg-[#0b0f19] px-4 sm:px-6 py-3 pl-[260px] sm:pl-[320px]">
+        <div className="border-t border-white/10 bg-[#0b0f19] px-4 sm:px-6 py-3">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
               <button
