@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -27,6 +27,7 @@ export function QuizPlayer({
 }: Props) {
   const secoes = quiz.secoes?.length ?? 0;
   const secaoAtual = secoes > 0 ? quiz.secoes[state.secaoAtual ?? 0] : null;
+  const [secoesVisiveis, setSecoesVisiveis] = useState(secoes > 0);
   const questoes = secaoAtual ? secaoAtual.questoes : quiz.questions;
   const total = questoes.length;
   const question = questoes[state.currentIndex];
@@ -94,17 +95,26 @@ export function QuizPlayer({
 
       <div className="flex-1 overflow-hidden flex">
         {/* Barra lateral ESQUERDA: secoes (tópicos) logo abaixo do logo */}
-        {secoes > 0 ? (
+        {secoes > 0 && secoesVisiveis ? (
           <div className="w-full sm:w-80 bg-[#0b0f19] border-r border-white/10 flex flex-col">
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-[#0b0f19]/80 backdrop-blur-md">
               <h2 className="text-xs font-semibold text-white/70 uppercase tracking-wider">Seções</h2>
-              <button
-                type="button"
-                onClick={onFinish}
-                className="text-xs text-white/50 hover:text-white transition"
-              >
-                Finalizar tentativa
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSecoesVisiveis(false)}
+                  className="text-xs text-white/50 hover:text-white transition"
+                >
+                  Ocultar seções
+                </button>
+                <button
+                  type="button"
+                  onClick={onFinish}
+                  className="text-xs text-white/50 hover:text-white transition"
+                >
+                  Finalizar tentativa
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-3">
@@ -172,7 +182,7 @@ export function QuizPlayer({
           </div>
 
           {/* Area principal: enunciado + alternativas */}
-          <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-8">
+          <div className="flex-1 overflow-y-auto overflow-x-auto px-4 sm:px-6 pb-8">
             <div className="mx-auto max-w-2xl">
               {question && (
                 <>
