@@ -2461,3 +2461,73 @@ por esta mudança. É um assunto separado.
 | A/B da altura da linha 2 | ✅ 472 → 387 px |
 | Botão visível (≥1024 px) | ✅ |
 | `v2.4` no cabeçalho | ✅ |
+
+---
+
+## 51. Quiz não aparecia ao voltar pela lâmpada (`v2.5`)
+
+### O sintoma
+
+Com um quiz salvo, clicar na **lâmpada** (o logo, que leva à tela inicial)
+mostrava a home **sem** o quiz na lista "Continuar de onde parou". Dando
+**F5** o mesmo quiz aparecia.
+
+### A causa
+
+Não é rota — o app não tem `router.push` nenhum: é uma máquina de estados
+dentro de `QuizApp` (`setStage`). A lâmpada chama `handleNewFile`, que faz
+`setStage("upload")`. Então a **única** diferença entre o clique e o F5 é
+que o F5 reexecuta `refreshList()`. Isso aponta para lista desatualizada,
+e a leitura do código confirma **duas** falhas.
+
+**1) Corrida no `handleStart` — a causa principal**
+
+```js
+void putQuiz(target, built);   // nuvem: getUser() + upsert  = 2 idas de rede
+void putState(target, built, initial);
+void refreshList();            // dispara o SELECT AGORA
+```
+
+`refreshList()` é chamado **sincronamente** logo após `putQuiz()`, que em
+modo nuvem ainda nem pegou o `userId`. O `SELECT` parte e retorna **antes**
+do `UPSERT` confirmar → `recent` volta sem o quiz recém-criado. Com F5 o
+`UPSERT` já terminou → aparecia.
+
+Em modo local o `saveLocalQuiz` é síncrono, então a corrida **não existe** —
+por isso o bug só aparece para quem está logado.
+
+**2) `handleNewFile` não relia nada**
+
+Ele só fazia `setStage("upload")`. Como o `recent` em memória já estava
+atrasado (item 1), ele seguia mostrando a lista velha — e nunca se
+recuperava, porque nada mais chama `refreshList` nesse caminho. O botão
+**"Meus quizzes"** tinha exatamente o mesmo defeito
+(`onMyQuizzes={() => setStage("upload")}`).
+
+### O que mudou
+
+`components/quiz-app.tsx`:
+
+- **`handleStart`** — as três operações viraram uma cadeia sequencial:
+  `putQuiz → putState → refreshList`. A tela troca na hora (nenhum `await`
+  bloqueia o `setState`); só a **relização da lista** passa a esperar a
+  gravação confirmar.
+- **`handleNewFile`** — passou a esperar a gravação do progresso (se havia
+  quiz aberto) e **então** chamar `refreshList()`. O `setStage` continua
+  imediato, então não há trava de tela: a lista em memória é pintada na
+  hora e re-renderiza quando a leitura volta.
+- **`onMyQuizzes`** — agora aponta para `handleNewFile`, em vez de um
+  `setStage` cru. Os dois caminhos de "voltar pra tela inicial" passam a
+  fazer a mesma coisa.
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `npm run typecheck` | ✅ sem erros |
+| `npm run lint` | ✅ 0 errors |
+| `npm run build` | ✅ build de produção concluído |
+| Causa confirmada no código | ✅ `putCloud` = 2 idas de rede; `refreshList` dispara antes |
+| Ausência de rota | ✅ zero ocorrências de `router.push`/`useRouter` |
+| Reprodução ao vivo | ⚙️ **não feita** — exige conta logada (o bug não existe em modo local) |
+| `v2.5` no cabeçalho | ✅ |

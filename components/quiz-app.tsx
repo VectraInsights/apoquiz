@@ -179,9 +179,13 @@ export function QuizApp() {
       );
       const initial = { ...createState(), startedAt: new Date().toISOString() };
 
-      void putQuiz(target, built);
-      void putState(target, built, initial);
-      void refreshList();
+      // Grava e so depois relê. O putQuiz em nuvem vai e volta de rede
+      // (getUser + upsert); se o refreshList disparar junto, o SELECT
+      // chega antes do UPSERT e a lista volta sem este quiz - so o F5
+      // mostrava, porque ai o UPSERT ja tinha terminado.
+      void putQuiz(target, built)
+        .then(() => putState(target, built, initial))
+        .then(() => refreshList());
 
       setQuiz(built);
       setQuizState(initial);
@@ -208,13 +212,20 @@ export function QuizApp() {
   }, [quiz, target]);
 
   const handleNewFile = useCallback(() => {
-    // Antes de sair, garante que o progresso atual ficou salvo.
-    if (quiz) void putState(target, quiz, quizState);
+    // Relê a lista ao voltar para a tela inicial: a que esta em memoria
+    // pode estar atrasada em relacao ao que ja foi gravado. Se havia um
+    // quiz aberto, espera a gravacao do progresso terminar antes de reler,
+    // senao o SELECT volta antes do PUT e a tela mostra o estado antigo.
+    void (async () => {
+      if (quiz) await putState(target, quiz, quizState);
+      await refreshList();
+    })();
+
     setStage("upload");
     setError(null);
     setQuiz(null);
     setQuestions([]);
-  }, [quiz, quizState, target]);
+  }, [quiz, quizState, target, refreshList]);
 
   /**
    * Retoma um quiz salvo. Se ele ja foi finalizado, volta para a tela de
@@ -312,7 +323,7 @@ export function QuizApp() {
           <AuthButton
             auth={auth}
             compact
-            onMyQuizzes={() => setStage("upload")}
+            onMyQuizzes={handleNewFile}
           />
         </>
       }
