@@ -2053,3 +2053,52 @@ começando sempre em 1.
 | `npm run build` | ✅ build de produção concluído |
 | Painel direito | ✅ mostra apenas questões do tópico atual, de 1 a N |
 | Versão exibida | ✅ `v1.6` ao lado do logo |
+
+---
+
+## 44. Explicação e análise só após responder (`v1.7`)
+
+### O pedido
+
+A explicação e a análise "Por que cada alternativa" estavam aparecendo
+antes do usuário marcar qualquer opção. O usuário pediu que essas
+informações só fossem exibidas **depois** de selecionar uma resposta.
+
+### O que mudou em `components/quiz-player.tsx`
+
+**1. Explicação condicional**
+
+- A explicação da questão agora só é renderizada quando `answered` for
+  `true` (ou seja, depois que o usuário selecionou uma alternativa).
+- Antes: aparecia sempre que `question.explanation` existia.
+- Depois: só aparece se `answered && question.explanation`.
+
+**2. Análise por alternativa condicional**
+
+- O `OptionNotes` (seção "Por que cada alternativa") agora só é
+  renderizado quando `answered` for `true`.
+- Antes: aparecia sempre que houvesse notas de alternativa.
+- Depois: só aparece se `answered`.
+
+**3. Lista de tópicos sempre visível**
+
+- A lista de tópicos à esquerda agora começa visível (`useState(true)`)
+  e permanece aberta após clicar em um tópico.
+- O usuário pode escondê-la pelo botão de colapso (▲/▼) se preferir.
+
+**4. Versão**
+
+- `APP_VERSION` incrementado de `"1.6"` para `"1.7"` em
+  `components/brand-bar.tsx`.
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `npm run typecheck` | ✅ sem erros |
+| `npm run lint` | ✅ 0 errors |
+| `npm run build` | ✅ build de produção concluído |
+| Explicação após responder | ✅ só aparece depois de marcar uma alternativa |
+| Análise por alternativa após responder | ✅ só aparece depois de marcar uma alternativa |
+| Lista de tópicos | ✅ começa visível, pode ser colapsada pelo usuário |
+| Versão exibida | ✅ `v1.7` ao lado do logo |
