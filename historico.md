@@ -1892,3 +1892,49 @@ as informações ocupassem toda a largura da tela.
 | `npm run lint` | ✅ 0 errors |
 | `npm run build` | ✅ build de produção concluído |
 | Layout em telas largas | ✅ conteúdo ocupa toda a largura disponível |
+
+---
+
+## 40. Tópicos do quiz exibidos na barra lateral esquerda
+
+### O problema
+
+A barra lateral esquerda do `QuizPlayer` mostrava "0 seções" mesmo em quizzes
+com múltiplos tópicos (ex.: 19 tópicos). Isso acontecia porque o componente
+dependia de `quiz.secoes`, que só é preenchido quando `groupMode === "by-pdf"`
+(`lib/quiz.ts`, linha 103-105). No modo padrão (mixed), `secoes` vem vazio
+`[]`, então nenhum tópico era exibido. Além disso, o rótulo "Seções" não
+batia com a terminologia do app ("Tópico").
+
+### O que mudou em `components/quiz-player.tsx`
+
+**1. Tópicos calculados diretamente das questões**
+
+Substituído `const sections = quiz.secoes ?? []` por um `useMemo` que extrai
+os tópicos únicos de `quiz.questions`, independente do `groupMode`:
+
+- Agrupa questões por `topic` (ou "Sem tópico" quando nulo)
+- Cada entrada guarda o nome do tópico e os índices das questões dele
+- Assim o sidebar sempre mostra todos os tópicos disponíveis
+
+**2. Renomeado "Seções" → "Tópico"**
+
+- Rótulo do painel: "Seções" → "Tópicos"
+- Contador: "X seções" → "X tópico(s)"
+- Clique em um tópico navega para a primeira questão daquele tópico
+
+**3. Navegação por tópico**
+
+- `toggleSection(topico)` agora recebe o nome do tópico, encontra o índice
+  da primeira questão dele e atualiza `state.currentIndex` e
+  `state.secaoAtual`.
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `npm run typecheck` | ✅ sem erros |
+| `npm run lint` | ✅ 0 errors |
+| `npm run build` | ✅ build de produção concluído |
+| Tópicos na barra lateral | ✅ exibe todos os tópicos únicos das questões |
+| Clique em tópico | ✅ navega para a primeira questão do tópico |
