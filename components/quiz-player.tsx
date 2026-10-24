@@ -26,10 +26,12 @@ type Props = {
  *
  * Layout (estilo UniFatecie / questionário de faculdade):
  * - Marca (logo + versão) no topo, dentro do fluxo da página.
- * - Abas de seção (tópicos) à esquerda, abaixo da logo, alternável.
+ * - Quando groupMode é "by-pdf": abas de tópico à esquerda, navegando por tópico.
+ * - Quando groupMode é "mixed": sem abas de tópico; navegação linear por todas
+ *   as questões embaralhadas.
  * - Navegação (seta anterior / contador X de Y / seta seguinte) ACIMA do enunciado.
  * - Enunciado destacado.
- * - Alternativas com feedback verde (correta) / vermelho (errada).
+ * - Alternativas com feedback verde (correta) / vermelho (errado).
  * - Explicação abaixo das alternativas, sempre que existir (todas as respostas).
  * - Painel direito fixo com a grade de numeração das questões (bubble por questão).
  * - Barra de progresso + placar abaixo da área da questão.
@@ -49,7 +51,11 @@ export function QuizPlayer({
   const currentSectionIndex = state.secaoAtual ?? 0;
   const [secoesVisiveis, setSecoesVisiveis] = useState(true);
 
-  /** Tópicos únicos extraídos das questões (independente do groupMode do quiz). */
+  // Quando groupMode é "mixed", as questões não são agrupadas por tópico;
+  // navegamos linearmente por todas elas.
+  const isMixedMode = quiz.settings.groupMode === "mixed";
+
+  /** Tópicos únicos extraídos das questões (só usado em modo by-pdf). */
   const topics = useMemo(() => {
     const mapa = new Map<string, number[]>();
     quiz.questions.forEach((q, index) => {
@@ -80,72 +86,53 @@ export function QuizPlayer({
   const hasNext = state.currentIndex < total - 1;
 
   /**
-   * Retorna o índice da próxima pergunta dentro do mesmo tópico, ou null se for
-   * a última questão desse tópico.
-   */
-  const nextIndexInSameTopic = (): number | null => {
-    const idx = topicoAtual?.questoes.indexOf(state.currentIndex) ?? -1;
-    if (idx < 0 || idx >= topicoAtual?.questoes.length - 1) return null;
-    return topicoAtual.questoes[idx + 1];
-  };
-
-  /**
-   * Retorna o índice da primeira questão do próximo tópico, ou null se não houver.
-   */
-  const firstIndexOfNextTopic = (): number | null => {
-    const nextTopicIdx = currentSectionIndex + 1;
-    if (nextTopicIdx >= topics.length) return null;
-    const entry = topics[nextTopicIdx];
-    return entry.questoes[0] ?? null;
-  };
-
-  /**
-   * Retorna o índice da primeira questão do tópico anterior, ou null se não houver.
-   */
-  const firstIndexOfPrevTopic = (): number | null => {
-    const prevTopicIdx = currentSectionIndex - 1;
-    if (prevTopicIdx < 0) return null;
-    const entry = topics[prevTopicIdx];
-    return entry.questoes[0] ?? null;
-  };
-
-  /**
-   * Navega para a próxima questão: primeiro tenta dentro do mesmo tópico; se não
-   * houver mais, vai para o primeiro do próximo tópico; se não houver mais
-   * tópicos, finaliza o quiz.
+   * Navega para a próxima questão.
+   * Em modo mixed: avança linearmente para a próxima questão.
+   * Em modo by-pdf: avança dentro do mesmo tópico; se acabar, vai para o
+   * primeiro do próximo tópico; se não houver mais tópicos, finaliza.
    */
   const goNext = (nextState: QuizState) => {
-    const nextIdx = nextIndexInSameTopic();
-    if (nextIdx !== null) {
-      onStateChange({ ...nextState, currentIndex: nextIdx });
+    if (isMixedMode) {
+      onStateChange({ ...nextState, currentIndex: state.currentIndex + 1 });
       return;
     }
-    const nextTopicIdx = firstIndexOfNextTopic();
-    if (nextTopicIdx !== null) {
-      onStateChange({ ...nextState, currentIndex: nextTopicIdx, secaoAtual: currentSectionIndex + 1 });
+    const nextIdx = topicoAtual?.questoes.indexOf(state.currentIndex) ?? -1;
+    if (nextIdx >= 0 && nextIdx < topicoAtual.questoes.length - 1) {
+      onStateChange({ ...nextState, currentIndex: topicoAtual.questoes[nextIdx + 1] });
+      return;
+    }
+    const nextTopicIdx = currentSectionIndex + 1;
+    if (nextTopicIdx < topics.length) {
+      const entry = topics[nextTopicIdx];
+      onStateChange({ ...nextState, currentIndex: entry.questoes[0], secaoAtual: nextTopicIdx });
       return;
     }
     onFinish();
   };
 
   /**
-   * Navega para a questão anterior: primeiro tenta dentro do mesmo tópico; se não
-   * houver mais (está na primeira do tópico), vai para a última do tópico
-   * anterior; se não houver tópico anterior, não faz nada.
+   * Navega para a questão anterior.
+   * Em modo mixed: retrocede linearmente para a questão anterior.
+   * Em modo by-pdf: retrocede dentro do mesmo tópico; se está na primeira,
+   * vai para a última do tópico anterior; se não houver, não faz nada.
    */
   const goPrev = () => {
+    if (isMixedMode) {
+      onStateChange({ ...state, currentIndex: state.currentIndex - 1 });
+      return;
+    }
     const prevIdx = topicoAtual?.questoes.indexOf(state.currentIndex) ?? -1;
     if (prevIdx > 0) {
       onStateChange({ ...state, currentIndex: topicoAtual.questoes[prevIdx - 1] });
       return;
     }
-    const prevTopicIdx = firstIndexOfPrevTopic();
-    if (prevTopicIdx !== null) {
-      const entry = topics[currentSectionIndex - 1];
+    const prevTopicIdx = currentSectionIndex - 1;
+    if (prevTopicIdx >= 0) {
+      const entry = topics[prevTopicIdx];
       onStateChange({
         ...state,
         currentIndex: entry.questoes[entry.questoes.length - 1],
-        secaoAtual: currentSectionIndex - 1,
+        secaoAtual: prevTopicIdx,
       });
       return;
     }
@@ -186,6 +173,7 @@ export function QuizPlayer({
   };
 
   const toggleSection = (topico: string) => {
+    if (isMixedMode) return;
     const entry = topics.find((t) => t.topico === topico);
     if (!entry) return;
     onStateChange({
@@ -233,51 +221,57 @@ export function QuizPlayer({
 
           {/* Corpo: abas à esquerda + conteúdo principal à direita */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-w-0">
-            {/* Barra lateral esquerda: abas de tópico */}
-            <aside
-              className="lg:col-span-3 hidden lg:block flex flex-col gap-1 min-w-[160px] max-w-[260px]"
-            >
-              <p className="text-[10px] uppercase tracking-wider text-ink-faint mb-2">
-                Tópicos
-              </p>
-              <button
-                type="button"
-                onClick={() => setSecoesVisiveis((v) => !v)}
-                className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg border border-line bg-white/[0.02] text-[11px] text-ink-muted transition hover:bg-white/[0.04]"
+            {/* Barra lateral esquerda: abas de tópico (só em modo by-pdf) */}
+            {!isMixedMode && (
+              <aside
+                className="lg:col-span-3 hidden lg:block flex flex-col gap-1 min-w-[160px] max-w-[260px]"
               >
-                {secoesVisiveis ? "▲" : "▼"}
-                <span className="flex-1 truncate">
-                  {topics.length} tópico{topics.length !== 1 ? "s" : ""}
-                </span>
-                <span className="text-ink-faint">
-                  {currentSectionIndex + 1} / {topics.length}
-                </span>
-              </button>
-              {secoesVisiveis && (
-                <div className="flex-1 overflow-y-auto space-y-1 pr-1">
-                  {topics.map((topico, index) => (
-                    <button
-                      key={topico.topico}
-                      type="button"
-                      onClick={() => toggleSection(topico.topico)}
-                      className={`w-full flex items-start gap-2 rounded-lg px-3 py-1.5 text-[11px] leading-tight text-left transition ${
-                        index === currentSectionIndex
-                          ? "bg-brand/20 border-brand text-ink font-medium"
-                          : "text-ink-muted hover:bg-white/[0.02] hover:border-line"
-                      }`}
-                    >
-                      <span className="flex-1 break-words">{topico.topico}</span>
-                      <span className="shrink-0 text-[9px] text-ink-faint">
-                        {topico.questoes.length}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </aside>
+                <p className="text-[10px] uppercase tracking-wider text-ink-faint mb-2">
+                  Tópicos
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setSecoesVisiveis((v) => !v)}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg border border-line bg-white/[0.02] text-[11px] text-ink-muted transition hover:bg-white/[0.04]"
+                >
+                  {secoesVisiveis ? "▲" : "▼"}
+                  <span className="flex-1 truncate">
+                    {topics.length} tópico{topics.length !== 1 ? "s" : ""}
+                  </span>
+                  <span className="text-ink-faint">
+                    {currentSectionIndex + 1} / {topics.length}
+                  </span>
+                </button>
+                {secoesVisiveis && (
+                  <div className="flex-1 overflow-y-auto space-y-1 pr-1">
+                    {topics.map((topico, index) => (
+                      <button
+                        key={topico.topico}
+                        type="button"
+                        onClick={() => toggleSection(topico.topico)}
+                        className={`w-full flex items-start gap-2 rounded-lg px-3 py-1.5 text-[11px] leading-tight text-left transition ${
+                          index === currentSectionIndex
+                            ? "bg-brand/20 border-brand text-ink font-medium"
+                            : "text-ink-muted hover:bg-white/[0.02] hover:border-line"
+                        }`}
+                      >
+                        <span className="flex-1 break-words">{topico.topico}</span>
+                        <span className="shrink-0 text-[9px] text-ink-faint">
+                          {topico.questoes.length}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </aside>
+            )}
 
             {/* Conteúdo principal: navegação no topo, enunciado, alternativas, explicação */}
-            <section className="lg:col-span-7 min-w-0">
+            <section
+              className={
+                isMixedMode ? "lg:col-span-10 min-w-0" : "lg:col-span-7 min-w-0"
+              }
+            >
               {/* Navegação centralizada acima da pergunta (§37 item 1) */}
               <div className="flex flex-col items-center gap-4 mb-6">
                 <div className="flex items-center gap-3">
@@ -372,7 +366,7 @@ export function QuizPlayer({
                       onClick={nextQuestion}
                       className="btn btn-ghost mt-3 text-xs text-ink-muted"
                     >
-                    Pular →
+                      Pular →
                     </button>
                   )}
                 </div>
@@ -406,45 +400,84 @@ export function QuizPlayer({
                   Navegação do questionário
                 </p>
                 <div className="grid grid-cols-5 gap-1.5">
-                  {topicoAtual?.questoes.map((originalIndex, posicao) => {
-                    const q = quiz.questions[originalIndex];
-                    const answeredHere = Boolean(state.answers[q.id]);
-                    const isCurrent = originalIndex === state.currentIndex;
-                    const isFlagged = state.flagged.includes(q.id);
-                    let tone: "correct" | "wrong" | "answered" | "current" | "pending" =
-                      "pending";
-                    if (isCurrent) tone = "current";
-                    else if (answeredHere) {
-                      tone =
-                        state.answers[q.id] === q.correct ? "correct" : "wrong";
-                    } else if (isFlagged) {
-                      tone = "answered";
-                    }
-                    return (
-                      <button
-                        key={q.id}
-                        type="button"
-                        onClick={() =>
-                          onStateChange({ ...state, currentIndex: originalIndex })
+                  {isMixedMode
+                    ? quiz.questions.map((q, index) => {
+                        const answeredHere = Boolean(state.answers[q.id]);
+                        const isCurrent = index === state.currentIndex;
+                        const isFlagged = state.flagged.includes(q.id);
+                        let tone: "correct" | "wrong" | "answered" | "current" | "pending" =
+                          "pending";
+                        if (isCurrent) tone = "current";
+                        else if (answeredHere) {
+                          tone =
+                            state.answers[q.id] === q.correct ? "correct" : "wrong";
+                        } else if (isFlagged) {
+                          tone = "answered";
                         }
-                        disabled={isCurrent}
-                        className={`bubble shrink-0 ${
-                          tone === "correct"
-                            ? "border-ok bg-ok/20 text-ok"
-                            : tone === "wrong"
-                              ? "border-bad bg-bad/20 text-bad"
-                              : tone === "answered"
-                                ? "border-brand bg-brand/20 text-brand"
-                                : tone === "current"
-                                  ? "border-brand bg-brand text-ink"
-                                  : ""
-                        } ${isFlagged ? "ring-2 ring-brand" : ""}`}
-                        title={`Questão ${posicao + 1}`}
-                      >
-                        {posicao + 1}
-                      </button>
-                    );
-                  })}
+                        return (
+                          <button
+                            key={q.id}
+                            type="button"
+                            onClick={() =>
+                              onStateChange({ ...state, currentIndex: index })
+                            }
+                            disabled={isCurrent}
+                            className={`bubble shrink-0 ${
+                              tone === "correct"
+                                ? "border-ok bg-ok/20 text-ok"
+                                : tone === "wrong"
+                                  ? "border-bad bg-bad/20 text-bad"
+                                  : tone === "answered"
+                                    ? "border-brand bg-brand/20 text-brand"
+                                    : tone === "current"
+                                      ? "border-brand bg-brand text-ink"
+                                      : ""
+                            } ${isFlagged ? "ring-2 ring-brand" : ""}`}
+                            title={`Questão ${index + 1}`}
+                          >
+                            {index + 1}
+                          </button>
+                        );
+                      })
+                    : topicoAtual?.questoes.map((originalIndex, posicao) => {
+                        const q = quiz.questions[originalIndex];
+                        const answeredHere = Boolean(state.answers[q.id]);
+                        const isCurrent = originalIndex === state.currentIndex;
+                        const isFlagged = state.flagged.includes(q.id);
+                        let tone: "correct" | "wrong" | "answered" | "current" | "pending" =
+                          "pending";
+                        if (isCurrent) tone = "current";
+                        else if (answeredHere) {
+                          tone =
+                            state.answers[q.id] === q.correct ? "correct" : "wrong";
+                        } else if (isFlagged) {
+                          tone = "answered";
+                        }
+                        return (
+                          <button
+                            key={q.id}
+                            type="button"
+                            onClick={() =>
+                              onStateChange({ ...state, currentIndex: originalIndex })
+                            }
+                            disabled={isCurrent}
+                            className={`bubble shrink-0 ${
+                              tone === "correct"
+                                ? "border-ok bg-ok/20 text-ok"
+                                : tone === "wrong"
+                                  ? "border-bad bg-bad/20 text-bad"
+                                  : tone === "answered"
+                                    ? "border-brand bg-brand/20 text-brand"
+                                    : tone === "current"
+                                      ? "border-brand bg-brand text-ink"
+                                      : ""
+                            } ${isFlagged ? "ring-2 ring-brand" : ""}`}
+                            title={`Questão ${posicao + 1}`}
+                          >
+                            {posicao + 1}
+                          </button>
+                        );
+                      })}
                 </div>
               </div>
             </aside>
