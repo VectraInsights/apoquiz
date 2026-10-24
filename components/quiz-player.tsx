@@ -47,7 +47,7 @@ export function QuizPlayer({
   const current = state.currentIndex + 1;
 
   const currentSectionIndex = state.secaoAtual ?? 0;
-  const [secoesVisiveis, setSecoesVisiveis] = useState(false);
+  const [secoesVisiveis, setSecoesVisiveis] = useState(true);
 
   /** Tópicos únicos extraídos das questões (independente do groupMode do quiz). */
   const topics = useMemo(() => {
@@ -125,7 +125,8 @@ export function QuizPlayer({
       currentIndex: entry.questoes[0],
       secaoAtual: topics.findIndex((t) => t.topico === topico),
     });
-    setSecoesVisiveis(false);
+    // Mantém a lista de tópicos sempre visível; o usuário pode esconder
+    // pelo botão de colapso se preferir.
   };
 
   // Opção do estado visual da alternativa (.option usa data-state no CSS)
@@ -282,7 +283,7 @@ export function QuizPlayer({
                   </div>
 
                   {/* Explicação para TODAS as respostas (§37 item 3) */}
-                  {question.explanation && (
+                  {answered && question.explanation && (
                     <div
                       className="rounded-lg border border-line bg-white/[0.02] p-4 text-sm leading-relaxed text-ink-muted"
                     >
@@ -294,7 +295,7 @@ export function QuizPlayer({
                   )}
 
                   {/* Análise por alternativa (notas do PDF / IA) */}
-                  <OptionNotes question={question} className="mt-2" />
+                  {answered && <OptionNotes question={question} className="mt-2" />}
 
                   {/* Botão pular (sem resposta) quando não há correção instantânea */}
                   {!answered && !quiz.settings.instantFeedback && question.correct !== null && (
