@@ -1848,3 +1848,47 @@ Toda a estrutura do componente foi reescrita, mantendo o contrato de props
 | `npm run lint` | ✅ 0 errors |
 | `npm run build` | ✅ build de produção concluído |
 | Quiz com gabarito | ✅ enunciado, alternativas, feedback e explicação exibidos |
+
+---
+
+## 39. Quiz em largura total da tela
+
+### O pedido
+
+O layout do `QuizPlayer` estava limitado a `max-w-5xl`, deixando largas
+margens em branco nas laterais de monitores mais largos. O usuário pediu que
+as informações ocupassem toda a largura da tela.
+
+### O que mudou em `components/quiz-player.tsx`
+
+**1. Container da marca — largura total**
+
+- `mx-auto w-full max-w-5xl px-4 sm:px-6` → `w-full px-4 sm:px-6`
+  (removeu `mx-auto` e `max-w-5xl`).
+
+**2. Container principal — largura total**
+
+- `mx-auto w-full max-w-5xl px-4 sm:px-6 pb-20` →
+  `w-full px-4 sm:px-6 pb-20` (removeu `mx-auto` e `max-w-5xl`).
+
+**3. Grid rebalanceado (12 colunas no `lg`)**
+
+- Abas esquerda: `lg:col-span-2` → `lg:col-span-3` (`max-w` passou de
+  `220px` para `260px`).
+- Conteúdo principal: `lg:col-span-10` → `lg:col-span-7`.
+- Painel direito (grade de numeração): `lg:col-span-2` (mantido).
+  Soma: 3 + 7 + 2 = 12 colunas.
+
+**4. Enunciado — sem limite de largura**
+
+- Removeu `max-w-2xl` do enunciado, que agora usa a largura disponível do
+  conteúdo central.
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `npm run typecheck` | ✅ sem erros |
+| `npm run lint` | ✅ 0 errors |
+| `npm run build` | ✅ build de produção concluído |
+| Layout em telas largas | ✅ conteúdo ocupa toda a largura disponível |
