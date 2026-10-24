@@ -64,6 +64,12 @@ export function QuizPlayer({
     }));
   }, [quiz.questions]);
 
+  /** Total de questões do tópico atual e a posição da questão dentro desse tópico. */
+  const topicoAtual = topics[currentSectionIndex];
+  const totalTopico = topicoAtual?.questoes.length ?? total;
+  const posicaoNoTopico = topicoAtual?.questoes.indexOf(state.currentIndex) ?? -1;
+  const posicaoExibida = posicaoNoTopico >= 0 ? posicaoNoTopico + 1 : current;
+
   // A correção visual aparece quando há resposta para a questão atual
   // (correção instantânea ou já respondida). A explicação aparece sempre
   // que existir, independente de correta ou errada (§37 item 3).
@@ -210,18 +216,18 @@ export function QuizPlayer({
                     type="button"
                     onClick={previousQuestion}
                     disabled={!hasPrev}
-                    className="btn btn-ghost size-9 disabled:opacity-30"
+                    className="btn btn-ghost size-9 border-brand text-brand hover:bg-brand/20 disabled:opacity-30 disabled:border-line disabled:text-ink-faint"
                   >
                     <ArrowLeft className="size-4" />
                   </button>
                   <span className="font-mono font-bold text-ink">
-                    {current} / {total}
+                    {posicaoExibida} / {totalTopico}
                   </span>
                   <button
                     type="button"
                     onClick={nextQuestion}
                     disabled={!hasNext}
-                    className="btn btn-ghost size-9 disabled:opacity-30"
+                    className="btn btn-ghost size-9 border-brand text-brand hover:bg-brand/20 disabled:opacity-30 disabled:border-line disabled:text-ink-faint"
                   >
                     <ArrowRight className="size-4" />
                   </button>
