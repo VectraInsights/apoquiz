@@ -2017,3 +2017,39 @@ antes de commitar e pushar.
 | Contador por tópico | ✅ mostra posição e total do tópico atual |
 | Setas destacadas | ✅ borda e texto em cor de marca |
 | Versão exibida | ✅ `v1.5` ao lado do logo |
+
+---
+
+## 43. Painel direito: apenas questões do tópico (`v1.6`)
+
+### O pedido
+
+A tabela de questões da direita ("Navegação do questionário") mostrava
+os números de todas as questões do quiz juntas (ex.: 1, 2, 3… 719).
+O usuário pediu que mostre apenas a quantidade do tópico escolhido,
+começando sempre em 1.
+
+### O que mudou em `components/quiz-player.tsx`
+
+**1. Painel direito filtra por tópico**
+
+- O `map` agora itera sobre `topicoAtual?.questoes` (índices originais
+  das questões do tópico atual) em vez de `quiz.questions` (todas).
+- Cada botão é renumerado começando em 1 (`posicao + 1`), independente
+  do índice original no quiz completo.
+- O clique navega para o índice original correto (`originalIndex`).
+
+**2. Versão**
+
+- `APP_VERSION` incrementado de `"1.5"` para `"1.6"` em
+  `components/brand-bar.tsx`.
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `npm run typecheck` | ✅ sem erros |
+| `npm run lint` | ✅ 0 errors |
+| `npm run build` | ✅ build de produção concluído |
+| Painel direito | ✅ mostra apenas questões do tópico atual, de 1 a N |
+| Versão exibida | ✅ `v1.6` ao lado do logo |
