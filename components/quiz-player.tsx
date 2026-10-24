@@ -114,12 +114,12 @@ export function QuizPlayer({
   return (
     <div className="flex min-h-full flex-col">
       {/* Marca: parte do conteúdo da página, sem cabeçalho fixo */}
-      <div className="mx-auto w-full max-w-5xl px-4 sm:px-6">
+      <div className="w-full px-4 sm:px-6">
         <div className="mb-6">{topBar}</div>
       </div>
 
       <main className="flex-1 min-w-0">
-        <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 pb-20">
+        <div className="w-full px-4 sm:px-6 pb-20">
           {/* Cabeçalho do quiz: título, placar e progresso */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <div>
@@ -141,7 +141,7 @@ export function QuizPlayer({
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-w-0">
             {/* Barra lateral esquerda: abas de seção (tópicos) */}
             <aside
-              className="lg:col-span-2 hidden lg:block flex flex-col gap-1 min-w-[160px] max-w-[220px]"
+              className="lg:col-span-3 hidden lg:block flex flex-col gap-1 min-w-[160px] max-w-[260px]"
             >
               <p className="text-[10px] uppercase tracking-wider text-ink-faint mb-2">
                 Seções
@@ -179,7 +179,7 @@ export function QuizPlayer({
             </aside>
 
             {/* Conteúdo principal: navegação no topo, enunciado, alternativas, explicação */}
-            <section className="lg:col-span-10 min-w-0">
+            <section className="lg:col-span-7 min-w-0">
               {/* Navegação centralizada acima da pergunta (§37 item 1) */}
               <div className="flex flex-col items-center gap-4 mb-6">
                 <div className="flex items-center gap-3">
@@ -206,7 +206,7 @@ export function QuizPlayer({
 
                 {/* Enunciado da questão (§36 item 1) */}
                 {question ? (
-                  <div className="max-w-2xl text-center">
+                  <div className="text-center">
                     <p className="text-base font-medium text-ink leading-relaxed sm:text-lg">
                       {question.statement}
                     </p>
