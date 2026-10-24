@@ -105,3 +105,22 @@ print("public/icon-maskable-512.png")
 # icone apple (iOS nao aceita SVG na home screen)
 make(180).save(f"{OUT}/apple-touch-icon.png")
 print("public/apple-touch-icon.png")
+
+
+# favicon do navegador. Sem ele, o Chrome usava o logo antigo (o "N" preto)
+# no atalho da tela inicial, mesmo com o manifest ja apontando pra lampada.
+# Renderiza em 8x e reduz com LANCZOS: em 16px o antialiasing e o que
+# separa uma lampada reconhecivel de uma mancha.
+FAV = os.path.join("app", "favicon.ico")
+TAMANHOS_ICO = [(16, 16), (32, 32), (48, 48)]
+quadros = [
+    make(lado * 8).resize((lado, lado), Image.LANCZOS)
+    for lado, _ in TAMANHOS_ICO
+]
+quadros[-1].save(
+    FAV,
+    format="ICO",
+    sizes=TAMANHOS_ICO,
+    append_images=quadros[:-1],
+)
+print("app/favicon.ico")

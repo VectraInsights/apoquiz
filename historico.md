@@ -2531,3 +2531,78 @@ recuperava, porque nada mais chama `refreshList` nesse caminho. O botão
 | Ausência de rota | ✅ zero ocorrências de `router.push`/`useRouter` |
 | Reprodução ao vivo | ⚙️ **não feita** — exige conta logada (o bug não existe em modo local) |
 | `v2.5` no cabeçalho | ✅ |
+
+---
+
+## 52. Limpando caches antigos e o favicon (`v2.6`)
+
+### O pedido
+
+1. Fazer o deploy apagar os caches de builds antigos.
+2. Colocar a **lâmpada** no ícone da tela inicial.
+
+### 1) Cache: um bump de nome já resolve
+
+Os chunks `/_next/static/` de builds antigos ficavam **para sempre** em
+`apoquiz-v2`: o `activate` só apaga caches cujo nome é **diferente** do
+atual (`public/sw.js:32`).
+
+```js
+caches.keys().then((keys) =>
+  Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))),
+)
+```
+
+Ou seja, o mecanismo de limpeza **já existia** — só faltava trocar o nome.
+
+| | |
+| --- | --- |
+| antes | `const CACHE = "apoquiz-v2"` |
+| depois | `const CACHE = "apoquiz-v3"` |
+
+No próximo carregamento o worker novo ativa, e **todos** os caches com nome
+`apoquiz-v2` somem de uma vez.
+
+**É seguro?** O que está em `caches` são só cópias de HTML, chunks e PNGs.
+Os **quizzes e o progresso** moram em `localStorage` e no Supabase; a
+**sessão** morra no Supabase; o **service worker** é gerenciado pelo
+navegador. Nada disso é `CacheStorage`, então nada disso é afetado. Como o
+nome do chunk tem hash, a entrada velha não é mais requisitada por ninguém —
+apagar é remover um papel de uma gaveta que ninguém abre.
+
+**Custo:** por um carregamento o aparelho fica sem reserva offline (HTML e
+ícones) até navegar uma vez com internet. Depois disso volta a encher.
+
+### 2) O favicon era o logo antigo
+
+Achei o motivo do atalho mostrar um ícone velho:
+
+| Arquivo | Estava | Consequência |
+| --- | --- | --- |
+| `public/icon-192.png` / `icon-512.png` / `icon-maskable-512.png` / `apple-touch-icon.png` | ✅ lâmpada | o manifest já apontava certo |
+| **`app/favicon.ico`** | ❌ **"N" preto** (19/10) | Chrome usa o favicon quando o atalho **não** passa pelo manifest |
+
+O `scripts/gerar-icones.py` gerava os quatro PNGs e **nunca gerou o
+`favicon.ico`** — por isso ele ficou para trás na troca de identidade.
+
+Corrigido na própria fonte: o script agora também emite o ICO, nos mesmos
+tamanhos de antes `[(16,16), (32,32), (48,48)]`. Cada quadro é renderizado
+em **8× e reduzido com LANCZOS** — em 16 px é o antialiasing que separa uma
+lâmpada reconhecível de uma mancha.
+
+**Efeito colateral bom:** rodar o script regenerou os quatro PNGs e eles
+saíram **byte a byte idênticos**, ou seja o pipeline de ícones está
+reproduzível; a única mudança de arquivo é o `.ico`.
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `app/favicon.ico` novo | ✅ lâmpada com "?" (extraído e conferido) |
+| Tamanhos do ICO | ✅ `(16,16) (32,32) (48,48)` — iguais aos de antes |
+| PNGs regenerados | ✅ idênticos (nenhum diff) |
+| `sw.js` | ✅ `CACHE = "apoquiz-v3"` |
+| `npm run typecheck` | ✅ sem erros |
+| `npm run lint` | ✅ 0 errors |
+| `npm run build` | ✅ build de produção concluído |
+| `v2.6` no cabeçalho | ✅ |

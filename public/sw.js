@@ -8,7 +8,7 @@
  *  - /api/*: nunca e cacheado (os dados precisam ser atuais)
  */
 
-const CACHE = "apoquiz-v2";
+const CACHE = "apoquiz-v3";
 const SHELL = [
   "/",
   "/manifest.webmanifest",
