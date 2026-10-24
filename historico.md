@@ -1938,3 +1938,36 @@ os tópicos únicos de `quiz.questions`, independente do `groupMode`:
 | `npm run build` | ✅ build de produção concluído |
 | Tópicos na barra lateral | ✅ exibe todos os tópicos únicos das questões |
 | Clique em tópico | ✅ navega para a primeira questão do tópico |
+
+---
+
+## 41. Versão indicada ao lado do logo (`v1.4`)
+
+### O pedido
+
+A versão do app (`v1.3` ao lado do logo) não estava sendo atualizada a cada
+correção visível. O usuário solicitou que a versão suba a cada mudança que
+altere a interface ou o comportamento do quiz.
+
+### O que mudou
+
+**1. `components/brand-bar.tsx`**
+
+- `APP_VERSION` incrementado de `"1.3"` para `"1.4"`.
+- A versão é exibida ao lado do logo na barra de marca de todas as telas
+  (upload, quiz, resultado, etc.).
+
+**2. Convenção adotada**
+
+A partir de agora, toda alteração visível no app deve incrementar
+`APP_VERSION` em `components/brand-bar.tsx` (ex.: `1.4` → `1.5` → `1.6`…)
+antes de commitar e pushar.
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `npm run typecheck` | ✅ sem erros |
+| `npm run lint` | ✅ 0 errors |
+| `npm run build` | ✅ build de produção concluído |
+| Versão exibida | ✅ `v1.4` ao lado do logo |
