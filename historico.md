@@ -2102,3 +2102,58 @@ informações só fossem exibidas **depois** de selecionar uma resposta.
 | Análise por alternativa após responder | ✅ só aparece depois de marcar uma alternativa |
 | Lista de tópicos | ✅ começa visível, pode ser colapsada pelo usuário |
 | Versão exibida | ✅ `v1.7` ao lado do logo |
+
+---
+
+## 45. Navegação dentro do mesmo tópico ao responder (`v1.9`)
+
+### O problema
+
+Ao responder uma pergunta, o `QuizPlayer` avançava `currentIndex + 1` globalmente, ignorando
+os limites dos tópicos. Isso fazia o usuário saltar da última questão de um tópico para a
+primeira questão de outro tópico — comportamento indesejado, já que o usuário separou as
+questões por tópico para fazer um de cada vez.
+
+### O que mudou em `components/quiz-player.tsx`
+
+**1. `selectOption` (correção instantânea)**
+
+Após responder uma pergunta, o app agora:
+1. Tenta avançar para a próxima questão **dentro do mesmo tópico** (`nextIndexInSameTopic`).
+2. Se não houver mais questões no tópico atual, vai para a **primeira questão do próximo tópico**.
+3. Se não houver mais tópicos, finaliza o quiz (`onFinish`).
+
+**2. `nextQuestion` (botão Próxima)**
+
+Mesma lógica: respeita os limites do tópico atual antes de mudar de tópico.
+
+**3. `previousQuestion` (botão Anterior)**
+
+Mesma lógica: retrocede dentro do mesmo tópico; se estiver na primeira questão do tópico,
+vai para a última questão do tópico anterior.
+
+**4. Funções helper novas**
+
+| Função | O que faz |
+|--------|-----------|
+| `nextIndexInSameTopic()` | Próximo índice dentro do tópico atual, ou null se for o último |
+| `firstIndexOfNextTopic()` | Primeiro índice do próximo tópico, ou null se não houver |
+| `firstIndexOfPrevTopic()` | Primeiro índice do tópico anterior, ou null se não houver |
+| `goNext(nextState)` | Orquestra a navegação para frente respeitando tópicos |
+| `goPrev()` | Orquestra a navegação para trás respeitando tópicos |
+
+**5. Versão**
+
+- `APP_VERSION` incrementado de `"1.8"` para `"1.9"` em `components/brand-bar.tsx`.
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `npm run typecheck` | ✅ sem erros |
+| `npm run lint` | ✅ 0 errors |
+| `npm run build` | ✅ build de produção concluído |
+| Navegação dentro do tópico | ✅ avança só dentro do tópico atual |
+| Mudança de tópico automática | ✅ só quando acaba o tópico atual |
+| Mudança manual de tópico | ✅ continua funcionando via barra lateral |
+| Versão exibida | ✅ `v1.9` ao lado do logo |
