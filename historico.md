@@ -2297,3 +2297,95 @@ Substituído o uso de `{posicaoExibida} / {totalTopico}` por `{contadorExibido}`
 | Setas brancas | ✅ visíveis no fundo escuro |
 | Contador em mixed | ✅ mostra X / total geral do quiz |
 | Versão exibida | ✅ `v2.2` ao lado do logo |
+
+---
+
+## 49. Login por e-mail e senha (`v2.3`)
+
+### O pedido
+
+O app já tinha login com Google (§16), mas não dava para entrar com
+e-mail. O pedido foi adicionar a segunda forma de autenticação.
+
+### O que mudou
+
+**`lib/supabase/use-auth.ts`** — o hook passou a expor duas funções
+novas, ambas devolvendo um `AuthResult`:
+
+| Campo | Significado |
+| --- | --- |
+| `ok` | entrou (ou criou a conta com sessão ativa) |
+| `message` | texto para a pessoa, quando algo não deu certo |
+| `needsConfirm` | conta criada mas o projeto exige confirmar o e-mail |
+
+- `signInWithEmail` → `supabase.auth.signInWithPassword`
+- `signUpWithEmail` → `supabase.auth.signUp`; se o projeto exigir
+  confirmação, o Supabase devolve sessão nula e o app avisa para
+  conferir a caixa de entrada (e o spam) em vez de fingir que entrou.
+
+**Tradução das mensagens.** O Supabase responde em inglês e a pessoa
+não tem o que fazer com *"Invalid login credentials"*. A função
+`traduzErro` cobre os casos reais:
+
+| Supabase | O que aparece |
+| --- | --- |
+| `Invalid login credentials` | E-mail ou senha incorretos. |
+| `Email not confirmed` | Confirme o e-mail antes de entrar… |
+| `User already registered` | Já existe uma conta com este e-mail. Use "Entrar". |
+| `Password should be at least…` | A senha precisa de pelo menos 6 caracteres. |
+| `provider is not enabled` | Este provedor não foi ativado no painel do Supabase. |
+| rate limit / security purposes | Muitas tentativas… aguarde um minuto. |
+
+**`components/auth-button.tsx`** — o botão "Entrar" agora **abre um
+painel** em vez de disparar o OAuth na hora. Dentro dele:
+
+    Entrar
+    Seus quizzes sincronizam entre o celular e o computador.
+    [ Continuar com Google ]
+    ---------- ou ----------
+    [ E-mail ]
+    [ Senha (mínimo 6 caracteres) ]
+    [ Entrar com e-mail ]
+    Não tem conta? Criar agora
+
+O Google continua a um clique; a alternância "Entrar ⇄ Criar conta"
+também troca o `autocomplete` da senha (`current-password` /
+`new-password`), que é o que faz o gerenciador de senhas do celular
+sugerir a senha certa.
+
+O painel fecha clicando fora ou com Esc (mesmo comportamento do menu
+da conta, já existente).
+
+### O que NÃO mudou
+
+- O Google continua funcionando pelo mesmo caminho de antes.
+- Sem as variáveis de ambiente o botão não aparece e o app segue em
+  modo local (`localStorage`), como já era.
+- **E-mail não é obrigatório**: o app inteiro continua funcionando sem
+  conta nenhuma.
+
+### Configuração
+
+O `NEXT_PUBLIC_SUPABASE_URL` foi derivado do projeto e a anon key
+entrou no `.env.local` (que já estava no `.gitignore`). No painel do
+Supabase, o provedor **Email** vem ativado por padrão; o Google já
+estava configurado (§16).
+
+> **Atenção (§17):** variáveis `NEXT_PUBLIC_*` são embutidas no build.
+> No deploy da Vercel elas precisam estar em *Project → Settings →
+> Environment Variables* e o app precisa ser **redeployado** — mudar a
+> variável sozinha não tem efeito.
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `npm run typecheck` | ✅ sem erros |
+| `npm run lint` | ✅ 0 errors |
+| `npm run build` | ✅ build de produção concluído |
+| Painel abre no clique | ✅ campos de e-mail e senha presentes |
+| Integração real com o Supabase | ✅ enviou e recebeu "E-mail ou senha incorretos." |
+| Alternância Entrar ⇄ Criar conta | ✅ título, botão e `autocomplete` trocam |
+| Com Google | ✅ botão "Continuar com Google" no painel |
+| **Criar conta (signUp)** | ⚙️ não testado — cria usuário real e envia e-mail de confirmação |
+| `v2.3` no cabeçalho | ✅ |

@@ -14,11 +14,61 @@ export type AuthState = {
   error: string | null;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
+  /** Login com e-mail e senha. Devolve o resultado para a interface. */
+  signInWithEmail: (email: string, password: string) => Promise<AuthResult>;
+  /** Cria a conta com e-mail e senha. */
+  signUpWithEmail: (email: string, password: string) => Promise<AuthResult>;
+};
+
+export type AuthResult = {
+  ok: boolean;
+  /** Mensagem para a pessoa (erro, ou aviso de confirmacao de e-mail) */
+  message: string | null;
+  /** true quando a conta foi criada e falta confirmar o e-mail */
+  needsConfirm: boolean;
 };
 
 /**
- * Login com Google via Supabase. Sem as variaveis de ambiente o app
- * continua funcionando em modo local (localStorage).
+ * As mensagens do Supabase vem em ingles. Aqui sao traduzidas para as
+ * situacoes que a pessoa realmente enfrenta.
+ */
+function traduzErro(mensagem: string): string {
+  const m = mensagem.toLowerCase();
+
+  if (m.includes("invalid login credentials")) {
+    return "E-mail ou senha incorretos.";
+  }
+  if (m.includes("email not confirmed")) {
+    return "Confirme o e-mail antes de entrar. Verifique a caixa de entrada e o spam.";
+  }
+  if (m.includes("user already registered")) {
+    return "Já existe uma conta com este e-mail. Use \"Entrar\".";
+  }
+  if (m.includes("password should be at least")) {
+    return "A senha precisa de pelo menos 6 caracteres.";
+  }
+  if (m.includes("signup requires a valid password")) {
+    return "Digite uma senha válida (mínimo de 6 caracteres).";
+  }
+  if (m.includes("provider is not enabled")) {
+    return "Este provedor de login não foi ativado no painel do Supabase.";
+  }
+  if (m.includes("unable to validate email address")) {
+    return "Este e-mail não parece válido.";
+  }
+  if (m.includes("rate limit") || m.includes("too many requests")) {
+    return "Muitas tentativas em pouco tempo. Aguarde um minuto e tente de novo.";
+  }
+  if (m.includes("security purposes") || m.includes("only request this after")) {
+    return "Aguarde alguns segundos antes de tentar de novo.";
+  }
+
+  return mensagem;
+}
+
+/**
+ * Login via Supabase: Google (OAuth) ou e-mail e senha. Sem as variaveis
+ * de ambiente o app continua funcionando em modo local (localStorage).
  */
 export function useAuth(): AuthState {
   const [user, setUser] = useState<User | null>(null);
@@ -80,6 +130,66 @@ export function useAuth(): AuthState {
     }
   }, []);
 
+  const signInWithEmail = useCallback(
+    async (email: string, password: string): Promise<AuthResult> => {
+      const supabase = getSupabase();
+      if (!supabase) {
+        return { ok: false, message: "Supabase não configurado.", needsConfirm: false };
+      }
+      setError(null);
+
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (authError) {
+        const message = traduzErro(authError.message);
+        setError(message);
+        return { ok: false, message, needsConfirm: false };
+      }
+
+      return { ok: true, message: null, needsConfirm: false };
+    },
+    [],
+  );
+
+  const signUpWithEmail = useCallback(
+    async (email: string, password: string): Promise<AuthResult> => {
+      const supabase = getSupabase();
+      if (!supabase) {
+        return { ok: false, message: "Supabase não configurado.", needsConfirm: false };
+      }
+      setError(null);
+
+      const { data, error: authError } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+      });
+
+      if (authError) {
+        const message = traduzErro(authError.message);
+        setError(message);
+        return { ok: false, message, needsConfirm: false };
+      }
+
+      // Sem sessao = o projeto exige confirmacao do e-mail.
+      if (!data.session) {
+        return {
+          ok: false,
+          message:
+            "Conta criada! Confirme o e-mail que enviamos para " +
+            email.trim() +
+            " (confira também o spam) e depois entre.",
+          needsConfirm: true,
+        };
+      }
+
+      return { ok: true, message: null, needsConfirm: false };
+    },
+    [],
+  );
+
   const signOut = useCallback(async () => {
     const supabase = getSupabase();
     if (!supabase) return;
@@ -93,5 +203,7 @@ export function useAuth(): AuthState {
     error,
     signIn,
     signOut,
+    signInWithEmail,
+    signUpWithEmail,
   };
 }
