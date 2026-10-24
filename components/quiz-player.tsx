@@ -79,9 +79,81 @@ export function QuizPlayer({
   const hasPrev = state.currentIndex > 0;
   const hasNext = state.currentIndex < total - 1;
 
+  /**
+   * Retorna o índice da próxima pergunta dentro do mesmo tópico, ou null se for
+   * a última questão desse tópico.
+   */
+  const nextIndexInSameTopic = (): number | null => {
+    const idx = topicoAtual?.questoes.indexOf(state.currentIndex) ?? -1;
+    if (idx < 0 || idx >= topicoAtual?.questoes.length - 1) return null;
+    return topicoAtual.questoes[idx + 1];
+  };
+
+  /**
+   * Retorna o índice da primeira questão do próximo tópico, ou null se não houver.
+   */
+  const firstIndexOfNextTopic = (): number | null => {
+    const nextTopicIdx = currentSectionIndex + 1;
+    if (nextTopicIdx >= topics.length) return null;
+    const entry = topics[nextTopicIdx];
+    return entry.questoes[0] ?? null;
+  };
+
+  /**
+   * Retorna o índice da primeira questão do tópico anterior, ou null se não houver.
+   */
+  const firstIndexOfPrevTopic = (): number | null => {
+    const prevTopicIdx = currentSectionIndex - 1;
+    if (prevTopicIdx < 0) return null;
+    const entry = topics[prevTopicIdx];
+    return entry.questoes[0] ?? null;
+  };
+
+  /**
+   * Navega para a próxima questão: primeiro tenta dentro do mesmo tópico; se não
+   * houver mais, vai para o primeiro do próximo tópico; se não houver mais
+   * tópicos, finaliza o quiz.
+   */
+  const goNext = (nextState: QuizState) => {
+    const nextIdx = nextIndexInSameTopic();
+    if (nextIdx !== null) {
+      onStateChange({ ...nextState, currentIndex: nextIdx });
+      return;
+    }
+    const nextTopicIdx = firstIndexOfNextTopic();
+    if (nextTopicIdx !== null) {
+      onStateChange({ ...nextState, currentIndex: nextTopicIdx, secaoAtual: currentSectionIndex + 1 });
+      return;
+    }
+    onFinish();
+  };
+
+  /**
+   * Navega para a questão anterior: primeiro tenta dentro do mesmo tópico; se não
+   * houver mais (está na primeira do tópico), vai para a última do tópico
+   * anterior; se não houver tópico anterior, não faz nada.
+   */
+  const goPrev = () => {
+    const prevIdx = topicoAtual?.questoes.indexOf(state.currentIndex) ?? -1;
+    if (prevIdx > 0) {
+      onStateChange({ ...state, currentIndex: topicoAtual.questoes[prevIdx - 1] });
+      return;
+    }
+    const prevTopicIdx = firstIndexOfPrevTopic();
+    if (prevTopicIdx !== null) {
+      const entry = topics[currentSectionIndex - 1];
+      onStateChange({
+        ...state,
+        currentIndex: entry.questoes[entry.questoes.length - 1],
+        secaoAtual: currentSectionIndex - 1,
+      });
+      return;
+    }
+  };
+
   const previousQuestion = () => {
     if (!hasPrev) return;
-    onStateChange({ ...state, currentIndex: state.currentIndex - 1 });
+    goPrev();
   };
 
   const nextQuestion = () => {
@@ -89,7 +161,7 @@ export function QuizPlayer({
       onFinish();
       return;
     }
-    onStateChange({ ...state, currentIndex: state.currentIndex + 1 });
+    goNext(state);
   };
 
   const selectOption = (label: string) => {
@@ -100,11 +172,7 @@ export function QuizPlayer({
     // Com correção instantânea, avança automaticamente depois de um curto delay.
     if (quiz.settings.instantFeedback) {
       setTimeout(() => {
-        if (hasNext) {
-          onStateChange({ ...nextState, currentIndex: state.currentIndex + 1 });
-        } else {
-          onFinish();
-        }
+        goNext(nextState);
       }, 900);
     }
   };
