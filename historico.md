@@ -2157,3 +2157,52 @@ vai para a última questão do tópico anterior.
 | Mudança de tópico automática | ✅ só quando acaba o tópico atual |
 | Mudança manual de tópico | ✅ continua funcionando via barra lateral |
 | Versão exibida | ✅ `v1.9` ao lado do logo |
+
+---
+
+## 46. Layout atual estabelecido como padrão (`v2.0`)
+
+### O pedido
+
+O usuário confirmou que o layout atual do `QuizPlayer` está de acordo com o esperado e pediu que seja mantido como padrão, registrado no histórico.
+
+### Layout consolidado
+
+O `QuizPlayer` (`components/quiz-player.tsx`) segue agora o seguinte padrão, que deve ser mantido em futuras alterações:
+
+| Elemento | Posição / Comportamento |
+|----------|------------------------|
+| Marca (logo + versão) | Topo, dentro do fluxo da página (sem cabeçalho fixo) |
+| Título do quiz | Acima do placar e da barra de progresso |
+| Placar (Acertos / Erros / Tempo) | Cabeçalho direito, acima do conteúdo |
+| Barra de progresso | Logo abaixo do cabeçalho |
+| Abas de tópico | Barra lateral esquerda, sempre visível (colapsável) |
+| Navegação Anterior / Contador / Próxima | Centralizada acima do enunciado |
+| Enunciado da questão | Centralizado, abaixo da navegação |
+| Alternativas | Lista vertical abaixo do enunciado, com feedback verde/vermelho |
+| Explicação da questão | Abaixo das alternativas, só após responder |
+| Análise por alternativa | Abaixo da explicação, só após responder |
+| Painel direito (grade de numeração) | Barra fixa à direita, questões do tópico atual numeradas de 1 a N |
+| Controle inferior | Marcador para revisão + tempo + placar parcial |
+
+### Regras de navegação (padrão)
+
+- Clicar em uma alternativa avança para a próxima questão **dentro do mesmo tópico**.
+- Ao acabar o tópico, avança automaticamente para o primeiro do próximo tópico.
+- Ao acabar todos os tópicos, o quiz é finalizado.
+- Clicar em um tópico na barra lateral navega para a primeira questão dele.
+- O usuário pode colapsar/mostrar a barra de tópicos a qualquer momento.
+
+### Versão
+
+- `APP_VERSION` incrementado de `"1.9"` para `"2.0"` em `components/brand-bar.tsx`.
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `npm run typecheck` | ✅ sem erros |
+| `npm run lint` | ✅ 0 errors |
+| `npm run build` | ✅ build de produção concluído |
+| Layout estabelecido como padrão | ✅ documentado na seção 46 |
+| Versão exibida | ✅ `v2.0` ao lado do logo |
