@@ -91,6 +91,18 @@ export function QuizPlayer({
    * Em modo by-pdf: avança dentro do mesmo tópico; se acabar, vai para o
    * primeiro do próximo tópico; se não houver mais tópicos, finaliza.
    */
+  /** Contador exibido no cabeçalho: em modo mixed mostra o total geral; em
+   * modo by-pdf mostra a posição dentro do tópico atual. */
+  const contadorExibido = isMixedMode
+    ? `${current} / ${total}`
+    : `${posicaoExibida} / ${totalTopico}`;
+
+  /**
+   * Navega para a próxima questão.
+   * Em modo mixed: avança linearmente para a próxima questão.
+   * Em modo by-pdf: avança dentro do mesmo tópico; se acabar, vai para o
+   * primeiro do próximo tópico; se não houver mais tópicos, finaliza.
+   */
   const goNext = (nextState: QuizState) => {
     if (isMixedMode) {
       onStateChange({ ...nextState, currentIndex: state.currentIndex + 1 });
@@ -279,20 +291,20 @@ export function QuizPlayer({
                     type="button"
                     onClick={previousQuestion}
                     disabled={!hasPrev}
-                    className="btn btn-ghost size-9 border-brand text-brand hover:bg-brand/20 disabled:opacity-30 disabled:border-line disabled:text-ink-faint"
+                    className="btn btn-ghost size-9 border-white text-white hover:bg-white/20 disabled:opacity-30 disabled:border-white/30 disabled:text-white/30"
                   >
-                    <ArrowLeft className="size-4" />
+                    <ArrowLeft className="size-4 text-white" />
                   </button>
-                  <span className="font-mono font-bold text-ink">
-                    {posicaoExibida} / {totalTopico}
+                  <span className="font-mono font-bold text-white">
+                    {contadorExibido}
                   </span>
                   <button
                     type="button"
                     onClick={nextQuestion}
                     disabled={!hasNext}
-                    className="btn btn-ghost size-9 border-brand text-brand hover:bg-brand/20 disabled:opacity-30 disabled:border-line disabled:text-ink-faint"
+                    className="btn btn-ghost size-9 border-white text-white hover:bg-white/20 disabled:opacity-30 disabled:border-white/30 disabled:text-white/30"
                   >
-                    <ArrowRight className="size-4" />
+                    <ArrowRight className="size-4 text-white" />
                   </button>
                 </div>
 
