@@ -2260,3 +2260,40 @@ evitando navegar para um tópico que não existe nesse modo.
 | Contador em mixed | ✅ mostra X / total de todas as questões |
 | Painel direito em mixed | ✅ mostra todas as questões de 1 a N |
 | Versão exibida | ✅ `v2.1` ao lado do logo |
+
+---
+
+## 48. Setas brancas e contador correto no modo misto (`v2.2`)
+
+### O pedido
+
+O usuário relatou que as setas Anterior/Próxima estavam difíceis de ver no fundo escuro, e pediu que o contador no cabeçalho mostrasse a quantidade correta de questões quando tudo está misturado.
+
+### O que mudou em `components/quiz-player.tsx`
+
+**1. Setas brancas para melhor visibilidade**
+
+Os botões Anterior (◀) e Próxima (▶) passaram a usar `border-white text-white hover:bg-white/20` com estados disabled em `border-white/30 text-white/30`. Os ícones também ficam brancos (`text-white`).
+
+**2. Contador correto no modo misto**
+
+Adicionado `contadorExibido` que mostra:
+- Em modo mixed: `X / total` (total geral do quiz, ex: `1 / 39`).
+- Em modo by-pdf: `X / total do tópico` (ex: `1 / 32`).
+
+Substituído o uso de `{posicaoExibida} / {totalTopico}` por `{contadorExibido}` no cabeçalho de navegação.
+
+**3. Versão**
+
+- `APP_VERSION` incrementado de `"2.1"` para `"2.2"` em `components/brand-bar.tsx`.
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `npm run typecheck` | ✅ sem erros |
+| `npm run lint` | ✅ 0 errors |
+| `npm run build` | ✅ build de produção concluído |
+| Setas brancas | ✅ visíveis no fundo escuro |
+| Contador em mixed | ✅ mostra X / total geral do quiz |
+| Versão exibida | ✅ `v2.2` ao lado do logo |
