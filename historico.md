@@ -2389,3 +2389,75 @@ estava configurado (§16).
 | Com Google | ✅ botão "Continuar com Google" no painel |
 | **Criar conta (signUp)** | ⚙️ não testado — cria usuário real e envia e-mail de confirmação |
 | `v2.3` no cabeçalho | ✅ |
+
+---
+
+## 50. Tela de montagem sem barra de rolagem (`v2.4`)
+
+### O pedido
+
+O botão **"Iniciar quiz"** estava cortado no fim da tela e gerando barra de
+rolagem. A instrução foi: como há espaço embaixo dos seletores de nível de
+dificuldade (coluna direita), mover o dropdown **"Dificuldade das questões"**
+para baixo deles.
+
+### Diagnóstico (medições, não impressão)
+
+A tela de montagem é um `grid gap-2 lg:grid-cols-2` com cinco blocos:
+
+| # | Bloco | Coluna |
+| --- | --- | --- |
+| 1 | Quase lá | esquerda |
+| 2 | Quantidades | direita |
+| 3 | Modo de resposta (toggles + Agrupar por + **Dificuldade das questões**) | esquerda |
+| 4 | Tempo limite + Assunto + Nível de dificuldade | direita |
+| 5 | Iniciar quiz | `lg:col-span-2` |
+
+O `grid` estica as duas células de uma mesma linha até a **maior** delas.
+O bloco 3 tinha mais conteúdo que o bloco 4, então a linha 2 ficava com a
+altura do bloco 3 e o bloco 4 sobrava espaço em branco — exatamente o que se
+vê no print. Esse excesso empurrava o botão para fora da viewport.
+
+**A/B medido ao vivo** (mesma página, o bloco foi movido via DOM e os dois
+estados medidos em sequência — viewport 912×678, grid forçado para 2
+colunas):
+
+| | Altura da linha 2 | Excesso sobre a viewport | Botão visível |
+| --- | --- | --- | --- |
+| **Antes** (dropdown na esquerda) | 472 px | **92 px** | ❌ cortado |
+| **Depois** (dropdown na direita) | 387 px | **8 px** | ✅ |
+
+Ganho de **85 px**. Vale notar que 912 px é a largura mais estreita possível
+com 2 colunas (colunas de 436 px); em janelas mais largas as colunas têm
+~500 px, o texto quebra menos e a linha fica ainda menor.
+
+### O que mudou
+
+`components/setup-panel.tsx` — o `<label>` de **"Dificuldade das questões"**
+saiu do final do painel 3 e passou para o final do painel 4, logo abaixo de
+**"Nível de dificuldade"**. A ordem nova faz sentido de leitura: primeiro
+*filtra* por nível, depois *ordena* por dificuldade.
+
+Nada mais foi alterado: mesmos `className`, mesmo `onChange`, mesma dica
+"As questões sem nível ficam no fim."
+
+### Conhecido e ainda em aberto
+
+Abaixo de **1024 px** o `lg:grid-cols-2` desliga e a tela vira **coluna
+única**. Nesse modo a medição dá **508 px de excesso**, e a troca de coluna
+é **neutra** (tira de um painel e põe no outro, ambos largura total) — ou
+seja, o problema de rolagem em janela estreita / celular **não** foi atacado
+por esta mudança. É um assunto separado.
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `npm run typecheck` | ✅ sem erros |
+| `npm run lint` | ✅ 0 errors |
+| `npm run build` | ✅ build de produção concluído |
+| Painel renderiza no navegador | ✅ `Quase lá` … `Iniciar quiz` |
+| Ordem do dropdown | ✅ último elemento do painel direito |
+| A/B da altura da linha 2 | ✅ 472 → 387 px |
+| Botão visível (≥1024 px) | ✅ |
+| `v2.4` no cabeçalho | ✅ |
