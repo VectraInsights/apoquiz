@@ -337,9 +337,10 @@ export function QuizPlayer({
                   Navegação do questionário
                 </p>
                 <div className="grid grid-cols-5 gap-1.5">
-                  {quiz.questions.map((q, index) => {
+                  {topicoAtual?.questoes.map((originalIndex, posicao) => {
+                    const q = quiz.questions[originalIndex];
                     const answeredHere = Boolean(state.answers[q.id]);
-                    const isCurrent = index === state.currentIndex;
+                    const isCurrent = originalIndex === state.currentIndex;
                     const isFlagged = state.flagged.includes(q.id);
                     let tone: "correct" | "wrong" | "answered" | "current" | "pending" =
                       "pending";
@@ -355,7 +356,7 @@ export function QuizPlayer({
                         key={q.id}
                         type="button"
                         onClick={() =>
-                          onStateChange({ ...state, currentIndex: index })
+                          onStateChange({ ...state, currentIndex: originalIndex })
                         }
                         disabled={isCurrent}
                         className={`bubble shrink-0 ${
@@ -369,9 +370,9 @@ export function QuizPlayer({
                                   ? "border-brand bg-brand text-ink"
                                   : ""
                         } ${isFlagged ? "ring-2 ring-brand" : ""}`}
-                        title={`Questão ${index + 1}`}
+                        title={`Questão ${posicao + 1}`}
                       >
-                        {index + 1}
+                        {posicao + 1}
                       </button>
                     );
                   })}
