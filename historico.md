@@ -1971,3 +1971,49 @@ antes de commitar e pushar.
 | `npm run lint` | ✅ 0 errors |
 | `npm run build` | ✅ build de produção concluído |
 | Versão exibida | ✅ `v1.4` ao lado do logo |
+
+---
+
+## 42. Contador por tópico e setas destacadas (`v1.5`)
+
+### O pedido
+
+1. O contador no topo do quiz mostrava o total de todas as questões do
+   quiz (ex.: `1 / 719`). O usuário pediu que mostre apenas o total do
+   tópico atual (ex.: `1 / 53` quando o tópico tem 53 questões).
+2. As setas Anterior/Próxima estavam pouco visíveis no fundo escuro,
+   parecendo "mescladas". O usuário pediu que fossem destacadas.
+
+### O que mudou em `components/quiz-player.tsx`
+
+**1. Contador por tópico**
+
+- Adicionado cálculo do total de questões do tópico atual:
+  `totalTopico = topicoAtual.questoes.length`.
+- Adicionado cálculo da posição da questão dentro do tópico:
+  `posicaoExibida = topicoAtual.questoes.indexOf(state.currentIndex) + 1`.
+- O contador agora exibe `posicaoExibida / totalTopico` em vez de
+  `current / total` (total geral do quiz).
+
+**2. Setas destacadas**
+
+- Os botões Anterior (◀) e Próxima (▶) passaram a usar
+  `border-brand text-brand hover:bg-brand/20`, com estados disabled
+  em `border-line text-ink-faint`, para ficarem visíveis contra o
+  fundo escuro.
+
+**3. Versão**
+
+- `APP_VERSION` incrementado de `"1.4"` para `"1.5"` em
+  `components/brand-bar.tsx`.
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `npm run typecheck` | ✅ sem erros |
+| `npm run lint` | ✅ 0 errors |
+| `npm run build` | ✅ build de produção concluído |
+| Contador por tópico | ✅ mostra posição e total do tópico atual |
+| Setas destacadas | ✅ borda e texto em cor de marca |
+| Versão exibida | ✅ `v1.5` ao lado do logo |
