@@ -2206,3 +2206,57 @@ O `QuizPlayer` (`components/quiz-player.tsx`) segue agora o seguinte padrão, qu
 | `npm run build` | ✅ build de produção concluído |
 | Layout estabelecido como padrão | ✅ documentado na seção 46 |
 | Versão exibida | ✅ `v2.0` ao lado do logo |
+
+---
+
+## 47. Modo misto ignora tópicos e navega linearmente (`v2.1`)
+
+### O problema
+
+Quando o usuário escolhe embaralhar todas as questões (modo "mixed"),
+as questões continuavam sendo separadas por tópico na barra lateral
+esquerda e no painel direito. Isso não fazia sentido, já que o usuário
+explicitamente pediu para misturar tudo e fazer um questionário único.
+
+### O que mudou em `components/quiz-player.tsx`
+
+**1. Detecção do modo misto**
+
+Adicionado `const isMixedMode = quiz.settings.groupMode === "mixed"`.
+Quando ativo, as questões não são agrupadas por tópico.
+
+**2. Barra lateral esquerda escondida em modo misto**
+
+Em modo mixed, a barra de tópicos à esquerda não é renderizada,
+já que não há tópicos para navegar.
+
+**3. Navegação linear em modo mixed**
+
+- `nextQuestion` e `previousQuestion` avançam/retrocedem linearmente
+  por todas as questões embaralhadas (`currentIndex ± 1`).
+- O contador mostra `X / total` (total de todas as questões, não de um tópico).
+- O painel direito mostra todas as questões numeradas de 1 a N,
+  independente do tópico original.
+
+**4. Clique em tópico desativado em modo mixed**
+
+A função `toggleSection` retorna imediatamente se `isMixedMode` for true,
+evitando navegar para um tópico que não existe nesse modo.
+
+**5. Versão**
+
+- `APP_VERSION` incrementado de `"2.0"` para `"2.1"` em
+  `components/brand-bar.tsx`.
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `npm run typecheck` | ✅ sem erros |
+| `npm run lint` | ✅ 0 errors |
+| `npm run build` | ✅ build de produção concluído |
+| Modo mixed | ✅ não mostra abas de tópico, navega linearmente |
+| Modo by-pdf | ✅ mantém abas de tópico e navegação por tópico |
+| Contador em mixed | ✅ mostra X / total de todas as questões |
+| Painel direito em mixed | ✅ mostra todas as questões de 1 a N |
+| Versão exibida | ✅ `v2.1` ao lado do logo |
