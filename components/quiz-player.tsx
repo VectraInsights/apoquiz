@@ -97,7 +97,6 @@ export function QuizPlayer({
     const nextAnswers = { ...state.answers, [question.id]: label };
     const nextState = { ...state, answers: nextAnswers };
     onStateChange(nextState);
-    console.log("DEBUG selectOption:", { questionId: question.id, label, correct: question.correct, answered: nextAnswers[question.id] === question.correct });
     // Com correção instantânea, avança automaticamente depois de um curto delay.
     if (quiz.settings.instantFeedback) {
       setTimeout(() => {

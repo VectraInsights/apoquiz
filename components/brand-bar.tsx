@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { Logo } from "./ui";
 
 /** Versao atual do aplicativo. Incrementar a cada modificacao visivel. */
-export const APP_VERSION = "1.7";
+export const APP_VERSION = "1.8";
 
 /**
  * Logo + acoes no fluxo da pagina.
