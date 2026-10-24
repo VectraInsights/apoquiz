@@ -49,6 +49,21 @@ export function QuizPlayer({
   const currentSectionIndex = state.secaoAtual ?? 0;
   const [secoesVisiveis, setSecoesVisiveis] = useState(false);
 
+  /** Tópicos únicos extraídos das questões (independente do groupMode do quiz). */
+  const topics = useMemo(() => {
+    const mapa = new Map<string, number[]>();
+    quiz.questions.forEach((q, index) => {
+      const topico = q.topic ?? "Sem tópico";
+      const indices = mapa.get(topico) ?? [];
+      indices.push(index);
+      mapa.set(topico, indices);
+    });
+    return [...mapa.entries()].map(([topico, indices]) => ({
+      topico,
+      questoes: indices,
+    }));
+  }, [quiz.questions]);
+
   // A correção visual aparece quando há resposta para a questão atual
   // (correção instantânea ou já respondida). A explicação aparece sempre
   // que existir, independente de correta ou errada (§37 item 3).
@@ -96,12 +111,16 @@ export function QuizPlayer({
     onStateChange({ ...state, flagged: next });
   };
 
-  const toggleSection = (index: number) => {
-    onStateChange({ ...state, secaoAtual: index });
+  const toggleSection = (topico: string) => {
+    const entry = topics.find((t) => t.topico === topico);
+    if (!entry) return;
+    onStateChange({
+      ...state,
+      currentIndex: entry.questoes[0],
+      secaoAtual: topics.findIndex((t) => t.topico === topico),
+    });
     setSecoesVisiveis(false);
   };
-
-  const sections = quiz.secoes ?? [];
 
   // Opção do estado visual da alternativa (.option usa data-state no CSS)
   const optionState = (option: { label: string }): "selected" | "correct" | "wrong" | null => {
@@ -139,12 +158,12 @@ export function QuizPlayer({
 
           {/* Corpo: abas à esquerda + conteúdo principal à direita */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-w-0">
-            {/* Barra lateral esquerda: abas de seção (tópicos) */}
+            {/* Barra lateral esquerda: abas de tópico */}
             <aside
               className="lg:col-span-3 hidden lg:block flex flex-col gap-1 min-w-[160px] max-w-[260px]"
             >
               <p className="text-[10px] uppercase tracking-wider text-ink-faint mb-2">
-                Seções
+                Tópicos
               </p>
               <button
                 type="button"
@@ -152,25 +171,29 @@ export function QuizPlayer({
                 className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg border border-line bg-white/[0.02] text-[11px] text-ink-muted transition hover:bg-white/[0.04]"
               >
                 {secoesVisiveis ? "▲" : "▼"}
-                <span className="flex-1 truncate">{sections.length} seção{sections.length !== 1 ? "ões" : ""}</span>
-                <span className="text-ink-faint">{currentSectionIndex + 1} / {sections.length}</span>
+                <span className="flex-1 truncate">
+                  {topics.length} tópico{topics.length !== 1 ? "s" : ""}
+                </span>
+                <span className="text-ink-faint">
+                  {currentSectionIndex + 1} / {topics.length}
+                </span>
               </button>
               {secoesVisiveis && (
                 <div className="flex-1 overflow-y-auto space-y-1 pr-1">
-                  {sections.map((secao, index) => (
+                  {topics.map((topico, index) => (
                     <button
-                      key={index}
+                      key={topico.topico}
                       type="button"
-                      onClick={() => toggleSection(index)}
+                      onClick={() => toggleSection(topico.topico)}
                       className={`w-full flex items-start gap-2 rounded-lg px-3 py-1.5 text-[11px] leading-tight text-left transition ${
                         index === currentSectionIndex
                           ? "bg-brand/20 border-brand text-ink font-medium"
                           : "text-ink-muted hover:bg-white/[0.02] hover:border-line"
                       }`}
                     >
-                      <span className="flex-1 break-words">{secao.topico}</span>
+                      <span className="flex-1 break-words">{topico.topico}</span>
                       <span className="shrink-0 text-[9px] text-ink-faint">
-                        {secao.questoes.length}
+                        {topico.questoes.length}
                       </span>
                     </button>
                   ))}
