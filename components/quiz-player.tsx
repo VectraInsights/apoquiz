@@ -291,7 +291,7 @@ export function QuizPlayer({
                     type="button"
                     onClick={previousQuestion}
                     disabled={!hasPrev}
-                    className="btn btn-ghost size-9 border-white text-white hover:bg-white/20 disabled:opacity-30 disabled:border-white/30 disabled:text-white/30"
+                    className="grid size-9 cursor-pointer place-items-center rounded-xl border border-white text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30 disabled:border-white/30 disabled:text-white/30"
                   >
                     <ArrowLeft className="size-4 text-white" />
                   </button>
@@ -302,7 +302,7 @@ export function QuizPlayer({
                     type="button"
                     onClick={nextQuestion}
                     disabled={!hasNext}
-                    className="btn btn-ghost size-9 border-white text-white hover:bg-white/20 disabled:opacity-30 disabled:border-white/30 disabled:text-white/30"
+                    className="grid size-9 cursor-pointer place-items-center rounded-xl border border-white text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30 disabled:border-white/30 disabled:text-white/30"
                   >
                     <ArrowRight className="size-4 text-white" />
                   </button>

@@ -2606,3 +2606,86 @@ reproduzível; a única mudança de arquivo é o `.ico`.
 | `npm run lint` | ✅ 0 errors |
 | `npm run build` | ✅ build de produção concluído |
 | `v2.6` no cabeçalho | ✅ |
+
+---
+
+## 53. As setas da navegação eram caixas vazias
+
+### O sintoma
+
+Na tela do quiz, ao lado do contador `3 / 41`, dois quadrados com borda
+arredondada **vazios**. Os `<ArrowLeft>` / `<ArrowRight>` existiam no JSX
+(`components/quiz-player.tsx:296` e `:307`) mas não apareciam.
+
+Já tinha havido uma tentativa: `ea88c87 fix(ui): setas brancas e contador
+correto no modo misto (v2.2)` trocou a cor para `text-white`. Não
+resolveu — porque **a cor nunca foi o problema**.
+
+### O diagnóstico (medido, não deduzido)
+
+Replicei o botão exato no DOM ao vivo e medi o `<svg>`:
+
+| | botão | `<svg>` |
+| --- | --- | --- |
+| como estava | 38 × 36 | **0 × 16** ❌ |
+| corrigido | 36 × 36 | 16 × 16 ✅ |
+
+### A causa
+
+`.btn` (`globals.css:89`) traz `padding: 0.625rem 1.125rem` — 10px
+vertical, **18px horizontal**. O botão também tem `size-9` = 36×36 com
+`box-sizing: border-box`, então a largura de conteúdo fica:
+
+```
+36 − 18 (esq) − 18 (dir) − 1.6 (borda)  →  0
+```
+
+O `<svg class="size-4">` é item de flex com `flex-shrink: 1`. Com a caixa
+de conteúdo zerada, ele encolhe de 16px para **0px**. O ícone não some por
+cor — some por **geometria**.
+
+### Por que `p-0` não resolve (e é bom saber)
+
+Testei `p-0` primeiro. Não teve efeito nenhum. Motivo conferido no build
+compilado:
+
+```
+.p 0 = AUSENTE      .size-9 = PRESENTE
+```
+
+O Tailwind v4 só gera as classes que aparecem em **arquivo-fonte**, e
+`p-0` nunca é usado no projeto — a classe simplesmente não existia. Não é
+questão de camada nem de especificidade.
+
+### A correção
+
+Adotei o padrão que **o resto do app já usa** para botão quadrado com
+ícone — `grid size-9 place-items-center`, **sem** `.btn`:
+
+| arquivo | classe |
+| --- | --- |
+| `install-prompt.tsx:159` | `grid size-9 place-items-center rounded-lg border …` |
+| `auth-button.tsx:54` | `grid size-9 place-items-center …` |
+| `quiz-app.tsx:580` | `grid size-9 place-items-center rounded-lg bg-brand/12 …` |
+| **`quiz-player.tsx:294` / `:305`** | ← a **única** que usava `.btn size-9` |
+
+`grid` + `place-items-center` dimensiona o filho pelo **conteúdo**, então
+o `size-4` vale os 16px de verdade. Mantive `rounded-xl` (0.75rem) para
+preservar o raio exato que o `.btn` dava, e repassei `cursor-pointer` e
+`transition`, que o `.btn` também trazia.
+
+`setup-panel.tsx:403` usa `.btn btn-primary w-full` — largura livre, não
+colapsa. Só essas duas setas eram afetadas.
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `<svg>` antes | ❌ `0 × 16` (invisível) |
+| `<svg>` depois | ✅ `16 × 16` |
+| botão | ✅ `36 × 36`, raio `12px` — idêntico ao anterior |
+| outros botões com `.btn` + tamanho fixo | ✅ nenhum (varredura) |
+| `npm run typecheck` | ✅ sem erros |
+| `npm run lint` | ✅ 0 errors |
+| `npm run build` | ✅ build de produção concluído |
+| `v2.7` no cabeçalho | ✅ |
