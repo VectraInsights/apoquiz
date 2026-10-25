@@ -2689,3 +2689,68 @@ colapsa. Só essas duas setas eram afetadas.
 | `npm run lint` | ✅ 0 errors |
 | `npm run build` | ✅ build de produção concluído |
 | `v2.7` no cabeçalho | ✅ |
+
+---
+
+## 54. Home: largura não aproveitada e botão de importar lá embaixo
+
+### O pedido
+
+Mudança **só na home**: a largura total da página não estava sendo bem
+aproveitada, e isso deixava o botão de importar PDF muito baixo quando
+havia quiz salvo.
+
+### O que a medição mostrou
+
+| elemento | cap de largura | dentro do `<main>` |
+| --- | --- | --- |
+| `<main>` | `max-w-5xl` = **1024px** | — |
+| herói | `max-w-3xl` = 768px | **256px sobrando** |
+| dropzone | `max-w-3xl` = 768px | **256px sobrando** |
+| cards de quiz | preenchem os 1024 | — |
+
+Deu pra ver no print: os cards chegavam mais longe que a caixa de
+importar, com bordas desalinhadas — e tudo empilhado (`topBar` → cards →
+herói → `mt-9` → dropzone) empurrava o botão pra baixo.
+
+### A solução: duas colunas no desktop
+
+Escolhida pelo usuário entre três propostas. No `lg`+ a home vira
+`grid-cols-3`:
+
+| coluna | largura | conteúdo |
+| --- | --- | --- |
+| esquerda (`lg:col-span-2`, `lg:order-1`) | **808px** | herói + dropzone |
+| direita (`lg:order-2`) | **384px** | "Continuar de onde parou" |
+
+O `order` é o que inverte a ordem do DOM: os quizzes vêm primeiro no
+código (para não mudar o mobile) mas são desenhados na coluna da direita.
+
+**Em tela estreita nada muda.** As classes de grid só existem com prefixo
+`lg:`, então abaixo de 1024px o wrapper é um `<div>` comum e os blocos
+continuam empilhados na mesma ordem de sempre.
+
+### Larguras acompanhando
+
+`main` subiu de `max-w-5xl` (1024) para **`max-w-7xl` (1280)** e as duas
+seções de rodapé (`Como funciona` e as features) acompanharam — senão elas
+ficariam estreitas em relação ao topo, que é exatamente o defeito que
+estava sendo corrigido.
+
+A dropzone foi de `max-w-3xl` (768) para `max-w-4xl` (896): dentro da
+coluna de 808px ela preenche, e quando não há quiz salvo ela ganha largura
+em vez de continuar estreita.
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| layout em `lg` (≥1024px) | ✅ 2 colunas, herói à esquerda |
+| layout em tela estreita | ✅ inalterado (mesma ordem, mesmo empilhamento) |
+| dropzone na coluna esquerda | ✅ 808px (era 768px) |
+| largura total da home | ✅ 1024 → **1280px** |
+| `max-w-5xl` / `max-w-3xl` restantes no componente | ✅ nenhum |
+| `npm run typecheck` | ✅ sem erros |
+| `npm run lint` | ✅ 0 errors |
+| `npm run build` | ✅ build de produção concluído |
+| `v2.8` no cabeçalho | ✅ |

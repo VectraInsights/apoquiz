@@ -418,13 +418,24 @@ function UploadScreen({
   const visible = showAll ? recent : recent.slice(0, 3);
 
   return (
-    <main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
+    <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
       {/* A marca faz parte do conteudo da pagina, sem barra fixa */}
       <div className="mb-8">{topBar}</div>
 
+      {/* Duas colunas no desktop: heroi + upload a esquerda e os quizzes a
+          direita. Antes tudo ficava empilhado num bloco de 1024px e o botao
+          de importar PDF so aparecia la embaixo, quando havia quiz salvo.
+          Em tela estreita continua empilhado, na mesma ordem de sempre. */}
+      <div
+        className={
+          recent.length > 0
+            ? "lg:grid lg:grid-cols-3 lg:items-start lg:gap-10"
+            : undefined
+        }
+      >
       {/* Os 3 quizzes mais recentes ficam no topo, para continuar de onde parou */}
       {recent.length > 0 ? (
-        <section className="mb-12">
+        <section className="mb-12 lg:order-2 lg:mb-0">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-sm font-semibold text-ink-muted">
               Continuar de onde parou
@@ -527,7 +538,9 @@ function UploadScreen({
         </section>
       ) : null}
 
-      <div className="mx-auto max-w-3xl text-center">
+      {/* Heroi + upload dividem a coluna da esquerda */}
+      <div className="lg:order-1 lg:col-span-2">
+      <div className="mx-auto text-center">
         <span className="chip mx-auto border-brand/40 bg-brand/10 text-brand-soft">
           <Sparkles className="size-3.5" />
           Do PDF ao quiz em segundos
@@ -543,7 +556,7 @@ function UploadScreen({
         </p>
       </div>
 
-      <div className="mx-auto mt-9 max-w-3xl">
+      <div className="mx-auto mt-9 max-w-4xl">
         {error ? (
           <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-bad/35 bg-bad/10 p-3.5 text-sm text-bad">
             <CircleAlert className="mt-0.5 size-4 shrink-0" />
@@ -553,8 +566,10 @@ function UploadScreen({
 
         <UploadZone onFiles={onFiles} busy={false} onSample={onSample} />
       </div>
+      </div>
+      </div>
 
-      <section className="mx-auto mt-16 max-w-5xl">
+      <section className="mx-auto mt-16 max-w-7xl">
         <h2 className="text-center text-sm font-semibold uppercase tracking-wider text-ink-faint">
           Como funciona
         </h2>
@@ -589,7 +604,7 @@ function UploadScreen({
         </div>
       </section>
 
-      <section className="mx-auto mt-6 grid max-w-5xl gap-4 sm:grid-cols-3">
+      <section className="mx-auto mt-6 grid max-w-7xl gap-4 sm:grid-cols-3">
         <Feature
           icon={Gauge}
           title="Progresso e desempenho"
