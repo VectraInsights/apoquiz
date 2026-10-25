@@ -415,21 +415,23 @@ function UploadScreen({
   onDelete: (id: string) => void;
 }) {
   const [showAll, setShowAll] = useState(false);
-  const visible = showAll ? recent : recent.slice(0, 3);
+  const visible = showAll ? recent : recent.slice(0, 9);
 
   return (
-    <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
+    <main className="mx-auto w-full max-w-[1440px] flex-1 px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
       {/* A marca faz parte do conteudo da pagina, sem barra fixa */}
       <div className="mb-8">{topBar}</div>
 
       {/* Duas colunas no desktop: heroi + upload a esquerda e os quizzes a
           direita. Antes tudo ficava empilhado num bloco de 1024px e o botao
           de importar PDF so aparecia la embaixo, quando havia quiz salvo.
-          Em tela estreita continua empilhado, na mesma ordem de sempre. */}
+          Em tela estreita continua empilhado, na mesma ordem de sempre.
+          A coluna da direita e a mais larga das duas: e ela que carrega os
+          nomes dos quizzes, e o heroi ja tem largura de sobra. */}
       <div
         className={
           recent.length > 0
-            ? "lg:grid lg:grid-cols-3 lg:items-start lg:gap-10"
+            ? "lg:grid lg:grid-cols-[1.5fr_1fr] lg:items-start lg:gap-10"
             : undefined
         }
       >
@@ -440,14 +442,14 @@ function UploadScreen({
             <h2 className="text-sm font-semibold text-ink-muted">
               Continuar de onde parou
             </h2>
-            {recent.length > 3 ? (
+            {recent.length > 9 ? (
               <button
                 type="button"
                 onClick={() => setShowAll((value) => !value)}
                 className="text-xs text-brand-soft transition hover:underline"
               >
                 {showAll
-                  ? "Mostrar só os 3 mais recentes"
+                  ? "Mostrar só os 9 mais recentes"
                   : `Ver todos os ${recent.length}`}
               </button>
             ) : null}
@@ -538,8 +540,9 @@ function UploadScreen({
         </section>
       ) : null}
 
-      {/* Heroi + upload dividem a coluna da esquerda */}
-      <div className="lg:order-1 lg:col-span-2">
+      {/* Heroi + upload ocupam a coluna da esquerda (o span de 2 colunas
+          so existia quando o grid tinha 3 trilhos) */}
+      <div className="lg:order-1">
       <div className="mx-auto text-center">
         <span className="chip mx-auto border-brand/40 bg-brand/10 text-brand-soft">
           <Sparkles className="size-3.5" />
@@ -569,7 +572,7 @@ function UploadScreen({
       </div>
       </div>
 
-      <section className="mx-auto mt-16 max-w-7xl">
+      <section className="mx-auto mt-16">
         <h2 className="text-center text-sm font-semibold uppercase tracking-wider text-ink-faint">
           Como funciona
         </h2>
@@ -604,7 +607,7 @@ function UploadScreen({
         </div>
       </section>
 
-      <section className="mx-auto mt-6 grid max-w-7xl gap-4 sm:grid-cols-3">
+      <section className="mx-auto mt-6 grid gap-4 sm:grid-cols-3">
         <Feature
           icon={Gauge}
           title="Progresso e desempenho"

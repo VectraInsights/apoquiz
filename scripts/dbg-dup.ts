@@ -184,6 +184,28 @@ async function main() {
       `  p${m.pagina}: geo=${m.geometria} texto=${m.texto} sobrepos=${m.sobreposicao} removidos=${m.removidos}/${m.itens}`,
     );
   }
+
+  // --- contingencia: quando 2c dispara SEM prova de duplicacao ---
+  const comGeo = medidas.filter((m) => m.geometria > 0);
+  const semProva = comGeo.filter((m) => m.texto === 0);
+  console.log("");
+  console.log("contingencia do gate (2c so roda com prova de duplicacao):");
+  console.log(`  paginas com 2c > 0:                 ${comGeo.length}`);
+  console.log(
+    `    ...com prova (2a/2b > 0) -> 2c roda:  ${comGeo.length - semProva.length}`,
+  );
+  console.log(
+    `    ...SEM prova (2a/2b = 0) -> 2c CALA:  ${semProva.length}   <-- gate muda isto`,
+  );
+  if (semProva.length) {
+    const amostra = semProva.slice(0, 8);
+    console.log("    paginas afetadas:");
+    for (const m of amostra) {
+      console.log(
+        `      p${m.pagina}: geo=${m.geometria} texto=${m.texto} sobrepos=${m.sobreposicao} removidos=${m.removidos}/${m.itens}`,
+      );
+    }
+  }
 }
 
 main().catch((error) => {

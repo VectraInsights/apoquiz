@@ -2754,3 +2754,69 @@ em vez de continuar estreita.
 | `npm run lint` | ✅ 0 errors |
 | `npm run build` | ✅ build de produção concluído |
 | `v2.8` no cabeçalho | ✅ |
+
+---
+
+## 55. Home: mais largura e mais quizzes na coluna da direita
+
+### O pedido
+
+Com a v2.8 no ar, o usuário apontou três coisas na coluna da direita:
+
+1. estava **sobrando espaço** → mostrar **mais do que 3** quizzes;
+2. dava para aumentar a largura **um pouco mais**;
+3. jogar essa largura **no card dos quizzes**, mantendo **3 por linha**,
+   para os **nomes** aparecerem melhor.
+
+### Por que os nomes truncavam
+
+O grid de quizzes é `lg:grid-cols-3` — e ele está **dentro** da coluna da
+direita, não na página inteira. Com a coluna em **384px**:
+
+```
+(384 − 2 × 12) ÷ 3 = 120px por card   ← "AUDITORIA E…"
+```
+
+Ou seja: 3 colunas de 120px competindo pelo mesmo espaço de 384px.
+
+### O que mudou
+
+| | antes (v2.8) | agora (v2.9) |
+| --- | --- | --- |
+| largura da home | `max-w-7xl` = 1280 | **`max-w-[1440px]`** |
+| divisão | `grid-cols-3` → 2/1 = 808 / 384 | **`grid-cols-[1.5fr_1fr]`** → **811 / 541** |
+| card (3 por linha) | (384−24)/3 = **120px** | (541−24)/3 = **172px** (+43%) |
+| quizzes visíveis | `slice(0, 3)` | **`slice(0, 9)** |
+| "Ver todos" aparecia com | `> 3` | `> 9` |
+| dropzone | 808px | **811px** (não regrediu) |
+| seções de rodapé | `max-w-7xl` fixo | **sem cap** → sempre acompanham o `<main>` |
+
+Por que **9**: é 3 linhas de 3 — a mesma razão do `3 por linha` que o
+pedido mandou manter. E como o usuário tem 7 quizzes, todos aparecem de
+uma vez e o botão "Ver todos" some da tela (não havia mais nada a
+revelar).
+
+A ratio `1.5fr / 1fr` foi escolhida para **não regredir a dropzone**: com
+1352px úteis, `1352 × 1.5 / 2.5 = 811` — praticamente os 808 antigos. Toda
+a largura ganha foi parar na coluna direita, como pedido.
+
+As seções de rodapé perderam o `max-w-*` fixo: agora elas só herdam a
+largura do `<main>`, então **nunca mais** ficam desalinhadas em relação ao
+topo quando a cap mudar.
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| card com nome longo | ✅ 172px (era 120px) |
+| quizzes por linha | ✅ 3 (inalterado) |
+| quizzes visíveis | ✅ 9 (era 3) |
+| dropzone | ✅ 811px (era 808px) |
+| largura total | ✅ 1280 → **1440px** |
+| `max-w-7xl` restante | ✅ nenhum |
+| `lg:col-span` restante | ✅ nenhum (o template agora tem 2 trilhos) |
+| layout abaixo de 1024px | ✅ inalterado |
+| `npm run typecheck` | ✅ sem erros |
+| `npm run lint` | ✅ 0 errors |
+| `npm run build` | ✅ build de produção concluído |
+| `v2.9` no cabeçalho | ✅ |
