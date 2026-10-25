@@ -1,7 +1,10 @@
 /**
  * Varre todos os PDFs de uma pasta e mostra questoes lidas / com resposta /
- * paginas duplicadas. Serve de baseline antes e depois de uma mudanca no
- * parser: rode, salve a saida, mude, rode de novo e compare.
+ * paginas duplicadas / chaves do gabarito que ficaram por ler. Serve de
+ * baseline antes e depois de uma mudanca no parser: rode, salve a saida,
+ * mude, rode de novo e compare. O `gabarito faltando` e o unico numero que
+ * responde "a mudanca regrediu?": os outros dois medem o parser contra ele
+ * mesmo, entao um parser que le MENOS continua passando nos dois.
  *
  * Uso: npx tsx scripts/varredura.ts <pasta> [--json]
  */
@@ -64,6 +67,8 @@ async function main() {
     resposta: number;
     dup: number;
     avisos: number;
+    /** chaves do gabarito do proprio PDF que o parser nao leu */
+    faltando: number;
   }[] = [];
 
   for (const arquivo of arquivos) {
@@ -76,10 +81,11 @@ async function main() {
         resposta: r.answered,
         dup: r.duplicatedPages,
         avisos: r.warnings.length,
+        faltando: r.missingQuestions.length,
       });
       if (!comoJson) {
         console.log(
-          `${String(r.found).padStart(5)}/${String(r.answered).padEnd(5)} dup=${String(r.duplicatedPages).padStart(3)}  ${linhas[linhas.length - 1].arquivo.slice(0, 72)}`,
+          `${String(r.found).padStart(5)}/${String(r.answered).padEnd(5)} dup=${String(r.duplicatedPages).padStart(3)} falta=${String(r.missingQuestions.length).padStart(3)}  ${linhas[linhas.length - 1].arquivo.slice(0, 72)}`,
         );
       }
     } catch (error) {
@@ -92,10 +98,16 @@ async function main() {
       questoes: acc.questoes + l.questoes,
       resposta: acc.resposta + l.resposta,
       dup: acc.dup + l.dup,
+      faltando: acc.faltando + l.faltando,
     }),
-    { questoes: 0, resposta: 0, dup: 0 },
+    { questoes: 0, resposta: 0, dup: 0, faltando: 0 },
   );
   const comFalta = linhas.filter((l) => l.questoes !== l.resposta);
+  // O metrico que decide se uma mudanca no parser regrediu: quantas chaves
+  // do gabarito do proprio PDF deixaram de ser lidas. "comFalta" acima so
+  // mede questao lida sem resposta, entao um parser que LE MENOS continua
+  // passando nele - por isso este contador existe.
+  const comGabaritoFaltando = linhas.filter((l) => l.faltando > 0);
 
   if (comoJson) {
     console.log(JSON.stringify({ total, arquivos: linhas }, null, 1));
@@ -108,6 +120,15 @@ async function main() {
     console.log(`arquivos com falta:${comFalta.length}`);
     for (const l of comFalta) {
       console.log(`   ${l.questoes}/${l.resposta}  ${l.arquivo.slice(0, 70)}`);
+    }
+    // O numero que decide se uma mudanca no parser regrediu: o gabarito do
+    // proprio PDF manda, nao o parser. Imprime tambem a lista, para dar
+    // direto o arquivo a investigar.
+    console.log("");
+    console.log(`gabarito faltando:        ${total.faltando}`);
+    console.log(`arquivos c/ gabarito incompleto:${comGabaritoFaltando.length}`);
+    for (const l of comGabaritoFaltando) {
+      console.log(`   falta=${l.faltando}  ${l.arquivo.slice(0, 70)}`);
     }
   }
 }

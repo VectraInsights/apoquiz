@@ -107,7 +107,9 @@ function medirPagina(items: RawItem[]): Omit<Medida, "pagina"> {
     }
   }
 
-  const { items: depois } = removeDuplicatedLayout(items);
+  // Passa true de proposito: a funcao exige prova da fase 1 para rodar, e
+  // esta ferramenta existe justamente para medir o que cada fase faria.
+  const { items: depois } = removeDuplicatedLayout(items, true);
 
   return {
     itens: items.length,

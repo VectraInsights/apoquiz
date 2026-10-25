@@ -244,7 +244,30 @@ export function removeDuplicatedPass(items: RawItem[]): RawItem[] {
  */
 const SECTION_TITLE_ITEM = /^\d+(?:\.\d+){1,2}\s+\S/;
 
-export function removeDuplicatedLayout(items: RawItem[]): {
+/**
+ * Minimo de caracteres normalizados para duas ocorrencias contarem como a
+ * "mesma frase". E o mesmo corte que a 2b ja usa: sem ele, a 2a compara
+ * tokens soltos.
+ */
+const MINIMO_FRASE = 12;
+
+/**
+ * Remove a "segunda renderizacao" da pagina.
+ *
+ * 2a e 2b so agem sobre texto repetido ou contido — e mesmo assim apenas
+ * quando o texto passa nos cortes de frase e de titulo de secao. A 2c age
+ * por GEOMETRIA e por isso exige prova antes de rodar: ou a fase anterior
+ * achou copia deslocada, ou 2a/2b ja acharam texto repetido nesta pagina.
+ *
+ * @param provaDeCopia {@link removeDuplicatedPass} achou um deslocamento
+ *   de copia nesta pagina (>= 6 grupos distintos, deslocamento constante,
+ *   explicando >= 30% dos itens) — ou seja, a pagina tem duas
+ *   renderizacoes de verdade.
+ */
+export function removeDuplicatedLayout(
+  items: RawItem[],
+  provaDeCopia = false,
+): {
   items: RawItem[];
   removed: boolean;
 } {
@@ -267,8 +290,26 @@ export function removeDuplicatedLayout(items: RawItem[]): {
   const remover = new Set<RawItem>();
 
   // --- 2a) mesma frase: a versao maior e a copia ---
-  for (const list of todos.values()) {
+  //
+  // Dois cortes obrigatorios. Medidos em teste.pdf (2706 paginas, 1121
+  // itens marcados pela 2a):
+  //
+  //   comprimento 1..8 ....... 1093 itens  ("a" 208x, "b" 153x, "2" 136x,
+  //                                         "e" 122x, "n" 65x, "gabarito" 11x)
+  //   titulo de secao ........   17 itens  ("1.9 concordancia verbal...")
+  //
+  // Um token solto nao e "mesma frase" - e a 2b ja exige 12 caracteres
+  // para aceitar uma correspondencia. O titulo de secao e estrutura do
+  // documento: remove-lo reatribui todas as questoes da pagina para a
+  // secao anterior (em p546 a chave 1.9#369 passava a ser de outra secao
+  // e a questao "sumia" sem ter sido apagada).
+  //
+  // Esses dois cortes tambem fecham a porta da 2c: cada hit da 2a abria
+  // a fase seguinte, e a 2c ai comia o cabecalho "Questao 369" inteiro.
+  for (const [chave, list] of todos) {
     if (list.length < 2) continue;
+    if (chave.length < MINIMO_FRASE) continue;
+    if (list.some((item) => SECTION_TITLE_ITEM.test(item.str.trim()))) continue;
     const menorAltura = Math.min(...list.map((item) => item.height));
     for (const item of list) {
       if (item.height > menorAltura * 1.15) remover.add(item);
@@ -305,33 +346,45 @@ export function removeDuplicatedLayout(items: RawItem[]): {
   }
 
   // --- 2c) o que sobrou da copia ---
-  // A renderizacao antiga e desenhada dentro de uma coluna mais estreita,
-  // com fonte maior: os itens dela ficam bem a direita da margem da
-  // pagina. Os titulos de secao sao excecao (eles descrevem o documento
-  // e o parser precisa deles) e o texto repetido (topico, navegacao) ja
-  // foi tratado em 2a.
-  const alturas = items.map((item) => item.height).sort((a, b) => a - b);
-  const alturaCorpo = alturas[Math.floor(alturas.length / 2)] ?? 0;
+  //
+  // Unica fase que remove texto por GEOMETRIA (fonte maior que a mediana,
+  // dentro de uma banda horizontal), sem texto repetido que a justifique.
+  // Por isso ela exige prova antes de rodar.
+  //
+  // Medido em teste.pdf: a 2c marcava 2442 itens e disparava em 113 paginas
+  // das quais 112 NAO tinham nenhum texto repetido nem sobreposicao de
+  // retangulos. Nas paginas piores (p300: 13 itens) a sobreposicao era 0:
+  // nao havia copia nenhuma. Sem prova, ela comia o cabecalho da questao
+  // ("Questao 369") e o texto das alternativas inteiras.
+  if (remover.size > 0 || provaDeCopia) {
+    // A renderizacao antiga e desenhada dentro de uma coluna mais estreita,
+    // com fonte maior: os itens dela ficam bem a direita da margem da
+    // pagina. Os titulos de secao sao excecao (eles descrevem o documento
+    // e o parser precisa deles) e o texto repetido (topico, navegacao) ja
+    // foi tratado em 2a.
+    const alturas = items.map((item) => item.height).sort((a, b) => a - b);
+    const alturaCorpo = alturas[Math.floor(alturas.length / 2)] ?? 0;
 
-  const margens = items.map((item) => item.x);
-  const margem = Math.min(...margens);
-  const direita = Math.max(...margens);
-  const bandaInicio = margem + 45;
-  const bandaFim = direita * 0.6;
+    const margens = items.map((item) => item.x);
+    const margem = Math.min(...margens);
+    const direita = Math.max(...margens);
+    const bandaInicio = margem + 45;
+    const bandaFim = direita * 0.6;
 
-  for (const item of items) {
-    if (remover.has(item)) continue;
-    if (item.x < bandaInicio || item.x > bandaFim) continue;
-    if (SECTION_TITLE_ITEM.test(item.str.trim())) continue;
-    // A copia tem fonte maior que o corpo do texto da pagina.
-    if (item.height <= alturaCorpo * 1.1) continue;
+    for (const item of items) {
+      if (remover.has(item)) continue;
+      if (item.x < bandaInicio || item.x > bandaFim) continue;
+      if (SECTION_TITLE_ITEM.test(item.str.trim())) continue;
+      // A copia tem fonte maior que o corpo do texto da pagina.
+      if (item.height <= alturaCorpo * 1.1) continue;
 
-    const texto = normalize(item.str);
-    if (!texto) continue;
-    // Item com o mesmo texto na pagina ja foi resolvido em 2a.
-    if ((todos.get(texto) ?? []).length > 1) continue;
+      const texto = normalize(item.str);
+      if (!texto) continue;
+      // Item com o mesmo texto na pagina ja foi resolvido em 2a.
+      if ((todos.get(texto) ?? []).length > 1) continue;
 
-    remover.add(item);
+      remover.add(item);
+    }
   }
 
   if (remover.size === 0) return { items, removed: false };
@@ -401,7 +454,12 @@ export function buildDocumentPages(rawPages: RawItem[][]): ExtractedPage[] {
 
   return deduped.map((items, index) => {
     // Duas renderizacoes do mesmo conteudo na mesma pagina.
-    const layout = removeDuplicatedLayout(items);
+    // A prova vem da fase anterior: se ela achou um deslocamento de copia
+    // nesta pagina, a pagina de fato foi renderizada duas vezes e a 2c
+    // (que limpa o que sobrou da copia) tem o que fazer. Sem isso, a 2c
+    // so roda se 2a/2b encontraram texto repetido no mesmo bloco.
+    const provaDeCopia = rawPages[index].length !== items.length;
+    const layout = removeDuplicatedLayout(items, provaDeCopia);
     const final = layout.items;
 
     return {

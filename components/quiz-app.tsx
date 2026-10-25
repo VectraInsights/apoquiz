@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   CircleAlert,
   FileText,
@@ -10,6 +12,7 @@ import {
   RotateCcw,
   Sparkles,
   Target,
+  Trash2,
 } from "lucide-react";
 import { processPdfs, type Stage as ProcessStage } from "@/lib/client/pipeline";
 import { buildQuiz, createState } from "@/lib/quiz";
@@ -61,7 +64,14 @@ function tituloPorTema(files: File[]): string {
   return junta.length > 64 ? `${junta.slice(0, 61).trimEnd()}…` : junta;
 }
 
-export function QuizApp() {
+/**
+ * @param view "home" (padrao) mostra o heroi, a caixa de upload e os 9
+ *   quizzes mais recentes. "library" e a pagina /quizzes: so a lista
+ *   completa, sem heroi e sem as secoes de roda pe.
+ */
+export function QuizApp({ view = "home" }: { view?: "home" | "library" }) {
+  const library = view === "library";
+  const router = useRouter();
   const [stage, setStage] = useState<Stage>("upload");
   const [processStage, setProcessStage] = useState<ProcessStage>({
     label: "",
@@ -225,7 +235,11 @@ export function QuizApp() {
     setError(null);
     setQuiz(null);
     setQuestions([]);
-  }, [quiz, quizState, target, refreshList]);
+
+    // Na pagina /quizzes a caixa de importacao nao existe: ela fica na
+    // home, entao "novo quiz" volta para la.
+    if (library) router.push("/");
+  }, [quiz, quizState, target, refreshList, library, router]);
 
   /**
    * Retoma um quiz salvo. Se ele ja foi finalizado, volta para a tela de
@@ -339,6 +353,7 @@ export function QuizApp() {
           recent={recent}
           savedStates={savedStates}
           auth={auth}
+          library={library}
           onFiles={handleFiles}
           onSample={handleSample}
           onResume={handleResume}
@@ -397,6 +412,7 @@ function UploadScreen({
   savedStates,
   auth,
   topBar,
+  library = false,
   onFiles,
   onSample,
   onResume,
@@ -413,47 +429,84 @@ function UploadScreen({
   onResume: (quiz: QuizSummary) => void;
   onRestart: (quiz: QuizSummary) => void;
   onDelete: (id: string) => void;
+  /** true na pagina /quizzes: mostra todos os quizzes, sem heroi. */
+  library?: boolean;
 }) {
-  const [showAll, setShowAll] = useState(false);
-  const visible = showAll ? recent : recent.slice(0, 9);
+  // Na biblioteca entram TODOS; na home ficam so os 9 mais recentes e o
+  // botao "Ver todos" leva para /quizzes em vez de expandir aqui.
+  const visible = library ? recent : recent.slice(0, 9);
 
   return (
     <main className="mx-auto w-full max-w-[1440px] flex-1 px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
       {/* A marca faz parte do conteudo da pagina, sem barra fixa */}
       <div className="mb-8">{topBar}</div>
 
+      {/* Cabecalho proprio da pagina /quizzes */}
+      {library ? (
+        <header className="mb-8">
+          <Link
+            href="/"
+            className="text-xs text-brand-soft transition hover:underline"
+          >
+            ← Voltar para a página inicial
+          </Link>
+          <h1 className="font-round mt-3 text-3xl font-bold tracking-tight">
+            Todos os seus quizzes
+          </h1>
+          <p className="mt-1 text-sm text-ink-muted">
+            {recent.length > 0
+              ? countLabel(recent.length, "quiz salvo", "quizzes salvos")
+              : "Você ainda não tem nenhum quiz salvo."}
+          </p>
+        </header>
+      ) : null}
+
       {/* Duas colunas no desktop: heroi + upload a esquerda e os quizzes a
           direita. Antes tudo ficava empilhado num bloco de 1024px e o botao
           de importar PDF so aparecia la embaixo, quando havia quiz salvo.
           Em tela estreita continua empilhado, na mesma ordem de sempre.
           A coluna da direita e a mais larga das duas: e ela que carrega os
-          nomes dos quizzes, e o heroi ja tem largura de sobra. */}
+          nomes dos quizzes, e o heroi ja tem largura de sobra.
+          Sem items-start as duas colunas tem a MESMA altura - e e isso que
+          permite alinhar a base da ultima fileira de cards com a base da
+          caixa de importacao (ver justify-end e content-end abaixo).
+          Na biblioteca nao ha duas colunas: a lista ocupa a largura toda. */}
       <div
         className={
-          recent.length > 0
-            ? "lg:grid lg:grid-cols-[1.5fr_1fr] lg:items-start lg:gap-10"
+          !library && recent.length > 0
+            ? "lg:grid lg:grid-cols-[1.5fr_1fr] lg:gap-10"
             : undefined
         }
       >
-      {/* Os 3 quizzes mais recentes ficam no topo, para continuar de onde parou */}
-      {recent.length > 0 ? (
-        <section className="mb-12 lg:order-2 lg:mb-0">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="text-sm font-semibold text-ink-muted">
-              Continuar de onde parou
-            </h2>
-            {recent.length > 9 ? (
-              <button
-                type="button"
-                onClick={() => setShowAll((value) => !value)}
-                className="text-xs text-brand-soft transition hover:underline"
-              >
-                {showAll
-                  ? "Mostrar só os 9 mais recentes"
-                  : `Ver todos os ${recent.length}`}
-              </button>
-            ) : null}
-          </div>
+      {/* Os quizzes recentes ficam no topo, para continuar de onde parou */}
+      {library || recent.length > 0 ? (
+        <section
+          className={
+            library
+              ? "mb-12 flex flex-col"
+              : "mb-12 flex flex-col lg:order-2 lg:mb-0"
+          }
+        >
+          {/* flex-col + content-end: a grade ocupa toda a altura da coluna
+              e empurra as cards para baixo, de modo que a base da ultima
+              fileira caia exatamente na base da caixa de importacao. O
+              espaco que sobra aparece entre o titulo e as cards (nao alem
+              delas), entao as duas colunas terminam juntas. */}
+          {!library ? (
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-sm font-semibold text-ink-muted">
+                Continuar de onde parou
+              </h2>
+              {recent.length > 9 ? (
+                <Link
+                  href="/quizzes"
+                  className="text-xs text-brand-soft transition hover:underline"
+                >
+                  Ver todos os {recent.length}
+                </Link>
+              ) : null}
+            </div>
+          ) : null}
 
           {auth.configured && !auth.user ? (
             <p className="mt-2 rounded-lg border border-brand/25 bg-brand/10 px-3 py-2 text-xs text-brand-soft">
@@ -462,7 +515,25 @@ function UploadScreen({
             </p>
           ) : null}
 
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {library && recent.length === 0 ? (
+            <div className="panel mt-3 p-6 text-center text-sm text-ink-muted">
+              Nenhum quiz salvo ainda.{" "}
+              <Link
+                href="/"
+                className="text-brand-soft transition hover:underline"
+              >
+                Envie um PDF
+              </Link>
+            </div>
+          ) : null}
+
+          {/* Na biblioteca cabem mais colunas: nao ha heroi disputando
+              largura ao lado. */}
+          <div
+            className={`mt-3 grid flex-1 content-end gap-3 sm:grid-cols-2 ${
+              library ? "lg:grid-cols-3 xl:grid-cols-4" : "lg:grid-cols-3"
+            }`}
+          >
             {visible.map((item) => {
               const state = savedStates[item.id];
               const answered = state ? Object.keys(state.answers).length : 0;
@@ -472,7 +543,7 @@ function UploadScreen({
               return (
                 <div
                   key={item.id}
-                  className="panel-soft flex flex-col gap-3 p-4"
+                  className="panel-soft flex flex-col gap-2.5 p-3"
                 >
                   <button
                     type="button"
@@ -486,7 +557,7 @@ function UploadScreen({
                       {countLabel(item.stats.total, "questão", "questões")} ·{" "}
                       {new Date(item.createdAt).toLocaleDateString("pt-BR")}
                     </p>
-                    <p className="mt-1 text-xs">
+                    <p className="mt-0.5 text-xs">
                       {finished ? (
                         <span className="text-ok">
                           Finalizado · {answered}/{item.stats.total}{" "}
@@ -503,34 +574,42 @@ function UploadScreen({
                     </p>
                   </button>
 
-                  <div className="flex flex-wrap items-center gap-1.5">
+                  {/* Uma unica fileira de acoes: o primario ocupa o que sobra
+                      e as acoes secundarias viram icone de 32px. Com tres
+                      botoes de texto lado a lado nao cabia em 148px, entao o
+                      flex-wrap quebrava em 2-3 fileiras e cada fileira extra
+                      somava ~42px de altura ao card. Era isso que empurrava a
+                      ultima fileira para alem da caixa de importacao.
+                      p-0 e obrigatorio aqui: o .btn traz padding 0.625/1.125
+                      e, somado ao size-8, deixaria o conteudo com largura
+                      negativa (o mesmo bug das setas). */}
+                  <div className="mt-auto flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => onResume(item)}
-                      className="btn btn-primary min-h-9 px-3 py-2 text-xs"
+                      className="btn btn-primary min-h-8 min-w-0 flex-1 px-1.5 py-1.5 text-xs"
                     >
-                      {finished
-                        ? "Ver resultado"
-                        : started
-                          ? "Continuar"
-                          : "Começar"}
+                      {finished ? "Resultado" : started ? "Continuar" : "Começar"}
                     </button>
                     {started ? (
                       <button
                         type="button"
                         onClick={() => onRestart(item)}
-                        className="btn btn-ghost min-h-9 px-3 py-2 text-xs"
+                        title="Refazer do zero"
+                        aria-label="Refazer do zero"
+                        className="btn btn-ghost grid size-8 place-items-center p-0"
                       >
-                        <RotateCcw className="size-3" />
-                        Refazer
+                        <RotateCcw className="size-3.5" />
                       </button>
                     ) : null}
                     <button
                       type="button"
                       onClick={() => onDelete(item.id)}
-                      className="btn btn-ghost min-h-9 px-3 py-2 text-xs"
+                      title="Remover quiz"
+                      aria-label="Remover quiz"
+                      className="btn btn-ghost grid size-8 place-items-center p-0"
                     >
-                      Remover
+                      <Trash2 className="size-3.5" />
                     </button>
                   </div>
                 </div>
@@ -541,9 +620,12 @@ function UploadScreen({
       ) : null}
 
       {/* Heroi + upload ocupam a coluna da esquerda (o span de 2 colunas
-          so existia quando o grid tinha 3 trilhos) */}
-      <div className="lg:order-1">
-      <div className="mx-auto text-center">
+          so existia quando o grid tinha 3 trilhos). flex-col e o que
+          permite a caixa de importacao esticar ate a base da coluna.
+          Fora da home (pagina /quizzes) nao ha heroi nem caixa. */}
+      {!library ? (
+        <div className="lg:flex lg:flex-col lg:order-1">
+      <div className="mx-auto w-full text-center">
         <span className="chip mx-auto border-brand/40 bg-brand/10 text-brand-soft">
           <Sparkles className="size-3.5" />
           Do PDF ao quiz em segundos
@@ -559,7 +641,11 @@ function UploadScreen({
         </p>
       </div>
 
-      <div className="mx-auto mt-9 max-w-4xl">
+      {/* flex-1 + justify-end: a caixa ocupa o resto da coluna e fica
+          ancorada na base, de modo que a borda inferior dela coincida com
+          a base da ultima fileira de cards. mt-9 continua valendo quando
+          nao ha espaco a distribuir, entao o respiro de sempre se mantem. */}
+      <div className="mx-auto mt-9 flex w-full max-w-4xl flex-col justify-end lg:flex-1">
         {error ? (
           <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-bad/35 bg-bad/10 p-3.5 text-sm text-bad">
             <CircleAlert className="mt-0.5 size-4 shrink-0" />
@@ -569,9 +655,13 @@ function UploadScreen({
 
         <UploadZone onFiles={onFiles} busy={false} onSample={onSample} />
       </div>
-      </div>
+        </div>
+      ) : null}
       </div>
 
+      {/* Secoes de roda pe: so fazem sentido na home */}
+      {!library ? (
+        <>
       <section className="mx-auto mt-16">
         <h2 className="text-center text-sm font-semibold uppercase tracking-wider text-ink-faint">
           Como funciona
@@ -624,6 +714,8 @@ function UploadScreen({
           text="Exporte o resultado em PDF pelo navegador ou em JSON."
         />
       </section>
+        </>
+      ) : null}
     </main>
   );
 }

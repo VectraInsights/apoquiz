@@ -2820,3 +2820,216 @@ topo quando a cap mudar.
 | `npm run lint` | ✅ 0 errors |
 | `npm run build` | ✅ build de produção concluído |
 | `v2.9` no cabeçalho | ✅ |
+
+---
+
+## 56. Parser: `teste.pdf` de volta a 1824 sem regredir o corpus
+
+### O pedido
+
+O `teste.pdf` (2706 páginas, concurso do Contagem-MG) tinha **979 das 1824
+questões** lidas. A meta era chegar em 1824/1824/0 **sem** perder nada do
+corpus `C:\Users\Victor\Desktop\QUESTOES` (133 PDFs), que estava em
+5190/5190/0.
+
+A regra de escopo é rígida: **só os PDFs da pasta QUESTOES e suas
+subpastas**. RESUMO, TEORIA e ContagemMG ficam de fora.
+
+### Instrumentação (o que tornou o diagnóstico possível)
+
+Sem número não dá para corrigir layout de texto — três scripts novos:
+
+| script | o que faz |
+| --- | --- |
+| `scripts/dbg-fases.ts` | remove item a item, por fase (1/2a/2b/2c), página a página; `--resumo` faz o histograma do corpus inteiro |
+| `scripts/dbg-questao.ts` | pega as chaves que faltam → em qual página → diff de linha contra a referência |
+| `scripts/dbg-diff.ts` | diff linha a linha entre a saída de referência e a nova |
+
+O `dbg-fases --resumo` foi o que decidiu o caso.
+
+### O diagnóstico
+
+Nos 2706 páginas, a fase **2a** ("mesma frase em dois lugares") marcou
+**1121 itens em 234 páginas**. Histograma do comprimento do texto marcado:
+
+| comprimento | itens | exemplos |
+| --- | --- | --- |
+| 1 | 1076 | `a` 208x, `b` 153x, `2` 136x, `e` 122x, `n` 65x |
+| 2–5 | 17 | — |
+| 8 | 11 | `gabarito` |
+| 13+ | 17 | todos títulos de seção (`1.9 concordância verbal…`) |
+
+Ou seja: **96% dos "achados" da 2a eram token solto** — letra de alternativa,
+dígito, conectivo. E os 17 restantes eram **títulos de seção**, cuja remoção
+re-numerava as questões da página (em p546 a chave `1.9#369` passava a ser
+atribuída à seção anterior e a questão "sumia" sem ser apagada).
+
+Nas 16 páginas das 22 questões que faltavam, `provaDeCopia` era `false`, a
+fase 1 não removia nada e a 2a só tirava token solto — mas **cada hit da 2a
+abrava a porta da 2c**, que aí comia o cabeçalho `Questão 369` inteiro.
+
+### As três tentativas
+
+| | teste.pdf | QUESTOES |
+| --- | --- | --- |
+| original | 979/969, **22 faltando** | 5190/5190/0 |
+| 1ª: só 2c atrás de `remover.size > 0` | 1803, **22 faltando** | — |
+| 2ª: função **inteira** atrás de `provaDeCopia` | **1824/1824/0** ✅ | **5128/5110/16** ❌ |
+| **3ª (final)** | **1824/1824/0** ✅ | **5193/5193/0** ✅ |
+
+A 2ª tentativa passou no alvo e regrediu o corpus: sem prova de cópia a 2a
+também parava de agir, e o corpus *precisa* dela.
+
+### A configuração final
+
+Três cortes, todos em `lib/pdf/lines.ts`:
+
+1. **`MINIMO_FRASE = 12`** na 2a — o mesmo corte que a 2b **já usava**.
+   Dois "achados" só contam como mesma frase se tiverem 12 caracteres.
+2. **exclusão de `SECTION_TITLE_ITEM`** na 2a — título de seção é estrutura
+   do documento, nunca cópia.
+3. **2c atrás de `if (remover.size > 0 || provaDeCopia)`** — a única fase
+   que apaga por *geometria* (fonte maior que a mediana, dentro de uma
+   banda horizontal) só roda com prova: ou a fase anterior achou deslocamento
+   de cópia, ou 2a/2b acharam texto repetido na página.
+
+A 2a, mesmo cortada, ainda é suficiente para abrir a 2c nas páginas que
+realmente têm duas renderizações — por isso o corpus não regrediu.
+
+### Resultado no corpus (133 arquivos)
+
+| métrica | antes (HEAD) | agora |
+| --- | --- | --- |
+| questões lidas / com resposta | 5190 / 5190 | **5193 / 5193** |
+| arquivos sem resposta | 0 | **0** |
+| **chaves do gabarito não lidas** | **13 em 12 arquivos** | **10 em 10 arquivos** |
+| páginas marcadas como duplicadas | 570 | 153 |
+
+A métrica que decide é a de negrito: `varredura.ts` só imprimia
+`found`/`answered`, que **não comparam contra o gabarito** — um parser que
+lê *menos* continuaria passando. Por isso o script ganhou o contador
+`falta=` (`PdfDiagnostics.missingQuestions`), com o total por arquivo.
+
+O `+3` são exatamente as 3 questões recuperadas:
+
+| arquivo | antes | agora |
+| --- | --- | --- |
+| `OPERAÇÕES FUNDAMENTAIS…` | 55/55, **falta 1** | **56/56, falta 0** |
+| `RESOLUÇÃO DE PROBLEMAS…RACIOCÍNIO LÓGICO` | 31/31, **falta 2** | **33/33, falta 0** |
+
+Os outros 131 arquivos não mudaram de contagem **e nenhum arquivos
+regrediu** (ninguém saiu de `falta=0` para `falta>0`).
+
+A queda de `dup` (570 → 153) é esperada: `duplicatedPages` conta páginas em
+que a limpeza de layout *removeu* alguma coisa, e a 2c — que era a que mais
+apagava — agora exige prova. O conteúdo dela não era perda: as 3 questões a
+mais vieram justamente das páginas que ela apagava à toa.
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `teste.pdf` | ✅ **1824/1824/0** |
+| `QUESTOES` lidas / resposta | ✅ **5193/5193** |
+| `QUESTOES` arquivos sem resposta | ✅ **0** |
+| chaves do gabarito não lidas | ✅ **13 → 10** |
+| arquivos regredidos | ✅ **nenhum** |
+| `npm run typecheck` | ✅ sem erros |
+| `npm run lint` | ✅ 0 errors |
+| `npm run build` | ✅ build de produção concluído |
+
+---
+
+## 57. Home: última fileira de cards no pé da caixa de PDF + página `/quizzes`
+
+### O pedido
+
+> Repaginar os cards de quiz para que os da última linha fiquem alinhados
+> ao fim da caixa de importar PDF. E, quando tiver mais de 9 quizzes, o
+> botão "Ver todos os quizzes" deve abrir uma **nova página** com todos,
+> em vez de expandir na home.
+
+### Por que as fileiras desalinhavam
+
+Duas causas independentes, ambas na coluna direita:
+
+1. **`flex-wrap` nas ações do card.** Três botões de texto lado a lado não
+   cabiam em ~148px, então quebravam em 2–3 fileiras, e **cada fileira
+   extra somava ~42px** à altura do card. Com 9 cards isso empurrava a
+   última linha para além da caixa.
+2. **As colunas não tinham a mesma altura.** O grid tinha `items-start`,
+   então a coluna direita terminava onde o conteúdo terminava — não onde a
+   coluna esquerda terminava.
+
+### A fileira única de ações
+
+O card virou `p-3 gap-2.5` com **uma** fileira de ações:
+
+| | antes | agora |
+| --- | --- | --- |
+| ações | 3 botões de texto + `flex-wrap` | primário `flex-1` + ícones de 32px |
+| altura da fileira | 42–126px (1–3 linhas) | **32px sempre** |
+| card | altura variável | **160–176px** |
+
+`p-0` nos botões de ícone é **obrigatório**: o `.btn` traz padding
+0.625/1.125rem e, somado ao `size-8`, deixaria o conteúdo com largura
+negativa — é o mesmo bug das setas da §53.
+
+### O alinhamento
+
+Sem `items-start` as duas colunas passam a ter **a mesma altura**. Aí:
+
+- coluna esquerda → `lg:flex lg:flex-col`, com o `div` da dropzone em
+  `flex flex-col justify-end lg:flex-1` (esticava até o pé, e `flex-1`
+  mantém o `mt-9` de 36px quando não sobra espaço — `mt-auto` zeraria);
+- coluna direita → `section flex flex-col`, grade em `flex-1 content-end`
+  (empurra as fileiras para baixo, sobrando espaço entre o título e os
+  cards, nunca abaixo deles).
+
+Medido em viewport de 1440px (iframe, já que a janela do desktop tem 1000px):
+
+| elemento | `top` | `bottom` |
+| --- | --- | --- |
+| caixa de importar PDF | 362 | **716** |
+| grade de cards | 196 | **716** |
+| última fileira (3 × 160px) | 556 | **716** |
+
+### Botões do card
+
+| caso | filhos | primário | overflow |
+| --- | --- | --- | --- |
+| não iniciado | 2 | 107px `Começar` | nenhum |
+| em andamento / finalizado | 3 | **69px** `Continuar` / `Resultado` | **nenhum** |
+
+Mesmo no caso mais apertado (primário + 2 ícones = 69px) o label cabe sem
+estourar, e a fileira continua com **32px** — sem quebra.
+
+### A página `/quizzes`
+
+- `QuizApp` ganhou `view?: "home" | "library"`; em `library` some o herói,
+  as seções de rodapé e a caixa de upload (ela fica na home), e entra um
+  cabeçalho próprio com "← Voltar".
+- A grade vira `lg:grid-cols-3 xl:grid-cols-4` (não há herói disputando
+  largura) e mostra **todos** os quizzes.
+- `UploadScreen` ganhou `library`; `showAll`/`setShowAll` saíram — na home
+  o corte é `slice(0, 9)` e o botão virou `<Link href="/quizzes">`.
+- `handleNewFile` faz `router.push("/")` no modo biblioteca, porque a caixa
+  de importação mora na home.
+- Rota nova `app/quizzes/page.tsx` com `metadata` próprio.
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| base da caixa de PDF | ✅ 716 |
+| base da última fileira | ✅ 716 |
+| altura dos cards | ✅ uniforme dentro de cada fileira |
+| fileira de ações | ✅ 32px, sem `flex-wrap` |
+| label no caso de 3 botões (69px) | ✅ sem overflow |
+| botões de ícone com `p-0` | ✅ 32×32, ícone visível |
+| "Ver todos os 10" → `/quizzes` | ✅ link de rota nova |
+| rota `/quizzes` no build | ✅ `├ ○ /quizzes` |
+| `npm run typecheck` | ✅ sem erros |
+| `npm run lint` | ✅ 0 errors |
+| `npm run build` | ✅ build de produção concluído |
+| `v2.10` no cabeçalho | ✅ |
