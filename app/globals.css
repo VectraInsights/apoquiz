@@ -31,10 +31,7 @@ html {
 }
 
 body {
-  background:
-    radial-gradient(900px 500px at 12% -10%, rgba(124, 108, 248, 0.16), transparent 60%),
-    radial-gradient(760px 460px at 92% 4%, rgba(52, 211, 153, 0.09), transparent 62%),
-    var(--color-canvas);
+  background: var(--color-canvas);
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
