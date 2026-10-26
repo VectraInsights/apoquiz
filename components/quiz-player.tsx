@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -196,6 +196,16 @@ export function QuizPlayer({
     // Mantém a lista de tópicos sempre visível; o usuário pode esconder
     // pelo botão de colapso se preferir.
   };
+
+  // Navegação por teclado: setas esquerda/direita trocam a pergunta.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "ArrowLeft") previousQuestion();
+      if (event.key === "ArrowRight") nextQuestion();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [previousQuestion, nextQuestion]);
 
   // Opção do estado visual da alternativa (.option usa data-state no CSS)
   const optionState = (option: { label: string }): "selected" | "correct" | "wrong" | null => {
